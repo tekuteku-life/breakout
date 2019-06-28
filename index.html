@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="ja">
+	<head>
+		<!--Copyright (C) 2010-2012 kt9, All rights reserved.-->
+		<title>ブロック崩し</title>
+		<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+		<meta content="no-cache" http-equiv="Cache-Control" />
+		<meta http-equiv="content-style-type" content="text/css" />
+		<meta http-equiv="content-script-type" content="text/javascript" />
+
+		<link rel="shortcut icon" href="./icon/128icon.ico" />
+		<link rel="stylesheet" href="./style.css" type="text/css" />
+		<script type="text/javascript" src="./setup/default.js" id="setup"></script>
+		<script type="text/javascript" src="./src/screen.js"></script>
+		<script type="text/javascript" src="./src/script.js"></script>
+	</head>
+
+	<body onselectstart="return false;">
+		<div>
+			<canvas id="static"></canvas>
+			<canvas id="dynamic"></canvas>
+			<div id="canvas_background"></div>
+			<div id="play_info"></div>
+			<div id="debug_info"></div>
+		</div>
+
+		<div id="screenStock">
+			<div id="screen_start">
+				<h2>ブロック崩し</h2>
+				<div style="margin-top: 10em;">&nbsp;</div>
+				<a href="javascript:allClose();" class="barButton">Start</a>
+				<a href="javascript:openScreen('screen_help');" class="barButton">Help</a>
+				<a href="javascript:openScreen('screen_setting');" class="barButton">Setting</a>
+			</div>
+
+			<div id="screen_pause" style="opacity: 0.9;">
+				<h2 class="little_title">Pause...</h2>
+				<div style="margin-top: 6em;">&nbsp;</div>
+				<a href="javascript:ctrl.pauseSwitchOff();" class="barButton">Continue</a>
+				<a href="javascript:openScreen('screen_help');" class="barButton">Help</a>
+				<a href="javascript:openScreen('screen_setting');" class="barButton">Setting</a>
+				<a href="javascript:init(0); closeScreen('screen_pause'); openScreen('screen_start');" class="barButton">End</a>
+			</div>
+
+			<div id="screen_loading">
+				<h2 class="little_title" style="margin-top: 3.5em; padding: 0.2em; background-color: #bcbcbc;">Loading...</h2>
+			</div>
+
+			<div id="screen_setting">
+				<h2 class="little_title">Setting</h2>
+				<form id="setting_form">
+					<label for="setup_select">Setting</label><select id="setup_select">
+						<option value="./setup/default.js">Default</option>
+						<option value="./setup/default_debug.js">Debug Mode</option>
+					</select><br />
+					<label for="continue_select">Continue</label><select id="continue_select"></select><br />
+					<label for="stage_select">Stage</label><select id="stage_select"></select><br />
+					<label for="sound_select">Sound</label><select id="sound_select"></select><br />
+					<label for="sizefit_select">Size Fit</label><select id="sizefit_select"></select><br />
+					<label for="ctrl_select">Control</label><select id="ctrl_select"></select><br />
+				</form>
+				<div style="margin-top: 1.51em;">&nbsp;</div>
+				<a href="javascript:closeScreen('screen_setting');" class="barButton">Back</a>
+			</div>
+
+			<div id="screen_help">
+				<h2 class="little_title">Help</h2>
+				<ul>
+					<li><a href="javascript:openScreen('screen_control');">操作の仕方</a></li>
+					<li><a href="javascript:openScreen('screen_block');">ブロックの種類</a></li>
+					<li><a href="javascript:openScreen('screen_item');">アイテムの種類</a></li>
+					<li><a href="javascript:openScreen('screen_award');">アワードの種類</a></li>
+					<li><a href="javascript:openScreen('screen_record');">レコードの閲覧</a></li>
+					<li><a href="javascript:openScreen('screen_about');">このゲームについて</a></li>
+				</ul>
+				<div style="margin-top: 8em;">&nbsp;</div>
+				<a href="javascript:closeScreen('screen_help');" class="barButton">Back</a>
+			</div>
+
+			<div id="screen_control">
+				<h2 class="little_title">Control</h2>
+				<ul>
+					<li>
+						画面上でクリックすると球が発射されます。但し、二個以上は打ち出せません。<br />
+						球を発射するときに、長押しで垂直方向の速度、ドラッグで平行方向の速度が調節できます。
+					</li>
+					<li>反射バーの両端を利用するか、接触する瞬間に反射バーを動かすことで、球の水平方向速度を変えられます。</li>
+					<li>設定欄のSoundをオンにすると効果音が流れるようになります。</li>
+					<li>設定欄のGameを「new」にすると常に最初から、「continue」にすると続きのステージからプレイできます。</li>
+					<li>設定欄のSize Fitを「Fit Size」にするとプレイ画面サイズを自動で最適化し、「Fixed Size」にすると固定になります。</li>
+					<li>プレイ中、画面を右クリックするとプレイを一時停止することができます。</li>
+					<li>FPSが低すぎる場合には、警告とともにプレイが止まります。環境を整えてプレイしてください。</li>
+					<li>
+						設定欄のControlを変更することで、操作方法を選択することができます（キーの割当ては以下）。<br />
+						また、反射バーの移動及びボール・武器の発射以外の動作は常にショートカットキーから行うことが出来ます。<br />
+						[A・4]：左へ移動、[L・6]：右へ移動、[Space・5]：ボールや武器の発射<br />
+						[P・0]：一時停止・メニュー、[Z・8]：オートプレイ、[C・9]：操作切替、[S・1]：サウンド切替<br />
+						[F・7]：画面サイズ設定切り替え、[U・R]：ステージの変更<br />
+						※すべて半角入力のみ操作可能
+					</li>
+				</ul>
+				<a href="javascript:closeScreen('screen_control');" class="barButton">Back</a>
+			</div>
+
+			<div id="screen_record">
+				<h2 class="little_title">Record</h2>
+				<div class="record_title">-スコア成績-</div>
+				<form class="record_form">
+					Record Type: <select id="record_type"></select> / Stage: <select id="record_stage"></select><input type="button" value="Reload" id="reload_record" style="margin-left: 1em;">
+				</form>
+				<ul class="record">
+					<li>------------------------------------</li>
+					<li>プレイ回数：<!--play_num-->times</li>
+					<li>クリア回数：<!--clear_num-->times (勝率：<!--clear_ratio-->%）</li>
+					<li>残りライフ数：<!--remainder_life_num-->lives</li>
+					<li>ボール個数：<!--ball_number_num-->balls</li>
+					<li>無敵・強化状態クリア：<!--strengthened_clear_num--></li>
+					<li>連続破壊数：<!--continuous_break_number_num-->blocks</li>
+					<li>連続破壊クリア：<!--continuous_break_clear_num-->balls</li>
+					<li>クリア時間：<!--clear_time_num-->sec</li>
+					<li>アイテム取得数：<!--get_item_number_num-->items</li>
+					<li>落下球数：<!--fall_ball_number_num-->balls</li>
+					<li>------------------------------------</li>
+					<li>得点：<!--stageScor-->pt</li>
+				</ul>
+				<form class="record_form">
+					<input type="button" value="Reset all" id="reset_record">
+				</form>
+				<a href="javascript:closeScreen('screen_record');" class="barButton">Back</a>
+			</div>
+
+			<div id="screen_item">
+				<h2 class="little_title">Item</h2>
+				<ul>
+					<li>
+						<span class="description_title">球倍増</span> … 球が二倍に増えます。但し、一定個数以上は増えません。
+					</li>
+					<li>
+						<span class="description_title">強化状態[t]</span> … 固定ブロック以外のすべてのブロックを一撃で破壊でき、衝突時に速度が最大となります。
+					</li>
+					<li>
+						<span class="description_title">無敵状態[t]</span> … 固定ブロックを含むすべてのブロックを一撃で破壊でき、反射しません。
+					</li>
+					<li>
+						<span class="description_title">バー伸長・縮小[t]</span> … 反射バーが一定の割合で伸び縮みします。
+					</li>
+					<li>
+						<span class="description_title">ライフ増加・減少</span> … ライフが増減します。これにより、ライフが０となるとゲームは終了します。
+					</li>
+					<li>
+						<span class="description_title">球加速・減速</span> … 球の速度が一定の割合で加速・減速します。
+					</li>
+					<li>
+						<span class="description_title">銃[t]</span> … 反射バーから銃を撃ってブロックを破壊することができます。但し、威力は普通球と同じです。
+					</li>
+					<li>
+						<span class="description_title">ミサイル[t]</span> … 反射バーからミサイルを撃ってブロックを破壊することができます。但し、威力は無敵球と同じです。
+					</li>
+					<li>
+						<span class="description_title">バー速度鈍化[t]</span> … バーの移動速度が一定の割合で低下します。
+					</li>
+					<li>
+						<span class="description_title">バー振動[t]</span> … バーが左右に振動します。
+					</li>
+					<li>
+						<span class="description_title">球の吸着[t]</span> … バーに球が吸着し、クリックで再発射出来るようになります。
+					</li>
+					<li>
+						<span class="description_title">不死身[t]</span> … 球を落としてもライフが減らなくなります。
+					</li>
+					<li>
+						<span class="description_title">画面難視化[t]</span> … 画面が見づらくなります。
+					</li>
+				</ul>
+				※[t]…制限時間を過ぎると状態が解除されるアイテム
+				<div style="margin-top: 1em;">&nbsp;</div>
+				<a href="javascript:closeScreen('screen_item');" class="barButton">Back</a>
+			</div>
+
+			<div id="screen_block">
+				<h2 class="little_title">Block</h2>
+				<ul>
+					<li>
+						<span class="description_title">通常</span> … 一度で破壊でき、球は反射します。
+					</li>
+					<li>
+						<span class="description_title">脆弱</span> … 一度で破壊でき、球は反射しません。
+					</li>
+					<li>
+						<span class="description_title">破壊不可</span> … 通常は破壊不可能で、衝突すると球は反射します。
+					</li>
+					<li>
+						<span class="description_title">強化</span> … 複数回球を衝突させないと破壊できません。
+					</li>
+					<li>
+						<span class="description_title">爆弾</span> … 爆発するブロックです。一度で破壊でき、周りのブロックも一緒に破壊されます。
+					</li>
+					<li>
+						<span class="description_title">燃料</span> … 爆弾ブロックによって爆発するブロックですが、球の衝突による破壊は通常ブロックと同じとなります。
+					</li>
+					<li>
+						<span class="description_title">球変速</span> … 衝突した球が強く・弱く反射します。
+					</li>
+					<li>
+						<span class="description_title">爆弾＋無敵状態化</span> … 爆弾ブロックと同じですが、衝突した球を無敵状態にします。
+					</li>
+					<li>
+						<span class="description_title">時限回復式</span> … 強化ブロックと同じですが、カウントダウンが終わるまでに再度衝突させないと元に戻ります。
+					</li>
+					<li>
+						<span class="description_title">移動</span> … 一定速度で横へ移動していき、端又は他のブロックまで行くと反対へ進み、これを繰り返します。
+					</li>
+					<li>
+						<span class="description_title">透過</span> … 球が一定方向に衝突したときのみ、透過します。
+					</li>
+					<li>
+						<span class="description_title">ワープ</span> … 入口から入った球は出口にワープします。出口ブロックはランダムに選択されます。決して破壊できません。
+					</li>
+					<li>
+						<span class="description_title">引力・斥力</span> … ブロックの近傍を通過するときに、球が引力又は斥力を受けます。
+					</li>
+					<li>
+						<span class="description_title">点滅</span> … ブロックが消えたり現れたりを繰り返します。
+					</li>
+					<li>
+						<span class="description_title">攻撃</span> … 武器を発射してきます。この攻撃を一定回数を受けるとライフが減少します。
+					</li>
+				</ul>
+				<div style="margin-top: 1em;">&nbsp;</div>
+				<a href="javascript:closeScreen('screen_block');" class="barButton">Back</a>
+			</div>
+			
+			<div id="screen_award">
+				<h2 class="little_title">Award</h2>
+				<ul>
+					<li>
+						<span class="description_title">残りライフ数</span> … クリア時点での残りライフ数が2以上の場合、ライフ数に応じた得点が得られます。
+					</li>
+					<li>
+						<span class="description_title">ボール個数</span> … クリア時点での残り球数が2個以上の場合、球数に応じた得点が得られます。
+					</li>
+					<li>
+						<span class="description_title">無敵・強化状態クリア</span> … クリア時点で球が1個でも無敵・強化状態の場合、得点が得られます。
+					</li>
+					<li>
+						<span class="description_title">連続破壊数</span> … ステージ内での最大連続破壊数に応じて得点が得られます。
+					</li>
+					<li>
+						<span class="description_title">連続破壊クリア</span> … クリア時点での連続破壊数に応じて得点が得られます。
+					</li>
+					<li>
+						<span class="description_title">クリア時間</span> … ステージ内でのクリア時間に応じて得点が得られます。
+					</li>
+					<li>
+						<span class="description_title">アイテム取得数</span> … アイテムを取得した数に応じて点数が得られます。
+					</li>
+					<li>
+						<span class="description_title">落下球数</span> … 取りこぼした球の数に応じて点数が引かれます。
+					</li>
+				</ul>
+				<div style="margin-top: 4.55em;">&nbsp;</div>
+				<a href="javascript:closeScreen('screen_award');" class="barButton">Back</a>
+			</div>
+
+			<div id="screen_stageClear">
+				<h2 class="little_title">Stage Clear!!</h2>
+				<div class="record_title">-成績-</div>
+				<ul class="record">
+					<li style="font-size: 1.1em; font-weight: bold;">Stage: <!--stage_title--></li>
+					<li>------------------------------------</li>
+					<li>残りライフ数：<!--remainder_life_pt-->pt (<!--remainder_life_num-->lives)</li>
+					<li>ボール個数：<!--ball_number_pt-->pt (<!--ball_number_num-->balls)</li>
+					<li>無敵・強化状態クリア：<!--strengthened_clear_pt-->pt</li>
+					<li>連続破壊数：<!--continuous_break_number_pt-->pt (<!--continuous_break_number_num-->blocks)</li>
+					<li>連続破壊クリア：<!--continuous_break_clear_pt-->pt (<!--continuous_break_clear_num-->balls)</li>
+					<li>クリア時間：<!--clear_time_pt-->pt (<!--clear_time_num-->sec)</li>
+					<li>アイテム取得数：<!--get_item_number_pt-->pt (<!--get_item_number_num-->items)</li>
+					<li>落下球数：<!--fall_ball_number_pt-->pt (<!--fall_ball_number_num-->balls)</li>
+					<li>------------------------------------</li>
+					<li>ステージ合計：<!--sum_point-->pt</li>
+					<li>得点：<!--point-->pt</li>
+				</ul>
+				<div style="margin-top: 1.51em;">&nbsp;</div>
+				<a href="javascript:allClose();" class="barButton">Next</a>
+			</div>
+
+			<div id="screen_allClear">
+				<h2 class="little_title">All Stage Clear!!</h2>
+				<div class="record_title">-成績-</div>
+				<ul class="record">
+					<li>残りライフ数：<!--remainder_life_pt-->pt (<!--remainder_life_num-->lives)</li>
+					<li>ボール個数：<!--ball_number_pt-->pt (<!--ball_number_num-->balls)</li>
+					<li>無敵・強化状態クリア：<!--strengthened_clear_pt-->pt</li>
+					<li>連続破壊数：<!--continuous_break_number_pt-->pt (<!--continuous_break_number_num-->blocks)</li>
+					<li>連続破壊クリア：<!--continuous_break_clear_pt-->pt (<!--continuous_break_clear_num-->balls)</li>
+					<li>クリア時間：<!--clear_time_pt-->pt (<!--clear_time_num-->sec)</li>
+					<li>アイテム取得数：<!--get_item_number_pt-->pt (<!--get_item_number_num-->items)</li>
+					<li>落下球数：<!--fall_ball_number_pt-->pt (<!--fall_ball_number_num-->balls)</li>
+					<li>------------------------------------</li>
+					<li>ステージ合計：<!--sum_point-->pt</li>
+					<li>得点：<!--point-->pt</li>
+				</ul>
+				<div style="margin-top: 1.51em;">&nbsp;</div>
+				<a href="javascript:allClose();openScreen('screen_start');" class="barButton">Top</a>
+			</div>
+
+			<div id="screen_gameOver">
+				<h2 class="little_title">Game Over...</h2>
+				<div class="record_title">-成績-</div>
+				<ul class="record">
+					<li style="font-size: 1.1em; font-weight: bold;">Stage: <!--stage_title--></li>
+					<li>------------------------------------</li>
+					<li>残りライフ数：<!--remainder_life_pt-->pt (<!--remainder_life_num-->lives)</li>
+					<li>ボール個数：<!--ball_number_pt-->pt (<!--ball_number_num-->balls)</li>
+					<li>無敵・強化状態クリア：<!--strengthened_clear_pt-->pt</li>
+					<li>連続破壊数：<!--continuous_break_number_pt-->pt (<!--continuous_break_number_num-->blocks)</li>
+					<li>連続破壊クリア：<!--continuous_break_clear_pt-->pt (<!--continuous_break_clear_num-->balls)</li>
+					<li>クリア時間：<!--clear_time_pt-->pt (<!--clear_time_num-->sec)</li>
+					<li>アイテム取得数：<!--get_item_number_pt-->pt (<!--get_item_number_num-->items)</li>
+					<li>落下球数：<!--fall_ball_number_pt-->pt (<!--fall_ball_number_num-->balls)</li>
+					<li>------------------------------------</li>
+					<li>ステージ合計：<!--sum_point-->pt</li>
+					<li>得点：<!--point-->pt</li>
+				</ul>
+				<div style="margin-top: 1.51em;">&nbsp;</div>
+				<a href="javascript:init(0);allClose();openScreen('screen_start');" class="barButton">Top</a>
+			</div>
+
+			<div id="screen_about">
+				<h2 class="little_title">About</h2>
+				<ul>
+					<li>開発者：kt9</li>
+					<li>開発環境：Windows 10 64bit, Chrome 60</li>
+					<li>現行バージョン：<!--version--></li>
+					<li>最新バージョン：<!--last_version--></li>
+					<li><a href="javascript:openScreen('screen_improvementGoals');" style="color: #000000;">改善目標</a></li>
+				</ul>
+				<div style="margin-top: 12.1em;">&nbsp;</div>
+				<a href="javascript:closeScreen('screen_about');" class="barButton">Back</a>
+			</div>
+
+			<div id="screen_improvementGoals" style="font-size: 0.9em;">
+				<ul style="margin: 1em 0 0 0; padding: 0 0 0 2.5em;">
+					<li>ヘルプ画面でのブロック等の説明に実物を表示（canvas＋idで判別→描画？）</li>
+					<li>
+						システム関係
+						<ul>
+							<li>ボールの当たり判定の改善（頂点の間をすり抜ける，ブロックの隙間で反射する）</li>
+							<li>バーのモーションをputImageDataが使える形に変更する（基本形＋変形で対処できるようにする）</li>
+							<li>拡張性の向上</li>
+							<li>処理・コードの最適化</li>
+							<li>アイテム種別、ボール状態、ブロック種別をenum化</li>
+						</ul>
+					</li>
+					<li>
+						ブロック
+						<ul>
+							<li>消す順番が決まっているブロックを追加</li>
+							<li>ワープブロックにおいてワープしないことがあるバグを修正する</li>
+							<li>一つのブロックに複数の機能を割り当て可能にする（設定時に予めインスタンスを作成？）</li>
+						</ul>
+					</li>
+					<li>
+						オートプレイ機能
+						<ul>
+							<li>武器の到達時間を考慮した球落下地点予測の検討</li>
+							<li>落下中アイテム取得を考慮した最適経路選択の検討（保留）</li>
+							<li>球間隔と時刻を考慮して、間に合う経路を選ぶ（保留）</li>
+							<li>落下物を複数個考慮した動きの検討（保留）</li>
+							<li>動くブロック・時限ブロックを考慮した予測（保留）</li>
+						</ul>
+					</li>
+					<li>
+						アイテム
+						<ul>
+							<li>バーの各状態管理の最適化（バー状態のクラス分離？）</li>
+							<li>ブロックのアイテム化ミサイルの追加（一発＆時間制限，ブロックに当たるとランダムでアイテム化，壊すと発動）</li>
+							<li>敵の攻撃を防ぐバリアーアイテム</li>
+							<li>アイテムの持続時間を長くできるアイテム</li>
+						</ul>
+					</li>
+					<li>
+						アワード
+						<ul>
+						</ul>
+					</li>
+					<li>
+						音
+						<ul>
+						</ul>
+					</li>
+				</ul>
+				<a href="javascript:closeScreen('screen_improvementGoals');" style="display: block; font-size:14px; margin: 10px;">Back</a>
+			</div>
+		</div>
+	</body>
+</html>
