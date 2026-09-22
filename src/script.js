@@ -40,6 +40,19 @@ var awardKeyList = new Array(													// アワードのキー
 );
 
 var blockMap;																	// ブロックマップ
+
+var blockColor;
+var blockLineColor;
+var blockText;
+var blockTextColor;
+var blockLife;
+var blockThrough;
+var blockInfinit;
+var blockBreakLimit;
+var blockFunction;
+var stageTitle;
+var stageLifeUp;
+var blockMapSet;
 //--------グローバル変数の定義----------
 
 //--------定数の定義----------
@@ -4763,7 +4776,9 @@ function changeSetting(file)
 	document.getElementsByTagName('head')[0].appendChild(newScr);
 
 	// 初期化（読み込み完了後）
-	newScr.onload = function() { init(0); }
+	newScr.onload = function() {
+		loadStageDataAndInit();
+	}
 }
 
 
@@ -4846,9 +4861,37 @@ function versionCheck()
 //--------------------------------------------------
 window.onload = function()
 {
-	// 初期化
-	init(0);
+	loadStageDataAndInit(true);
+}
 
+function loadStageDataAndInit(isFirstLoad) {
+	fetch(stageDataJsonPath)
+		.then(response => response.json())
+		.then(data => {
+			blockColor = data.blockColor;
+			blockLineColor = data.blockLineColor;
+			blockText = data.blockText;
+			blockTextColor = data.blockTextColor;
+			blockLife = data.blockLife;
+			blockThrough = data.blockThrough;
+			blockInfinit = data.blockInfinit;
+			blockBreakLimit = data.blockBreakLimit;
+			blockFunction = data.blockFunction;
+			stageTitle = data.stageTitle;
+			stageLifeUp = data.stageLifeUp;
+			blockMapSet = data.blockMapSet;
+
+			init(0);
+			if (isFirstLoad) {
+				finishWindowOnLoad();
+			}
+		})
+		.catch(error => {
+			console.error("Failed to load stage data:", error);
+		});
+}
+
+function finishWindowOnLoad() {
 	// スタート画面の設定
 	openScreen('screen_start');
 
