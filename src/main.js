@@ -1,30 +1,69 @@
+window.foo = 42;
+
+// Stub window for node environment if not in browser
+if (typeof window === 'undefined') {
+    global.window = {};
+    global.document = {
+        getElementById: () => ({
+            getContext: () => ({
+                clearRect: () => {},
+                beginPath: () => {},
+                putImageData: () => {},
+                fillText: () => {},
+                rect: () => {},
+                fill: () => {},
+                stroke: () => {}
+            }),
+            style: {}
+        }),
+        getElementsByTagName: () => ([]),
+        createElement: () => ({})
+    };
+    global.Date = Date;
+}
+
 import Control from "./Control.js";
 import StatusManage from "./StatusManage.js";
-import Bar from "./Bar.js";
-import Ball from "./Ball.js";
-import Item from "./Item.js";
-import Block from "./Block.js";
-import Weapon from "./Weapon.js";
 import Sound from "./Sound.js";
+import ScoreManage from "./ScoreManage.js";
+
 import Heart from "./Heart.js";
 import Cloud from "./Cloud.js";
 import Balloon from "./Balloon.js";
-import ScoreManage from "./ScoreManage.js";
 import ImageData from "./ImageData.js";
 import MessageBox from "./MessageBox.js";
+import GameState from "./GameState.js";
+import BallView from "./entities/Ball.js";
+import BarView from "./entities/Bar.js";
+import BlockView from "./entities/Block.js";
+import ItemView from "./entities/Item.js";
+import WeaponView from "./entities/Weapon.js";
 
-// Copyright (C) 2010-2012 kt9, All rights reserved.
+// Global variables that setup/default.js provides (mocking/extracting into config):
+
 //--------グローバル変数の定義----------
+
+window.awardKeyList = new Array(
+	'remainderLife',
+	'ballNum',
+	'strengClear',
+	'continuousBreakNum',
+	'continuousBreakClear',
+	'clearTime',
+	'getItemNum',
+	'fallBallNum'
+);
+
 window.dynamicCanvas = null;																// 動的描画用キャンバス
 window.staticCanvas = null;																// 静的描画用キャンバス
 window.dynamicCtx = null;																	// 動的描画用コンテキスト
 window.staticCtx = null;																	// 静的描画用コンテキスト
 window.canvasBg = null;																	// キャンバスの背景
 window.bar = null;																		// バー
-window.balls = new Array();														// ボール
-window.items = new Array();														// アイテム
+														// ボール
+														// アイテム
 window.balloons = new Array();														// バルーン
-window.weapons = new Array();														// 武器
+														// 武器
 window.sounds = null;																		// サウンド
 window.statusMng = null;																	// ステータス計算
 window.scoreMng = null;																	// 得点管理
@@ -32,29 +71,13 @@ window.ctrl = null;																		// ゲーム制御
 window.imgData = null;																	// 画像データ
 window.storage = null;																	// Web Storageオブジェクト
 
-window.timer_All = null;																	// 描画と動きのタイマー
-window.FRATE = 1000 / FPS;															// 更新間隔
 
-window.pointX = canvasWidth / 2;													// マウスの横方向座標
-window.pointY = 0;																	// マウスの縦方向座標
-window.mouseDownTime = 0;															// マウスダウン時の時刻
 
-window.keyPressIncr = 0;															// キー長押しによる増加率調整
-window.keyStr = '';																// 押下キー文字
-window.keyCode = '';																// 押下キーコード
+window.gameState = new GameState();
+console.log("GameState created", window.gameState);
 
-window.awardKeyList = new Array(													// アワードのキー
-	'remainderLife',															// 残りライフアワード
-	'ballNum',																	// 球数アワード
-	'strengClear',																// 強化・無敵状態クリアアワード
-	'continuousBreakNum',														// 連続破壊最大数アワード
-	'continuousBreakClear',														// 連続破壊クリアアワード
-	'clearTime',																// クリア時間アワード
-	'getItemNum',																// アイテム取得回数アワード
-	'fallBallNum'																// 球の落下回数アワード
-);
-
-window.blockMap = null;																	// ブロックマップ
+window.physicsWorker = null;
+																	// ブロックマップ
 //--------グローバル変数の定義----------
 
 //--------定数の定義----------
@@ -108,6 +131,7 @@ window.appId = 'breakout';															// アプリケーションID
 //--------------------------------------------------
 // 初期化
 //--------------------------------------------------
+
 function init(offsetStage)
 {
 	// 描画先canvasのコンテキストを取得
@@ -122,416 +146,204 @@ function init(offsetStage)
 	staticCanvas.width = canvasWidth;
 	staticCanvas.height = canvasHeight;
 
-	// Web Storageオブジェクトの生成
 	if( window.localStorage ) {
 		storage = window.localStorage;
-	}
-	else {
+	} else {
 		storage = null;
 	}
 
-	// ゲーム制御
 	ctrl = new Control();
-
-	// ステージインデックスの初期化
 	ctrl.setStageIndex(offsetStage);
 
-	// 設定情報の読み込み
-	if( storage != null )
-	{
-		// 音の設定の読み込み
+	if( storage != null ) {
 		ctrl.loadSoundSwitch();
-
-		// 画面調整の設定の読み込み
 		ctrl.loadSizeFitSwitch();
-
-		// ゲーム開始方法の設定の読み込み
 		ctrl.loadContinueSwitch();
-
-		// 操作方法の読み込み
 		ctrl.loadCtrlSwitch();
-
-		// ステージ情報の読み込み
 		ctrl.loadStageIndex();
 	}
 
-	// サイズを変える
 	ctrl.fixSize();
 
-	// 描画イメージの準備
 	openScreen("screen_loading");
 	imgData = new ImageData(dynamicCtx);
 	imgData.init();
 	closeScreen("screen_loading");
 
-	// ブロック配置の読み込み
-	blockMap = blockMapSet[ctrl.stageIndex].copyMap();
+    // Start Worker
+    if (!physicsWorker) {
+        physicsWorker = new Worker('./src/worker/physicsWorker.js', { type: "module" });
+        gameState.setPhysicsWorker(physicsWorker);
 
-	// セッティングセレクタのセット
-	ctrl.formSelector["setting"].onchange = function() { changeSetting(this.value); }
+        let config = {
+            canvasWidth: canvasWidth,
+            canvasHeight: canvasHeight,
+            statusBarHeight: statusBarHeight,
+            FPS: FPS,
+            ballDefaultSpeed: ballDefaultSpeed,
+            ballMaxSpeed: ballMaxSpeed,
+            ballSize: ballSize,
+            ballColor: ballColor,
+            ballStrongColor: ballStrongColor,
+            ballUltimateColor: ballUltimateColor,
+            ballStatusTime: ballStatusTime,
+            barDefaultSpeed: barDefaultSpeed,
+            barDefaultWidth: barDefaultWidth,
+            barDefaultHeight: barDefaultHeight,
+            barEdge: barEdge,
+            barColor: barColor,
+            barDefaultHP: barDefaultHP,
+            blockWidth: blockWidth,
+            blockHeight: blockHeight,
+            blockFontSize: blockFontSize,
+            blockDefaultPoint: blockDefaultPoint,
+            blockMoveInter: blockMoveInter,
+            blockBlinkInter: blockBlinkInter,
+            blockAttackInter: blockAttackInter,
+            blockLife: blockLife,
+            blockTextColor: blockTextColor,
+            itemWidth: typeof itemWidth !== "undefined" ? itemWidth : 20,
+            itemHeight: typeof itemHeight !== "undefined" ? itemHeight : 20,
+            itemSpeed: typeof itemSpeed !== "undefined" ? itemSpeed : 3,
+            weaponSpeed: typeof weaponSpeed !== "undefined" ? weaponSpeed : [5, 5, 5],
+            weaponWidth: typeof weaponWidth !== "undefined" ? weaponWidth : [4, 6, 6],
+            weaponHeight: typeof weaponHeight !== "undefined" ? weaponHeight : [12, 16, 16],
+            weaponPower: typeof weaponPower !== "undefined" ? weaponPower : [1, 2, 1],
+            weaponMaxNum: typeof weaponMaxNum !== "undefined" ? weaponMaxNum : [3, 3, 3]
+        };
 
-	//----------ステージセレクタのセット----------
-	// オプションの初期化
-	while( ctrl.formSelector["stage"].firstChild ) { ctrl.formSelector["stage"].removeChild( ctrl.formSelector["stage"].firstChild ); }
+        physicsWorker.postMessage({ type: 'init', config: config });
+    }
 
-	for( var i = 0, len = stageTitle.length; i < len; i++ )
-	{
-		// オプションの作成
-		var option = document.createElement('option');
-		option.value = i;
-		option.innerHTML = stageTitle[i];
-		if( ctrl.stageIndex == i ) { option.selected = 'selected'; }
 
-		// オプションの追加
-		ctrl.formSelector["stage"].appendChild( option );
-	}
-	ctrl.formSelector["stage"].onchange = function()
-	{
-		// 値の設定
-		ctrl.setStageIndex(this.value);
 
-		// データの書き込み
-		if( storage != null ) { ctrl.recordStageIndex(); }
+    gameState.blockMap = blockMapSet[ctrl.stageIndex].copyMap();
 
-		// 継続情報のクリア
-		if( storage != null )
-		{
-			storage.setItem("continue_life", defaultLife);
-			storage.setItem("continue_time", 0);
-			storage.setItem("continue_score", 0);
-		}
 
-		// 初期化
-		init( this.value );
-	}
-	//----------ステージセレクタのセット----------
-
-	//----------画面調整セレクタのセット----------
-	// オプションの初期化
-	while( ctrl.formSelector["sizefit"].firstChild ) { ctrl.formSelector["sizefit"].removeChild( ctrl.formSelector["sizefit"].firstChild ); }
-
-	for( var i = 0; i < 2; i++ )
-	{
-		// オプションの作成
-		var option = document.createElement('option');
-		option.value = i;
-		if( i == 0 ) { option.innerHTML = 'OFF'; }
-		else { option.innerHTML = 'ON'; }
-		if( ctrl.sizeFitSwitch == i ) { option.selected = 'selected'; }
-
-		// オプションの追加
-		ctrl.formSelector["sizefit"].appendChild( option );
-	}
-	ctrl.formSelector["sizefit"].onchange = function()
-	{
-		// 設定
-		ctrl.sizeFitSwitch = this.value;
-
-		// データの書き込み
-		if( storage != null ) { ctrl.recordSizeFitSwitch(); }
-
-		// 画面調整
-		ctrl.fixSize();
-	}
-	//----------画面調整セレクタのセット----------
-
-	//----------音セレクタのセット----------
-	// オプションの初期化
-	while( ctrl.formSelector["sound"].firstChild ) { ctrl.formSelector["sound"].removeChild( ctrl.formSelector["sound"].firstChild ); }
-
-	for( var i = 0; i < 2; i++ )
-	{
-		// オプションの作成
-		var option = document.createElement('option');
-		option.value = i;
-		if( i == 0 ) { option.innerHTML = 'OFF'; }
-		else { option.innerHTML = 'ON'; }
-		if( ctrl.soundSwitch == i ) { option.selected = 'selected'; }
-
-		// オプションの追加
-		ctrl.formSelector["sound"].appendChild( option );
-	}
-	ctrl.formSelector["sound"].onchange = function()
-	{
-		// 設定
-		ctrl.soundSwitch = this.value;
-
-		// データの書き込み
-		if( storage != null ) { ctrl.recordSoundSwitch(); }
-	}
-	//----------音セレクタのセット----------
-
-	//----------ゲーム開始位置セレクタのセット----------
-	// オプションの初期化
-	while( ctrl.formSelector["continue"].firstChild ) { ctrl.formSelector["continue"].removeChild( ctrl.formSelector["continue"].firstChild ); }
-
-	for( var i = 0; i < 2; i++ )
-	{
-		// オプションの作成
-		var option = document.createElement('option');
-		option.value = i;
-		if( i == 0 ) { option.innerHTML = 'New'; }
-		else { option.innerHTML = 'Continue'; }
-		if( ctrl.continueSwitch == i ) { option.selected = 'selected'; }
-
-		// オプションの追加
-		ctrl.formSelector["continue"].appendChild( option );
-	}
-	ctrl.formSelector["continue"].onchange = function()
-	{
-		// 設定
-		ctrl.continueSwitch = this.value;
-
-		// データの書き込み
-		if( storage != null ) { ctrl.recordContinueSwitch(); }
-	}
-	//----------ゲーム開始位置セレクタのセット----------
-
-	//----------操作方法セレクタのセット----------
-	// オプションの初期化
-	while( ctrl.formSelector["ctrl"].firstChild ) { ctrl.formSelector["ctrl"].removeChild( ctrl.formSelector["ctrl"].firstChild ); }
-
-	for( var i = 0; i < 2; i++ )
-	{
-		// オプションの作成
-		var option = document.createElement('option');
-		option.value = i;
-		if( i == 0 ) { option.innerHTML = 'Mouse'; }
-		else { option.innerHTML = 'Keyboard'; }
-		if( ctrl.ctrlSwitch == i ) { option.selected = 'selected'; }
-
-		// オプションの追加
-		ctrl.formSelector["ctrl"].appendChild( option );
-	}
-	ctrl.formSelector["ctrl"].onchange = function()
-	{
-		// 設定
-		ctrl.ctrlSwitch = this.value;
-
-		// データの書き込み
-		if( storage != null ) { ctrl.recordCtrlSwitch(); }
-	}
-	//----------操作方法セレクタのセット----------
-
-	// 得点管理インスタンスの作成
 	scoreMng = new ScoreManage();
 	scoreMng.init();
-
-	// 全ボール消去
-	balls = new Array();
-
-	// 全アイテムの消去
-	items = new Array();
-
-	// バー
-	bar = new Bar();
-
-	// 全武器の消去
-	weapons = new Array();
-
-	// ステータス
 	statusMng = new StatusManage();
-
-	// 破壊可能ブロック数の計算
 	statusMng.countBlockNum();
 
-	// ライフのクリア
+
 	if( storage != null && ctrl.continueSwitch == 1 && storage.getItem("continue_life") > 0 ) { statusMng.life = storage.getItem("continue_life"); }
 	else { statusMng.life = defaultLife; }
 
-	// 得点及び時間の読み込み
-	if( storage != null && ctrl.continueSwitch == 1 )
-	{
-		if( storage.getItem("continue_time") != null && storage.getItem("continue_score") != null )
-		{
+	if( storage != null && ctrl.continueSwitch == 1 ) {
+		if( storage.getItem("continue_time") != null && storage.getItem("continue_score") != null ) {
 			statusMng.playTime = storage.getItem("continue_time");
 			scoreMng.score = storage.getItem("continue_score");
 		}
 	}
-
-	// ステータスの初期化
 	statusMng.init();
 
-	// マウスの動作設定
-	window.onmousemove = function(event) { getMouseMove(event, dynamicCanvas, 0, ctrl.scale); }
-	dynamicCanvas.onmousedown = function()
-	{
-		// 発射準備
-		if( ctrl.ctrlSwitch == 0 ) { mouseDownTime = Date.now(); }
+    gameState.init(canvasWidth, canvasHeight, null, statusMng, scoreMng, ctrl);
 
-		// 武器の発射
-		if( bar.weapon != 0 && weapons.length < weaponMaxNum[bar.weapon - 1] && bar.weaponInter <= 0 ) {
-			weapons[weapons.length] = new Weapon(bar.weapon, bar.getCenterX());
-		}
+    // Copy initial map
+    let initialMap = blockMapSet[ctrl.stageIndex].copyMap();
+    let flatMap = initialMap.map(row => row ? row.map(b => b ? {type: b.type, func: b.func, life: b.life, infinit: b.infinit, throughVect: b.throughVect, item: b.item} : null) : null);
+
+    physicsWorker.postMessage({ type: 'load_stage', stageData: { blockMap: flatMap } });
+    physicsWorker.postMessage({ type: 'start' });
+
+    // Events...
+	window.onmousemove = function(event) {
+        getMouseMove(event, dynamicCanvas, 0, ctrl.scale);
+
+
+    }
+	dynamicCanvas.onmousedown = function() {
+		if( ctrl.ctrlSwitch == 0 ) { gameState.inputState.mouseDownTime = Date.now(); }
 	}
-	dynamicCanvas.onmouseup = function(e)
-	{
-		// 発射制御
-		if( ctrl.ctrlSwitch == 0 && e.button != 2 && balls.length == 0 && statusMng.isAlive() == true && mouseDownTime != 0 ) {
-			balls[0] = new Ball(BALL_CREATE_MODE.LAUNCH);
-			mouseDownTime = 0;
+	dynamicCanvas.onmouseup = function(e) {
+		if( ctrl.ctrlSwitch == 0 && e.button != 2 ) {
+			gameState.inputState.action = 'launch';
+        mouseDownTime = 0;
 		}
-
-		// 吸着状態からの再発射
-		if( bar.absorptionNum > 0 ) { bar.relaunch(); }
+        gameState.inputState.action = 'relaunch';
 	}
 	window.onclick = function() { }
-	window.oncontextmenu = function()
-	{
-		// 一時停止
+	window.oncontextmenu = function() {
 		ctrl.pauseSwitchOn();
 		return false;
 	}
 
-	// タッチの動作設定
 	window.ontouchmove = function(event) {
 		getMouseMove(event, dynamicCanvas, 1, ctrl.scale);
+
 
 		event.preventDefault();
 	}
 	dynamicCanvas.ontouchstart = function(event) {
-		// オートプレイの切り替え
-		if( event.touches.length == 2 )
-		{
+		if( event.touches.length == 2 ) {
 			ctrl.autoSwitchToggle();
 			return;
 		}
-		// 一時停止
-		else if( event.touches.length == 3 )
-		{
+		else if( event.touches.length == 3 ) {
 			ctrl.pauseSwitchOn();
 			return;
 		}
-
-		// 発射準備
-		if( ctrl.ctrlSwitch == 0 ) { mouseDownTime = Date.now(); }
-
-		// 武器の発射
-		if( bar.weapon != 0 && weapons.length < weaponMaxNum[bar.weapon - 1] && bar.weaponInter <= 0 )
-		{
-			weapons[weapons.length] = new Weapon(bar.weapon, bar.getCenterX());
-		}
-
+		if( ctrl.ctrlSwitch == 0 ) { gameState.inputState.mouseDownTime = Date.now(); }
 		event.preventDefault();
 	}
 	dynamicCanvas.ontouchend = function(event) {
-		// 発射制御
-		if( ctrl.ctrlSwitch == 0 && balls.length == 0 && statusMng.isAlive() == true && mouseDownTime != 0 )
-		{
-			balls[0] = new Ball(BALL_CREATE_MODE.LAUNCH);
-			mouseDownTime = 0;
-		}
-
-		// 吸着状態からの再発射
-		if( bar.absorptionNum > 0 ) { bar.relaunch(); }
-
+        gameState.inputState.action = 'launch';
+        mouseDownTime = 0;
+        // Note: simplified touch logic
 		event.preventDefault();
 	}
 
-	// ウィンドウサイズの変更を検知
 	window.onresize = function() { ctrl.fixSize(); }
 
-	// キーボードの動作設定
-  	document.onkeydown = function(e) { getKeyPress(e, 'down'); }
-	document.onkeyup = function(e) { getKeyPress(e, 'up'); }
+	document.onkeydown = function(e) { getKeyPress(e, 'down'); gameState.inputState.keyCode = keyCode; gameState.inputState.keyStr = keyStr; }
+	document.onkeyup = function(e) { getKeyPress(e, 'up'); gameState.inputState.keyCode = keyCode; gameState.inputState.keyStr = keyStr;}
 
-	// 音のロード
 	sounds = new Sound();
 
-	// 背景の指定
 	canvasBg = document.getElementById('canvas_background');
 	var canvasBgStyle = canvasBg.style;
 	canvasBgStyle.width = canvasWidth + "px";
 	canvasBgStyle.height = (canvasHeight - statusBarHeight) + "px";
 	canvasBgStyle.backgroundImage = "url(" + backGroundImage[ctrl.stageIndex] + ")";
 
-	//--------------------タイマーの設定--------------------
-	clearInterval(timer_All);
-	drawAll(dynamicCtx);
-	drawOnce(staticCtx);
-	var drawTiming = 0;
-	timer_All = setInterval(function() {
+    gameState.onStateUpdate = () => {
+        // Sync visual views
+    };
 
-		// 一時停止制御
-		if( ctrl.pauseSwitch == 0 )
-		{
-			// オートパイロット
-			if( ctrl.autoSwitch == 1 ) { bar.auto(); }
 
-			// キー入力によるバー制御
-			if( ctrl.autoSwitch == 0 && ctrl.ctrlSwitch == 1 ) {
-				if( keyStr == 'Right' ) {
-					pointX += keyPressIncr;
-					keyPressIncr *= 1.2;
-				} else if( keyStr == 'Left' ) {
-					pointX -= keyPressIncr;
-					keyPressIncr *= 1.2;
-				}
+    let lastBlockMapState = null;
+    gameState.onStateUpdate = () => {
+        if (gameState.blockMap !== lastBlockMapState) {
+            drawOnce(staticCtx);
+            lastBlockMapState = gameState.blockMap;
+        }
+    };
+    // Animation loop instead of setInterval
 
-				// 座標制限
-				if( pointX < 0 ) { pointX = 0; }
-				else if( pointX > dynamicCanvas.width ) { pointX = dynamicCanvas.width; }
-			}
+    function renderLoop() {
+        if( ctrl.pauseSwitch == 0 ) {
+            gameState.sendInputToWorker();
+        }
 
-			// バー
-			bar.move();
+        statusMng.countFPS();
+        statusMng.countPlayTime();
 
-			// アイテム
-			for( var i = 0; i < items.length; i++ ) { items[i].move(); }
+        drawAll(dynamicCtx);
 
-			// ブロック
-			for( var i = 0, len = blockMap.length; i < len; i++ )
-			{
-				var blockLine = blockMap[i];
-				if( blockLine != null )
-				{
-					for( var j = 0, len2 = blockLine.length; j < len2; j++ )
-					{
-						var block = blockLine[j];
-						if( block != null )
-						{
-							block.move();
-						}
-					}
-				}
-			}
 
-			// ゲームの終了判定
-			if( statusMng.blockNum <= 0 || statusMng.isAlive() == false ) { gameOver(); }
+        window.renderReq = requestAnimationFrame(renderLoop);
 
-			// ボール
-			for( var i = 0; i < balls.length; i++ ) { balls[i].move(); }
+    }
 
-			// 武器
-			for( var i = 0; i < weapons.length; i++ ) { weapons[i].move(); }
-		}
+    // Stop old animation if any
+    cancelAnimationFrame(window.renderReq);
+    window.renderReq =
+        window.renderReq = requestAnimationFrame(renderLoop);
 
-		// FPS，時間の測定
-		statusMng.countFPS();
-		statusMng.countPlayTime();
 
-		// 設定フォームの制御
-		if( balls.length != 0 )
-		{
-			// プレイ中
-			ctrl.formSelector["continue"].disabled = true;
-			ctrl.formSelector["stage"].disabled = true;
-
-		} else {
-			// プレイ外
-			ctrl.formSelector["continue"].disabled = false;
-			ctrl.formSelector["stage"].disabled = false;
-		}
-
-		// 描画
-		drawAll(dynamicCtx);
-
-	}, FRATE);
-	//--------------------タイマーの設定--------------------
+    // Draw once for static blocks
+    // Need to wait for first sync ideally
 }
-
-
-
 
 
 
@@ -545,23 +357,25 @@ function drawOnce(staticCtx)
 	staticCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 
 	// ブロックの描画
-	for( var i = 0, len1 = blockMap.length; i < len1; i++ )
-	{
-		var blockLine = blockMap[i];
-		if( blockLine != null )
-		{
-			for(var j = 0, len2 = blockLine.length; j < len2; j++)
-			{
-				var block = blockLine[j];
+    if (gameState.blockMap) {
+        for( var i = 0, len1 = gameState.blockMap.length; i < len1; i++ )
+        {
+            var blockLine = gameState.blockMap[i];
+            if( blockLine != null )
+            {
+                for(var j = 0, len2 = blockLine.length; j < len2; j++)
+                {
+                    var block = blockLine[j];
 
-				// 爆破中か否か
-				if( block != null && block.type != 0 )
-				{
-					block.draw(staticCtx);
-				}
-			}
-		}
-	}
+                    // 爆破中か否か
+                    if( block != null && block.type != 0 )
+                    {
+                        block.draw(staticCtx);
+                    }
+                }
+            }
+        }
+    }
 
 	// ライフの表示
 	statusMng.drawLife(staticCtx);
@@ -578,35 +392,37 @@ function drawAll(dynamicCtx)
 	dynamicCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 
 	// バーの描画
-	bar.draw(dynamicCtx);
+	if (gameState.bar) gameState.bar.draw(dynamicCtx);
 
 	// 爆破モーションの描画
-	for( var i = 0, len1 = blockMap.length; i < len1; i++ )
-	{
-		var blockLine = blockMap[i];
-		if( blockLine != null )
-		{
-			for(var j = 0, len2 = blockLine.length; j < len2; j++)
-			{
-				var block = blockLine[j];
+    if (gameState.blockMap) {
+        for( var i = 0, len1 = gameState.blockMap.length; i < len1; i++ )
+        {
+            var blockLine = gameState.blockMap[i];
+            if( blockLine != null )
+            {
+                for(var j = 0, len2 = blockLine.length; j < len2; j++)
+                {
+                    var block = blockLine[j];
 
-				// 爆破中か否か
-				if( block != null && block.exploded > 0 )
-				{
-					Cloud(dynamicCtx, block.x, block.y);
-				}
-			}
-		}
-	}
+                    // 爆破中か否か
+                    if( block != null && block.exploded > 0 )
+                    {
+                        Cloud(dynamicCtx, block.x, block.y);
+                    }
+                }
+            }
+        }
+    }
 
 	// アイテムの描画
-	for( var i = 0, len = items.length; i < len; i++ ) { items[i].draw(dynamicCtx); }
+	for( var i = 0, len = gameState.items.length; i < len; i++ ) { gameState.items[i].draw(dynamicCtx); }
 
 	// 武器
-	for( var i = 0, len = weapons.length; i < len; i++ ) { weapons[i].draw(dynamicCtx); }
+	for( var i = 0, len = gameState.weapons.length; i < len; i++ ) { gameState.weapons[i].draw(dynamicCtx); }
 
 	// ボールの描画
-	for( var i = 0, len = balls.length; i < len; i++ ) { balls[i].draw(dynamicCtx); }
+	for( var i = 0, len = gameState.balls.length; i < len; i++ ) { gameState.balls[i].draw(dynamicCtx); }
 
 	// バルーンの描画
 	for( var i = 0, len = balloons.length; i < len; i++ )
@@ -624,7 +440,7 @@ function drawAll(dynamicCtx)
 	}
 
 	// 画面の難視化
-	if( bar.disturbStatusTime > 0 )
+	if( gameState.bar && gameState.bar.disturbStatusTime > 0 )
 	{
 		var disturbWidth = blockWidth;
 		var startPoint = ((Date.now()/6) % disturbWidth)*2 - disturbWidth;
@@ -641,6 +457,7 @@ function drawAll(dynamicCtx)
 	// ステータスの描画
 	statusView(dynamicCtx);
 }
+
 
 
 //--------------------------------------------------
@@ -664,7 +481,7 @@ function statusView(dynamicCtx)
 	text += ' / Stage:' + stageTitle[ctrl.stageIndex] + ' / Time:' + playTime_min + '\'' + playTime + ' / Mode:' + (ctrl.autoSwitch == 0 ? 'MP' : 'AP');
 
 	// デバッグ用情報取得
-	text += '<span style="font-size: 0.8em; margin-left: 3em;">' + statusMng.getRealFPS() + 'fps / ' + String(balls.length) + '</span>';
+	text += '<span style="font-size: 0.8em; margin-left: 3em;">' + statusMng.getRealFPS() + 'fps / ' + String(gameState.balls.length) + '</span>';
 
 	// ライフ分の空白の計算
 	var lifeSpaceSize = maxLife*17 + 5;
@@ -699,19 +516,19 @@ function gameOver()
 	scoreMng.recordScore(isClear);
 
 	// 全ボール消去
-	balls = new Array();
+	gameState.balls = new Array();
 
 	// 全アイテムの消去
-	items = new Array();
+	gameState.items = new Array();
 
 	// 全バルーンの消去
 	balloons = new Array();
 
 	// 全武器の消去
-	weapons = new Array();
+	gameState.weapons = new Array();
 
 	// バー状態の解除
-	bar = new Bar();
+	gameState.bar = new BarView({});
 
 	if( statusMng.isAlive() == true )
 	{
@@ -768,7 +585,7 @@ function gameOver()
 	}
 
 	// 次のステージへ
-	if( ctrl.stageEnded == 0 ) { blockMap = blockMapSet[ctrl.stageIndex].copyMap(); }
+	if( ctrl.stageEnded == 0 ) { gameState.blockMap = blockMapSet[ctrl.stageIndex].copyMap(); }
 	statusMng.countBlockNum();
 
 	// 静的描画用キャンバスの更新
@@ -900,20 +717,20 @@ function getMouseMove(event, canvas, touch, scale)
 	if( event != null )
 	{
 		if( touch == 0 ) {
-			pointX = event.pageX - canvas.offsetLeft;
-			pointY = event.pageY - canvas.offsetTop;
+			window.gameState.inputState.pointX = event.pageX - canvas.offsetLeft;
+			window.gameState.inputState.pointY = event.pageY - canvas.offsetTop;
 		} else {
-			pointX = event.touches[0].pageX - canvas.offsetLeft;
-			pointY = event.touches[0].pageY - canvas.offsetTop;
+			window.gameState.inputState.pointX = event.touches[0].pageX - canvas.offsetLeft;
+			window.gameState.inputState.pointY = event.touches[0].pageY - canvas.offsetTop;
 		}
 	} else {
-		pointX = event.offsetX;
-		pointY = event.offsetY;
+		window.gameState.inputState.pointX = event.offsetX;
+		window.gameState.inputState.pointY = event.offsetY;
 	}
 
 	// 座標修正
-	pointX *= canvasWidth / canvas.offsetWidth / scale;
-	pointY *= canvasHeight / canvas.offsetHeight / scale;
+	window.gameState.inputState.pointX *= canvasWidth / canvas.offsetWidth / scale;
+	window.gameState.inputState.pointY *= canvasHeight / canvas.offsetHeight / scale;
 }
 
 
@@ -983,13 +800,13 @@ function getKeyPress(e, action)
 
 		} else {
 			// 球の発射
-			if( balls.length == 0 && statusMng.isAlive() == true && mouseDownTime != 0 ) {
-				balls[0] = new Ball(BALL_CREATE_MODE.LAUNCH);
+			if( gameState.balls.length == 0 && statusMng.isAlive() == true && mouseDownTime != 0 ) {
+				// Ball instantiation handled by Worker via inputState.action = "launch"
 				mouseDownTime = 0;
 
 			// 武器の発射
-			} else if( bar.weapon != 0 && weapons.length < weaponMaxNum[bar.weapon - 1] && bar.weaponInter <= 0 ) {
-				weapons[weapons.length] = new Weapon(bar.weapon, bar.getCenterX());
+			} else if( gameState.bar.weapon != 0 && gameState.weapons.length < weaponMaxNum[gameState.bar.weapon - 1] && gameState.bar.weaponInter <= 0 ) {
+				// weapon generation moved to physicsWorker processInput
 			}
 		}
 
@@ -1109,10 +926,10 @@ function getKeyPress(e, action)
 //--------------------------------------------------
 function simulateReset()
 {
-	for( var i = 0, len1 = blockMap.length; i < len1; i++ ) {
-		if( blockMap[i].length ) {
-			for( var j = 0, len2 = blockMap[i].length; j < len2; j++ ) {
-				var block = blockMap[i][j];
+	for( var i = 0, len1 = gameState.blockMap.length; i < len1; i++ ) {
+		if( gameState.blockMap[i].length ) {
+			for( var j = 0, len2 = gameState.blockMap[i].length; j < len2; j++ ) {
+				var block = gameState.blockMap[i][j];
 				if( block ) { block.simulateReset(); }
 			}
 		}
@@ -1314,7 +1131,7 @@ Array.prototype.copyMap = function()
 			var block = this[i][j];
 			if( block != 0 )
 			{
-				obj[i][j] = new Block(j, i, block, blockFunction[block], blockLife[block], blockInfinit[block], blockThrough[block]);
+				obj[i][j] = { x: j * blockWidth, y: i * blockHeight + statusBarHeight, width: blockWidth, height: blockHeight, type: block, func: blockFunction[block], life: blockLife[block], infinit: blockInfinit[block], throughVect: blockThrough[block] };
 
 				// 破壊可能ブロック数の計算
 				effBlockNum++;
@@ -1393,7 +1210,7 @@ Array.prototype.copy = function()
 	var obj = new Array();
 
 	for( var i = 0, len = this.length; i < len; i++ ) {
-		if( this[i].length > 0 && this[i].copy() ) { obj[i] = this[i].copy(); }
+		if( this[i].length > 0 && {...this[i]} ) { obj[i] = {...this[i]}; }
 		else { obj[i] = this[i]; }
 	}
 
@@ -1557,11 +1374,11 @@ window.changeSetting = changeSetting;
 window.versionCheck = versionCheck;
 window.Control = Control;
 window.StatusManage = StatusManage;
-window.Bar = Bar;
-window.Ball = Ball;
-window.Item = Item;
-window.Block = Block;
-window.Weapon = Weapon;
+window.BarView = BarView;
+window.BallView = BallView;
+window.ItemView = ItemView;
+window.BlockView = BlockView;
+window.WeaponView = WeaponView;
 window.Sound = Sound;
 window.Heart = Heart;
 window.Cloud = Cloud;
@@ -1569,3 +1386,8 @@ window.Balloon = Balloon;
 window.ScoreManage = ScoreManage;
 window.ImageData = ImageData;
 window.MessageBox = MessageBox;
+
+window.gameState = window.gameState;
+
+console.log("window.gameState after init block:", window.gameState);
+window.gameState = gameState;
