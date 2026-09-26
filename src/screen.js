@@ -8,8 +8,8 @@ function openScreen(screenName)
 	var screen = document.getElementById(screenName);
 	if( screen ) {
 		screen.style.display = 'block';
-		screen.style.top = dynamicCanvas.offsetTop + 'px';
-		screen.style.left = dynamicCanvas.offsetLeft + 'px';
+		screen.style.top = document.getElementById('dynamic').offsetTop + 'px';
+		screen.style.left = document.getElementById('dynamic').offsetLeft + 'px';
 		screen.style.width = canvasWidth + 'px';
 		screen.style.height = canvasHeight + 'px';
 		screen.style.zIndex = 100;

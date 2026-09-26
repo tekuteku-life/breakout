@@ -52,7 +52,7 @@ function StatusManage()
 			this.FPSCount = 0;
 
 			// 低FPS警告
-			if( lowFPSAlartRatio > 0 && this.realFPS < FPS*lowFPSAlartRatio && balls.length > 0 && ctrl.pauseSwitch == 0 && ctrl.autoSwitch == 0 )
+			if( lowFPSAlartRatio > 0 && this.realFPS < FPS*lowFPSAlartRatio && window.gameState.balls.length > 0 && ctrl.pauseSwitch == 0 && ctrl.autoSwitch == 0 )
 			{
 				// 低FPSのカウント
 				this.lowFPSCount++;
@@ -92,7 +92,7 @@ function StatusManage()
 	//--------------------------------------------------
 	this.countPlayTime = function()
 	{
-		var ballNum = balls.length
+		var ballNum = window.gameState.balls.length
 		if( (this.startTime == 0 && ballNum != 0) || ballNum == 0 || ctrl.pauseSwitch == 1 ) { this.startTime = Date.now() - this.playTime; }
 		if( ballNum > 0 ) { this.playTime = Date.now() - this.startTime; }
 	}
@@ -151,13 +151,13 @@ function StatusManage()
 	//--------------------------------------------------
 	this.countBlockNum = function()
 	{
-		for( var i = 0, len = blockMap.length; i < len; i++ )
+		for( var i = 0, len = window.gameState.blockMap.length; i < len; i++ )
 		{
-			if( blockMap[i] != null )
+			if( window.gameState.blockMap[i] != null )
 			{
-				for( var j = 0, len2 = blockMap[i].length; j < len2; j++ )
+				for( var j = 0, len2 = window.gameState.blockMap[i].length; j < len2; j++ )
 				{
-					var block = blockMap[i][j];
+					var block = window.gameState.blockMap[i][j];
 					if( block != null )
 					{
 						if( block.type != 0 && block.infinit != 1 ) { this.blockNum++; }
