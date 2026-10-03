@@ -1,23 +1,32 @@
 //--------------------------------------------------
 // アイテム
 //--------------------------------------------------
-function Item(type, x, y, lcolor, color)
+class Item
 {
-	this.width = blockWidth;									// アイテムの横幅
-	this.height = blockHeight;									// アイテムの縦幅
-	this.type = type;											// アイテムの種類
-	this.x = x;													// アイテムの横方向位置
-	this.y = y;													// アイテムの縦方向位置
-	this.color = color;											// アイテムの色
-	this.lineColor = lcolor;									// アイテムの線色
-	this.text = itemText[ctrl.stageIndex][this.type];			// アイテムの文字
-	this.imgData = imgData.getData("item", this.type);			// 描画イメージ
+	constructor(type, x, y, lcolor, color)
+	{
+		this.width = blockWidth;									// アイテムの横幅
+		this.height = blockHeight;									// アイテムの縦幅
+		this.type = type;											// アイテムの種類
+		this.x = x;													// アイテムの横方向位置
+		this.y = y;													// アイテムの縦方向位置
+		this.color = color;											// アイテムの色
+		this.lineColor = lcolor;									// アイテムの線色
+		this.text = itemText[ctrl.stageIndex][this.type];			// アイテムの文字
+		this.imgData = imgData.getData("item", this.type);			// 描画イメージ
+	}
+
+	destructor()
+	{
+		// アイテムの消去
+		items.tarRemove(this);
+	}
 
 
 	//--------------------------------------------------
 	// 描画
 	//--------------------------------------------------
-	this.draw = function(ctx)
+	draw(ctx)
 	{
 		// アイテムを描画
 		ctx.putImageData(this.imgData, ~~this.x - 0.5, ~~this.y - 0.5);
@@ -27,23 +36,23 @@ function Item(type, x, y, lcolor, color)
 	//--------------------------------------------------
 	// 上下・左右・中央座標取得
 	//--------------------------------------------------
-	this.getLeftX = function() {
+	getLeftX() {
 		return this.x;
 	}
-	this.getCenterX = function() {
+	getCenterX() {
 		return this.x + this.width *0.5;
 	}
-	this.getRightX = function() {
+	getRightX() {
 		return this.x + this.width;
 	}
 
-	this.getTopY = function() {
+	getTopY() {
 		return this.y;
 	}
-	this.getCenterY = function() {
+	getCenterY() {
 		return this.y + this.height *0.5;
 	}
-	this.getBottomY = function() {
+	getBottomY() {
 		return this.y + this.height;
 	}
 
@@ -51,7 +60,7 @@ function Item(type, x, y, lcolor, color)
 	//--------------------------------------------------
 	// 移動
 	//--------------------------------------------------
-	this.move = function()
+	move()
 	{
 		// 位置の決定
 		this.y += itemSpeed[ctrl.stageIndex];
@@ -59,7 +68,7 @@ function Item(type, x, y, lcolor, color)
 		// 未取得のまま落下
 		if( this.y > canvasHeight ) {
 			// アイテムの消去
-			items.tarRemove(this);
+			this.destructor();
 
 		// バー接触（アイテム取得）
 		} else if( this.checkCollision() )
@@ -68,7 +77,7 @@ function Item(type, x, y, lcolor, color)
 			this.applyEffect();
 
 			// アイテムの消去
-			items.tarRemove(this);
+			this.destructor();
 		}
 	}
 
@@ -76,7 +85,7 @@ function Item(type, x, y, lcolor, color)
 	//--------------------------------------------------
 	// 衝突判定
 	//--------------------------------------------------
-	this.checkCollision = function(target)
+	checkCollision(target)
 	{
 		var b = target || bar;
 		return (this.getBottomY() > b.getTopY() && b.getLeftX() <= this.getRightX() && b.getRightX() >= this.getLeftX());
@@ -86,7 +95,7 @@ function Item(type, x, y, lcolor, color)
 	//--------------------------------------------------
 	// アイテム効果の発動
 	//--------------------------------------------------
-	this.applyEffect = function()
+	applyEffect()
 	{
 		var i;
 		var ballNum = balls.length;

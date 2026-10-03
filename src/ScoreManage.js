@@ -3,28 +3,34 @@ import MessageBox from "./MessageBox.js";
 //--------------------------------------------------
 // 得点管理
 //--------------------------------------------------
-function ScoreManage()
+class ScoreManage
 {
-	this.awardNum = new Array();						// アワードポイント
-	this.awardPt = new Array();							// アワードカウント
+	constructor()
+	{
+		this.awardNum = new Array();						// アワードポイント
+		this.awardPt = new Array();							// アワードカウント
 
-	this.sumPrevClearTime = 0;							// 前ステージまでのクリア時間の総計
-	this.sumPrevScore = 0;								// 前ステージまでの総合スコア
-	this.hiScore = 0;									// ハイスコア
-	this.stageScore = 0;								// ステージ毎の総合スコア
-	this.score = 0;										// 総合スコア
+		this.sumPrevClearTime = 0;							// 前ステージまでのクリア時間の総計
+		this.sumPrevScore = 0;								// 前ステージまでの総合スコア
+		this.hiScore = 0;									// ハイスコア
+		this.stageScore = 0;								// ステージ毎の総合スコア
+		this.score = 0;										// 総合スコア
 
-	// ハイスコアの取得
-	if( storage != null && storage.getItem("record_hiScore") != null ) {
-		this.hiScore = storage.getItem("record_hiScore");
+		// ハイスコアの取得
+		if( storage != null && storage.getItem("record_hiScore") != null ) {
+			this.hiScore = storage.getItem("record_hiScore");
+		}
 	}
 
+	destructor()
+	{
+	}
 
 
 	//--------------------------------------------------
 	// 得点の集計
 	//--------------------------------------------------
-	this.calculateAwardPoint = function()
+	calculateAwardPoint()
 	{
 		// 残りライフ数
 		if( statusMng.life > 1 )
@@ -125,7 +131,7 @@ function ScoreManage()
 	//--------------------------------------------------
 	// データの初期化
 	//--------------------------------------------------
-	this.init = function()
+	init()
 	{
 		// 変数の初期化
 		for( var i = 0, len = awardKeyList.length; i < len; i++ ) {
@@ -144,7 +150,7 @@ function ScoreManage()
 	//--------------------------------------------------
 	// 成績の記録
 	//--------------------------------------------------
-	this.recordScore = function(_clearNum)
+	recordScore(_clearNum)
 	{
 		if( storage == null ) { return; }
 
@@ -189,8 +195,8 @@ function ScoreManage()
 
 		// アワードの種類ごとに保存
 		for( var i = 0, len = awardKeyList.length; i < len; i++ ) {
-			window.recordName;
-var recordName = awardKeyList[i]; var awardKey = recordName;
+			var recordName = awardKeyList[i];
+			var awardKey = recordName;
 
 			// アワード名から記録用keyの作成
 			recordName.replace(/_/g, '__');
@@ -203,7 +209,6 @@ var recordName = awardKeyList[i]; var awardKey = recordName;
 			var bestOldRecord = storage.getItem(bestRecordKey);
 			var aveOldRecord = storage.getItem(aveRecordKey);
 			var worstOldRecord = storage.getItem(worstRecordKey);
-			var aveRecord = storage.getItem(aveRecordKey);
 
 			// ベストスコアの書き込み
 			if( bestOldRecord == null
@@ -230,7 +235,7 @@ var recordName = awardKeyList[i]; var awardKey = recordName;
 	//--------------------------------------------------
 	// 成績の消去
 	//--------------------------------------------------
-	this.deleteRecord = function()
+	deleteRecord()
 	{
 		for( var i = 0; i < storage.length; i++ ) {
 			var key = storage.key(i);

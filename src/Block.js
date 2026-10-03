@@ -5,55 +5,62 @@ import Balloon from "./Balloon.js";
 //--------------------------------------------------
 // ブロック
 //--------------------------------------------------
-function Block(x, y, type, func, life, infinit, through)
+class Block
 {
-	this.width = blockWidth;								// ブロックの横幅
-	this.height = blockHeight;								// ブロックの縦幅
-	this.x = x * this.width;								// ブロックの横軸座標
-	this.y = y * this.height + statusBarHeight;				// ブロックの縦軸座標
-	this.type = type;										// ブロックの種類
-	this.func = func;										// ブロックの機能
-	this.text = null;										// ブロックの文字
-	this.infinit = infinit;									// 破壊の可否
-	this.life = life;										// 残り衝突可能回数
-	this.item = null;										// アイテム
-	this.explode = 0;										// 爆発
-	this.simulate = 0;										// シミュレート用
-	this.breakLimit = 0;									// 破壊制限時間
-	this.moveInter = 0;										// 移動間隔
-	this.moveVect = 0;										// 移動方向（0:右、1：左）
-	this.blinkInter = 0;									// 点滅用カウント
-	this.blinkSwitch = 0;									// 点灯・消灯の判別（-1:消灯、1:点灯、0:停止）
-	this.blinkType = 0;										// 種類保持用変数
-	this.throughVect = through;								// 透過方向（0：なし、1～4：上、右、下、左）
-	this.attackInter = 0;									// 攻撃間隔
-	this.imgData = imgData.getData("block", type);			// 描画イメージ
+	constructor(x, y, type, func, life, infinit, through)
+	{
+		this.width = blockWidth;								// ブロックの横幅
+		this.height = blockHeight;								// ブロックの縦幅
+		this.x = x * this.width;								// ブロックの横軸座標
+		this.y = y * this.height + statusBarHeight;				// ブロックの縦軸座標
+		this.type = type;										// ブロックの種類
+		this.func = func;										// ブロックの機能
+		this.text = null;										// ブロックの文字
+		this.infinit = infinit;									// 破壊の可否
+		this.life = life;										// 残り衝突可能回数
+		this.item = null;										// アイテム
+		this.explode = 0;										// 爆発
+		this.simulate = 0;										// シミュレート用
+		this.breakLimit = 0;									// 破壊制限時間
+		this.moveInter = 0;										// 移動間隔
+		this.moveVect = 0;										// 移動方向（0:右、1：左）
+		this.blinkInter = 0;									// 点滅用カウント
+		this.blinkSwitch = 0;									// 点灯・消灯の判別（-1:消灯、1:点灯、0:停止）
+		this.blinkType = 0;										// 種類保持用変数
+		this.throughVect = through;								// 透過方向（0：なし、1～4：上、右、下、左）
+		this.attackInter = 0;									// 攻撃間隔
+		this.imgData = imgData.getData("block", type);			// 描画イメージ
 
+		// 移動ブロックの設定
+		if( this.func == BLOCK_FUNCTION.VERTICAL_MOVE )
+		{
+			this.moveInter = Math.random() * blockMoveInter * FPS;
+			this.moveVect = (~~(Math.random() * 2) * 2 - 1);
+		}
+		// 点滅ブロックの設定
+		else if( this.func == BLOCK_FUNCTION.BLINK )
+		{
+			this.blinkInter = Math.random() * blockBlinkInter * FPS;
+			this.blinkSwitch = (~~(Math.random() * 2) * 2 - 1);
+			this.blinkType = this.type;
+		}
+		// 攻撃ブロックの設定
+		else if( this.func == BLOCK_FUNCTION.ATTACK )
+		{
+			this.attackInter = Math.random() * blockAttackInter * FPS;
+		}
+	}
 
-	// 移動ブロックの設定
-	if( this.func == BLOCK_FUNCTION.VERTICAL_MOVE )
+	destructor()
 	{
-		this.moveInter = Math.random() * blockMoveInter * FPS;
-		this.moveVect = (~~(Math.random() * 2) * 2 - 1);
-	}
-	// 点滅ブロックの設定
-	else if( this.func == BLOCK_FUNCTION.BLINK )
-	{
-		this.blinkInter = Math.random() * blockBlinkInter * FPS;
-		this.blinkSwitch = (~~(Math.random() * 2) * 2 - 1);
-		this.blinkType = this.type;
-	}
-	// 攻撃ブロックの設定
-	else if( this.func == BLOCK_FUNCTION.ATTACK )
-	{
-		this.attackInter = Math.random() * blockAttackInter * FPS;
+		this.clear(staticCtx);
 	}
 
 
 	//--------------------------------------------------
 	// コピー
 	//--------------------------------------------------
-	this.copy = function()
+	copy()
 	{
 		var obj = new Block(this.x / this.width, (this.y - statusBarHeight) / this.height, this.type, this.func, this.life, this.infinit, this.throughVect);
 		obj.item = this.item;
@@ -70,23 +77,23 @@ function Block(x, y, type, func, life, infinit, through)
 	//--------------------------------------------------
 	// 上下・左右・中央座標取得
 	//--------------------------------------------------
-	this.getLeftX = function() {
+	getLeftX() {
 		return this.x;
 	}
-	this.getCenterX = function() {
+	getCenterX() {
 		return this.x + this.width *0.5;
 	}
-	this.getRightX = function() {
+	getRightX() {
 		return this.x + this.width;
 	}
 
-	this.getTopY = function() {
+	getTopY() {
 		return this.y;
 	}
-	this.getCenterY = function() {
+	getCenterY() {
 		return this.y + this.height *0.5;
 	}
-	this.getBottomY = function() {
+	getBottomY() {
 		return this.y + this.height;
 	}
 
@@ -94,7 +101,7 @@ function Block(x, y, type, func, life, infinit, through)
 	//--------------------------------------------------
 	// 描画
 	//--------------------------------------------------
-	this.draw = function(ctx)
+	draw(ctx)
 	{
 		// ブロックを描画
 		ctx.putImageData(this.imgData, this.x - 0.5, this.y - 0.5);
@@ -128,7 +135,7 @@ function Block(x, y, type, func, life, infinit, through)
 	//--------------------------------------------------
 	// 描画
 	//--------------------------------------------------
-	this.clear = function(ctx)
+	clear(ctx)
 	{
 		ctx.clearRect(this.x - 0.5, this.y - 0.5, this.width, this.height);
 	}
@@ -137,7 +144,7 @@ function Block(x, y, type, func, life, infinit, through)
 	//--------------------------------------------------
 	// 動き・状態遷移
 	//--------------------------------------------------
-	this.move = function()
+	move()
 	{
 		// 爆発モーションのカウントダウン
 		if( this.exploded > 0 ) { this.exploded--; }
@@ -292,7 +299,7 @@ function Block(x, y, type, func, life, infinit, through)
 	//--------------------------------------------------
 	// アクション
 	//--------------------------------------------------
-	this.action = function(ball, isChangedVY)
+	action(ball, isChangedVY)
 	{
 		var addSpeed = 0;
 
@@ -511,7 +518,7 @@ function Block(x, y, type, func, life, infinit, through)
 	//--------------------------------------------------
 	// 破壊処理
 	//--------------------------------------------------
-	this.break = function(ball)
+	break(ball)
 	{
 		// シミュレートの場合
 		if( ball != null && ball.simulate == 1 ) {
@@ -546,7 +553,7 @@ function Block(x, y, type, func, life, infinit, through)
 	//--------------------------------------------------
 	// 耐久性の減少
 	//--------------------------------------------------
-	this.decreaseLife = function()
+	decreaseLife()
 	{
 		// 耐久性の減少
 		this.life--;
@@ -562,7 +569,7 @@ function Block(x, y, type, func, life, infinit, through)
 	//--------------------------------------------------
 	// 爆弾による巻き込み破壊
 	//--------------------------------------------------
-	this.explode = function(x, y, area, ball)
+	explode(x, y, area, ball)
 	{
 		for(var i = -area + y; i <= area + y; i++)
 		{
@@ -614,7 +621,7 @@ function Block(x, y, type, func, life, infinit, through)
 	//--------------------------------------------------
 	// シミュレート値のリセット
 	//--------------------------------------------------
-	this.simulateReset = function()
+	simulateReset()
 	{
 		if( this.type ) { this.simulate = this.life + 1; }
 		else { this.simulate = 0; }

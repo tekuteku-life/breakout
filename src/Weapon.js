@@ -3,47 +3,54 @@ import Balloon from "./Balloon.js";
 //--------------------------------------------------
 // 武器
 //--------------------------------------------------
-function Weapon(type, x, y, vect)
+class Weapon
 {
-	this.type = type - 1;							// 武器の種類（0:銃、1：ミサイル）
-	this.x = x;										// 横軸座標
-	this.y = 0;										// 縦軸座標
-	this.vy = 0;									// 縦軸速度
-	this.vect = 0;									// 進行方向
-	this.size = (this.type == 0 ? 1 : 4);			// サイズ
-	this.setInter = 0;								// 発射間隔制御フラグ
+	constructor(type, x, y, vect)
+	{
+		this.type = type - 1;							// 武器の種類（0:銃、1：ミサイル）
+		this.x = x;										// 横軸座標
+		this.y = 0;										// 縦軸座標
+		this.vy = 0;									// 縦軸速度
+		this.vect = 0;									// 進行方向
+		this.size = (this.type == 0 ? 1 : 4);			// サイズ
+		this.setInter = 0;								// 発射間隔制御フラグ
 
+		// 縦軸座標の設定
+		if( y != null ) { this.y = y; }
+		else { this.y = ~~(bar.getTopY()); }
 
-	// 縦軸座標の設定
-	if( y != null ) { this.y = y; }
-	else { this.y = ~~(bar.getTopY()); }
+		// 進行方向の設定
+		if( vect != null ) { this.vect = vect; }
+		else { this.vect = 1; }
+	}
 
-	// 進行方向の設定
-	if( vect != null ) { this.vect = vect; }
-	else { this.vect = 1; }
-
+	destructor()
+	{
+		// 武器の消去
+		weapons.tarRemove(this);
+	}
 
 
 	//--------------------------------------------------
 	// 上下・左右・中央座標取得
 	//--------------------------------------------------
-	this.getLeftX = function() {
+	getLeftX() {
 		return this.x - this.size *0.5;
 	}
-	this.getCenterX = function() {
+	getCenterX() {
 		return this.x;
 	}
-	this.getRightX = function() {
+	getRightX() {
 		return this.x + this.size *0.5;
 	}
 
-	this.getTopY = function() {
+	getTopY() {
 		return this.y - this.size *0.5;
 	}
-	this.getCenterY = function() {
+	getCenterY() {
 		return this.y;
 	}
-	this.getBottomY = function() {
+	getBottomY() {
 		return this.y + this.size *0.5;
 	}
 
@@ -51,7 +58,7 @@ function Weapon(type, x, y, vect)
 	//--------------------------------------------------
 	// 移動
 	//--------------------------------------------------
-	this.move = function() {
+	move() {
 		// 発射間隔の制御
 		if( this.setInter == 0 ) {
 			// 発射間隔の設定
@@ -91,7 +98,7 @@ function Weapon(type, x, y, vect)
 		}
 
 		// 画面からアウト
-		if( 0 > this.getBottomY() || this.getTopY() > canvasHeight ) { weapons.tarRemove(this); }
+		if( 0 > this.getBottomY() || this.getTopY() > canvasHeight ) { this.destructor(); }
 
 		// ブロック衝突判定
 		if( this.vect > 0 )
@@ -139,7 +146,7 @@ function Weapon(type, x, y, vect)
 							}
 
 							// 武器の消去
-							weapons.tarRemove(this);
+							this.destructor();
 
 							collisionFlag = 1;
 							break;
@@ -158,7 +165,7 @@ function Weapon(type, x, y, vect)
 				bar.endamage(1);
 
 				// 武器の消去
-				weapons.tarRemove(this);
+				this.destructor();
 
 				// バルーンの追加
 				balloons[balloons.length] = new Balloon(bar.hitPoint, bar.getCenterX() - 10, bar.getTopY() - 15, 25, 10, 0.13, "#000000", "#ff0000", 12);
@@ -167,11 +174,10 @@ function Weapon(type, x, y, vect)
 	}
 
 
-
 	//--------------------------------------------------
 	// 描画
 	//--------------------------------------------------
-	this.draw = function(dynamicCtx)
+	draw(dynamicCtx)
 	{
 		// 銃
 		if( this.type == 0 )

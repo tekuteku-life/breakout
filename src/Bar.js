@@ -4,36 +4,42 @@ import Weapon from "./Weapon.js";
 //--------------------------------------------------
 // 反射バー
 //--------------------------------------------------
-function Bar()
+class Bar
 {
-	this.x = pointX;										// バー横軸位置
-	this.y = canvasHeight - barDefaultHeight - 5.5;			// バー縦軸位置
-	this.vx = 0;											// バー速度
-	this.vxMax = barDefaultSpeed;							// バー最大速度
-	this.width = barDefaultWidth;							// バー幅
-	this.height = barDefaultHeight;							// バー高
-	this.alpha = 1;											// バーの透過率調整
-	this.widthStatusTime = 0;								// バー長の状態時間
-	this.speedStatusTime = 0;								// バー速度の状態時間
-	this.weapon = 0;										// バーの武器状態
-	this.weaponTime = 0;									// バーの武器状態時間
-	this.weaponInter = 0;									// バーの武器使用間隔
-	this.vibrationTime = 0;									// バーの振動状態時間
-	this.absorptionStatusTime = 0;							// バーの吸着状態時間
-	this.absorptionNum = 0;									// バーの吸着球数
-	this.edge = barEdge;									// バーの端の傾斜
-	this.color = barColor;									// バーの色
-	this.simuData = new Array();							// シミュレーションの引き継ぎ情報
-	this.immortalStatusTime = 0;							// 不死身
-	this.disturbStatusTime = 0;								// 画面の難視化
-	this.hitPoint = barDefaultHP;							// バーのHP
+	constructor()
+	{
+		this.x = pointX;										// バー横軸位置
+		this.y = canvasHeight - barDefaultHeight - 5.5;			// バー縦軸位置
+		this.vx = 0;											// バー速度
+		this.vxMax = barDefaultSpeed;							// バー最大速度
+		this.width = barDefaultWidth;							// バー幅
+		this.height = barDefaultHeight;							// バー高
+		this.alpha = 1;											// バーの透過率調整
+		this.widthStatusTime = 0;								// バー長の状態時間
+		this.speedStatusTime = 0;								// バー速度の状態時間
+		this.weapon = 0;										// バーの武器状態
+		this.weaponTime = 0;									// バーの武器状態時間
+		this.weaponInter = 0;									// バーの武器使用間隔
+		this.vibrationTime = 0;									// バーの振動状態時間
+		this.absorptionStatusTime = 0;							// バーの吸着状態時間
+		this.absorptionNum = 0;									// バーの吸着球数
+		this.edge = barEdge;									// バーの端の傾斜
+		this.color = barColor;									// バーの色
+		this.simuData = new Array();							// シミュレーションの引き継ぎ情報
+		this.immortalStatusTime = 0;							// 不死身
+		this.disturbStatusTime = 0;								// 画面の難視化
+		this.hitPoint = barDefaultHP;							// バーのHP
+	}
 
+	destructor()
+	{
+	}
 
 
 	//--------------------------------------------------
 	// 描画
 	//--------------------------------------------------
-	this.draw = function(ctx)
+	draw(ctx)
 	{
 		// 武器の描画
 		if( this.weapon != 0 ) {
@@ -88,23 +94,23 @@ function Bar()
 	//--------------------------------------------------
 	// 上下・左右・中央座標取得
 	//--------------------------------------------------
-	this.getLeftX = function() {
+	getLeftX() {
 		return this.x - this.width *0.5;
 	}
-	this.getCenterX = function() {
+	getCenterX() {
 		return this.x;
 	}
-	this.getRightX = function() {
+	getRightX() {
 		return this.x + this.width *0.5;
 	}
 
-	this.getTopY = function() {
+	getTopY() {
 		return this.y;
 	}
-	this.getCenterY = function() {
+	getCenterY() {
 		return this.y + this.height *0.5;
 	}
-	this.getBottomY = function() {
+	getBottomY() {
 		return this.y + this.height;
 	}
 
@@ -112,7 +118,7 @@ function Bar()
 	//--------------------------------------------------
 	// 吸着ボールの再発射
 	//--------------------------------------------------
-	this.relaunch = function()
+	relaunch()
 	{
 		// 吸着しているボールを探す
 		for( var i = 0, len = balls.length; i < len; i++ )
@@ -146,7 +152,7 @@ function Bar()
 	//--------------------------------------------------
 	// 移動・状態遷移
 	//--------------------------------------------------
-	this.move = function()
+	move()
 	{
 		// バー速度の計算
 		this.vx = pointX - this.getCenterX();
@@ -270,7 +276,7 @@ function Bar()
 	//--------------------------------------------------
 	// HPの減少
 	//--------------------------------------------------
-	this.endamage = function(_damage)
+	endamage(_damage)
 	{
 		// HPの減少
 		this.hitPoint = Number(this.hitPoint) - Number(_damage);
@@ -290,7 +296,7 @@ function Bar()
 	//--------------------------------------------------
 	// 自動プレイ
 	//--------------------------------------------------
-	this.auto = function()
+	auto()
 	{
 		// 最大予測数の計算
 		var MAX_PREDICT = SIMULATE_PARAM.MAX_PREDICT * FPS;

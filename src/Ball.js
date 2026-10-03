@@ -3,57 +3,63 @@ import Bar from "./Bar.js";
 //--------------------------------------------------
 // ボール
 //--------------------------------------------------
-function Ball(launch)
+class Ball
 {
-	this.radius = ballSize;									// ボールの半径
-	this.x;													// ボール横方向位置
-	this.y;													// ボール縦方向位置
-	this.vx;												// ボール横方向速度
-	this.vy;												// ボール縦方向速度
-	this.histX = new Array();								// ボール横方向位置履歴
-	this.histY = new Array();								// ボール縦方向位置履歴
-	this.pointIncr = blockDefaultPoint;						// ポイント増分
-	this.simulate = 0;										// シミュレートフラグ
-	this.breakNum = 0;										// ブロック破壊回数
-	this.collisionNum = 0;									// ブロック衝突回数
-	this.status = 0;										// ボール状態
-	this.statusTime = 0;									// ボール状態時間
-	this.duaration = 0;										// 滞空時間
-	this.isAbsorption = 0;									// 吸着状態フラグ
-	this.absorptionPoint = new Array(0, 0);					// 吸着座標（バーからの相対位置）
-	this.imgData = imgData.getDataArr("ball");				// 画像データ
+	constructor(launch)
+	{
+		this.radius = ballSize;									// ボールの半径
+		this.x;													// ボール横方向位置
+		this.y;													// ボール縦方向位置
+		this.vx;												// ボール横方向速度
+		this.vy;												// ボール縦方向速度
+		this.histX = new Array();								// ボール横方向位置履歴
+		this.histY = new Array();								// ボール縦方向位置履歴
+		this.pointIncr = blockDefaultPoint;						// ポイント増分
+		this.simulate = 0;										// シミュレートフラグ
+		this.breakNum = 0;										// ブロック破壊回数
+		this.collisionNum = 0;									// ブロック衝突回数
+		this.status = 0;										// ボール状態
+		this.statusTime = 0;									// ボール状態時間
+		this.duaration = 0;										// 滞空時間
+		this.isAbsorption = 0;									// 吸着状態フラグ
+		this.absorptionPoint = new Array(0, 0);					// 吸着座標（バーからの相対位置）
+		this.imgData = imgData.getDataArr("ball");				// 画像データ
 
+		//--------------------------------------------------
+		// 発射
+		//--------------------------------------------------
+		if( launch == BALL_CREATE_MODE.LAUNCH ) {
+			// ため打ち時間の計算
+			var diffTime = 0;
+			if( mouseDownTime != 0 )
+			{
+				diffTime = ( Date.now() - mouseDownTime ) / 1000;
+				if( diffTime > 1 ) { diffTime = 1; }
+			}
 
+			// 初速度の決定
+			this.vx = ((Math.random() + 1) * ballDefaultSpeed * 0.5 / Math.abs(bar.vx) + 1) + bar.vx;
+			this.vy = -1 * (ballDefaultSpeed + ( ballMaxSpeed - ballDefaultSpeed ) * diffTime);
+			if( Math.abs(this.vy) > ballMaxSpeed ) { this.vy = ballMaxSpeed * ( this.vy < 0 ? -1 : 1 ); }
+			if( Math.abs(this.vx) > ballMaxSpeed ) { this.vx = ballMaxSpeed * ( this.vx < 0 ? -1 : 1 ); }
 
-	//--------------------------------------------------
-	// 発射
-	//--------------------------------------------------
-	if( launch == BALL_CREATE_MODE.LAUNCH ) {
-		// ため打ち時間の計算
-		var diffTime = 0;
-		if( mouseDownTime != 0 )
-		{
-			diffTime = ( Date.now() - mouseDownTime ) / 1000;
-			if( diffTime > 1 ) { diffTime = 1; }
+			// 初期位置の決定
+			this.x = bar.getCenterX();
+			this.y = bar.getTopY() - this.radius;
 		}
-
-		// 初速度の決定
-		this.vx = ((Math.random() + 1) * ballDefaultSpeed * 0.5 / Math.abs(bar.vx) + 1) + bar.vx;
-		this.vy = -1 * (ballDefaultSpeed + ( ballMaxSpeed - ballDefaultSpeed ) * diffTime);
-		if( Math.abs(this.vy) > ballMaxSpeed ) { this.vy = ballMaxSpeed * ( this.vy < 0 ? -1 : 1 ); }
-		if( Math.abs(this.vx) > ballMaxSpeed ) { this.vx = ballMaxSpeed * ( this.vx < 0 ? -1 : 1 ); }
-
-		// 初期位置の決定
-		this.x = bar.getCenterX();
-		this.y = bar.getTopY() - this.radius;
 	}
 
+	destructor()
+	{
+		// ボール消去
+		balls.tarRemove(this);
+	}
 
 
 	//--------------------------------------------------
 	// コピー
 	//--------------------------------------------------
-	this.copy = function(mode)
+	copy(mode)
 	{
 		var obj = new Ball(BALL_CREATE_MODE.OTHER);
 		obj.x = this.x;
@@ -94,23 +100,23 @@ function Ball(launch)
 	//--------------------------------------------------
 	// 上下・左右・中央座標取得
 	//--------------------------------------------------
-	this.getLeftX = function() {
+	getLeftX() {
 		return this.x - this.radius;
 	}
-	this.getCenterX = function() {
+	getCenterX() {
 		return this.x;
 	}
-	this.getRightX = function() {
+	getRightX() {
 		return this.x + this.radius;
 	}
 
-	this.getTopY = function() {
+	getTopY() {
 		return this.y - this.radius;
 	}
-	this.getCenterY = function() {
+	getCenterY() {
 		return this.y;
 	}
-	this.getBottomY = function() {
+	getBottomY() {
 		return this.y + this.radius;
 	}
 
@@ -118,13 +124,13 @@ function Ball(launch)
 	//--------------------------------------------------
 	// 落下
 	//--------------------------------------------------
-	this.fall = function()
+	fall()
 	{
 		// 落下音
 		sounds.play('fall');
 
 		// ボール消去
-		balls.tarRemove(this);
+		this.destructor();
 
 		// 落下数の計算
 		scoreMng.awardNum.fallBallNum++;
@@ -151,7 +157,7 @@ function Ball(launch)
 	//--------------------------------------------------
 	// 描画
 	//--------------------------------------------------
-	this.draw = function(ctx)
+	draw(ctx)
 	{
 		// 色の選択
 		if( this.status == BALL_STATUS.NORMAL ) { ctx.fillStyle = ballColor; }
@@ -188,7 +194,7 @@ function Ball(launch)
 	//--------------------------------------------------
 	// 移動
 	//--------------------------------------------------
-	this.move = function()
+	move()
 	{
 		// ボールの速度制限
 		if( Math.abs( this.vx ) > ballMaxSpeed ) { this.vx = ballMaxSpeed * (this.vx < 0 ? -1 : 1); }

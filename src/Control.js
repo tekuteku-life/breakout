@@ -1,38 +1,43 @@
 //--------------------------------------------------
 // ゲーム制御
 //--------------------------------------------------
-function Control()
+class Control
 {
-	this.autoSwitch = 0;							// 自動プレイスイッチ
-	this.pauseSwitch = 0;							// 一時停止スイッチ
-	this.soundSwitch = 0;							// 音のスイッチ
-	this.sizeFitSwitch = 0;							// 画面調整のスイッチ
-	this.continueSwitch = 0;						// ゲーム開始方法スイッチ
-	this.ctrlSwitch = 0;							// 操作方法スイッチ
-	this.stageIndex = 0;							// ステージインデックス
-	this.stageEnded = 0;							// 全ステージ終了フラグ
-	this.formSelector = new Array();				// 設定用セレクタ
-	this.scale = 1;									// 倍率
+	constructor()
+	{
+		this.autoSwitch = 0;							// 自動プレイスイッチ
+		this.pauseSwitch = 0;							// 一時停止スイッチ
+		this.soundSwitch = 0;							// 音のスイッチ
+		this.sizeFitSwitch = 0;							// 画面調整のスイッチ
+		this.continueSwitch = 0;						// ゲーム開始方法スイッチ
+		this.ctrlSwitch = 0;							// 操作方法スイッチ
+		this.stageIndex = 0;							// ステージインデックス
+		this.stageEnded = 0;							// 全ステージ終了フラグ
+		this.formSelector = new Array();				// 設定用セレクタ
+		this.scale = 1;									// 倍率
 
+		// 設定欄のオブジェクトの取得
+		this.formSelector["setting"] = document.getElementById('setup_select');
+		this.formSelector["stage"] = document.getElementById('stage_select');
+		this.formSelector["continue"] = document.getElementById('continue_select');
+		this.formSelector["sound"] = document.getElementById('sound_select');
+		this.formSelector["sizefit"] = document.getElementById('sizefit_select');
+		this.formSelector["ctrl"] = document.getElementById('ctrl_select');
+	}
 
-	// 設定欄のオブジェクトの取得
-	this.formSelector["setting"] = document.getElementById('setup_select');
-	this.formSelector["stage"] = document.getElementById('stage_select');
-	this.formSelector["continue"] = document.getElementById('continue_select');
-	this.formSelector["sound"] = document.getElementById('sound_select');
-	this.formSelector["sizefit"] = document.getElementById('sizefit_select');
-	this.formSelector["ctrl"] = document.getElementById('ctrl_select');
-
+	destructor()
+	{
+	}
 
 
 	//--------------------------------------------------
 	// 音の設定の読み書き
 	//--------------------------------------------------
-	this.loadSoundSwitch = function()
+	loadSoundSwitch()
 	{
 		if( storage.getItem("setting_soundSwitch") != null ) { this.soundSwitch = storage.getItem("setting_soundSwitch"); }
 	}
-	this.recordSoundSwitch = function()
+	recordSoundSwitch()
 	{
 		storage.setItem("setting_soundSwitch", this.soundSwitch);
 	}
@@ -41,11 +46,11 @@ function Control()
 	//--------------------------------------------------
 	// サイズ調整の設定の読み書き
 	//--------------------------------------------------
-	this.loadSizeFitSwitch = function()
+	loadSizeFitSwitch()
 	{
 		if( storage.getItem("setting_sizeFitSwitch") != null ) { this.sizeFitSwitch = storage.getItem("setting_sizeFitSwitch"); }
 	}
-	this.recordSizeFitSwitch = function()
+	recordSizeFitSwitch()
 	{
 		storage.setItem("setting_sizeFitSwitch", this.sizeFitSwitch);
 	}
@@ -54,11 +59,11 @@ function Control()
 	//--------------------------------------------------
 	// ゲーム開始方法の設定の読み書き
 	//--------------------------------------------------
-	this.loadContinueSwitch = function()
+	loadContinueSwitch()
 	{
 		if( storage.getItem("setting_continueSwitch") != null ) { this.continueSwitch = storage.getItem("setting_continueSwitch"); }
 	}
-	this.recordContinueSwitch = function()
+	recordContinueSwitch()
 	{
 		storage.setItem("setting_continueSwitch", this.continueSwitch);
 	}
@@ -67,11 +72,11 @@ function Control()
 	//--------------------------------------------------
 	// 操作方法の設定の読み書き
 	//--------------------------------------------------
-	this.loadCtrlSwitch = function()
+	loadCtrlSwitch()
 	{
 		if( storage.getItem("setting_ctrlSwitch") != null ) { this.ctrlSwitch = storage.getItem("setting_ctrlSwitch"); }
 	}
-	this.recordCtrlSwitch = function()
+	recordCtrlSwitch()
 	{
 		storage.setItem("setting_ctrlSwitch", this.ctrlSwitch);
 	}
@@ -80,11 +85,11 @@ function Control()
 	//--------------------------------------------------
 	// ステージインデックスの設定の読み書き
 	//--------------------------------------------------
-	this.loadStageIndex = function()
+	loadStageIndex()
 	{
 		if( storage.getItem("continue_stageIndex") != null && this.continueSwitch == 1 ) { this.setStageIndex(storage.getItem("continue_stageIndex")); }
 	}
-	this.recordStageIndex = function()
+	recordStageIndex()
 	{
 		storage.setItem("continue_stageIndex", this.stageIndex);
 	}
@@ -93,7 +98,7 @@ function Control()
 	//--------------------------------------------------
 	// 自動プレイのトグル
 	//--------------------------------------------------
-	this.autoSwitchToggle = function()
+	autoSwitchToggle()
 	{
 		if( this.autoSwitch == 0 ) { this.autoSwitch = 1; }
 		else { this.autoSwitch = 0; }
@@ -103,7 +108,7 @@ function Control()
 	//--------------------------------------------------
 	// 一時停止のオン・オフ・トグル
 	//--------------------------------------------------
-	this.pauseSwitchOn = function()
+	pauseSwitchOn()
 	{
 		// 画面の切り替え
 		allClose();
@@ -112,14 +117,14 @@ function Control()
 		// 値の設定
 		this.pauseSwitch = 1;
 	}
-	this.pauseSwitchOff = function()
+	pauseSwitchOff()
 	{
 		// 画面の切り替え
 		closeScreen('screen_pause');
 
 		this.pauseSwitch = 0;
 	}
-	this.pauseSwitchToggle = function()
+	pauseSwitchToggle()
 	{
 		if( this.pauseSwitch == 0 ) { this.pauseSwitchOn(); }
 		else { this.pauseSwitchOff(); }
@@ -129,7 +134,7 @@ function Control()
 	//--------------------------------------------------
 	// 音の設定のトグル
 	//--------------------------------------------------
-	this.soundSwitchToggle = function()
+	soundSwitchToggle()
 	{
 		// オン
 		if( this.soundSwitch == 0 )
@@ -160,7 +165,7 @@ function Control()
 	//--------------------------------------------------
 	// 制御方法の設定のトグル
 	//--------------------------------------------------
-	this.ctrlSwitchToggle = function()
+	ctrlSwitchToggle()
 	{
 		// キーボード制御へ
 		if( this.ctrlSwitch == 0 )
@@ -191,7 +196,7 @@ function Control()
 	//--------------------------------------------------
 	// ステージインデックスの設定
 	//--------------------------------------------------
-	this.setStageIndex = function(_stage)
+	setStageIndex(_stage)
 	{
 		// ステージセレクタのリセット
 		if( this.formSelector["stage"].childNodes.length > 0 ) { this.formSelector["stage"].childNodes[this.stageIndex].selected = ''; }
@@ -214,7 +219,7 @@ function Control()
 	//--------------------------------------------------
 	// ステージインデックスを進める
 	//--------------------------------------------------
-	this.forwardStageIndex = function()
+	forwardStageIndex()
 	{
 		// ステージセレクタのリセット
 		if( this.formSelector["stage"].childNodes.length > 0 ) { this.formSelector["stage"].childNodes[this.stageIndex].selected = ''; }
@@ -246,7 +251,7 @@ function Control()
 	//--------------------------------------------------
 	// ステージインデックスを戻す
 	//--------------------------------------------------
-	this.backwardStageIndex = function()
+	backwardStageIndex()
 	{
 		// ステージセレクタのリセット
 		if( this.formSelector["stage"].childNodes.length > 0 ) { this.formSelector["stage"].childNodes[this.stageIndex].selected = ''; }
@@ -278,7 +283,7 @@ function Control()
 	//--------------------------------------------------
 	// 画面サイズの調整
 	//--------------------------------------------------
-	this.fixSize = function()
+	fixSize()
 	{
 		// 画面サイズの取得
 		var screenWidth = 0;

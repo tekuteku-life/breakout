@@ -1,17 +1,24 @@
 //--------------------------------------------------
 // ハート
 //--------------------------------------------------
-function Heart(x, y, fill)
+class Heart
 {
-	this.x = x;
-	this.y = y;
-	this.imgData = imgData.getData("heart", fill);
+	constructor(x, y, fill)
+	{
+		this.x = x;
+		this.y = y;
+		this.imgData = imgData.getData("heart", fill);
+	}
+
+	destructor()
+	{
+	}
 
 
 	//--------------------------------------------------
 	// 描画
 	//--------------------------------------------------
-	this.draw = function(dynamicCtx)
+	draw(dynamicCtx)
 	{
 		dynamicCtx.putImageData(this.imgData, this.x - heartWidth, this.y - heartHeight);
 	}

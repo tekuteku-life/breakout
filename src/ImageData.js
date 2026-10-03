@@ -1,43 +1,46 @@
 //--------------------------------------------------
 // 描画イメージ
 //--------------------------------------------------
-function ImageData(dynamicCtx)
+class ImageData
 {
-	this.imgData = new Array();
-	this.dynamicCtx = dynamicCtx;
+	constructor(dynamicCtx)
+	{
+		this.imgData = new Array();
+		this.dynamicCtx = dynamicCtx;
 
+		// 各種の描画イメージデータ用配列を用意
+		this.imgData["ball"] = new Array(												// ボール
+			"normal",																	// 通常状態
+			"hard",																		// 強化状態
+			"hard_tail0",																// 強化状態の残像１
+			"hard_tail1",																// 強化状態の残像２
+			"hard_tail2",																// 強化状態の残像３
+			"hard_tail3",																// 強化状態の残像４
+			"fire",																		// 無敵状態
+			"fire_tail0",																// 無敵状態の残像１
+			"fire_tail1",																// 無敵状態の残像２
+			"fire_tail2",																// 無敵状態の残像３
+			"fire_tail3"																// 無敵状態の残像４
+		);
+		this.imgData["block"] = new Array();											// ブロック
+		this.imgData["item"] = new Array();												// アイテム
+		this.imgData["heart"] = new Array();											// ハート
+		this.imgData["bar"] = new Array(												// バー
+			"normal"																	// 通常状態
+		);
+		this.imgData["weapon"] = new Array();											// 武器
+	}
 
-	//--------------------------------------------------
-	// コンストラクタ
-	//--------------------------------------------------
-	// 各種の描画イメージデータ用配列を用意
-	this.imgData["ball"] = new Array(												// ボール
-		"normal",																	// 通常状態
-		"hard",																		// 強化状態
-		"hard_tail0",																// 強化状態の残像１
-		"hard_tail1",																// 強化状態の残像２
-		"hard_tail2",																// 強化状態の残像３
-		"hard_tail3",																// 強化状態の残像４
-		"fire",																		// 無敵状態
-		"fire_tail0",																// 無敵状態の残像１
-		"fire_tail1",																// 無敵状態の残像２
-		"fire_tail2",																// 無敵状態の残像３
-		"fire_tail3"																// 無敵状態の残像４
-	);
-	this.imgData["block"] = new Array();											// ブロック
-	this.imgData["item"] = new Array();												// アイテム
-	this.imgData["heart"] = new Array();											// ハート
-	this.imgData["bar"] = new Array(												// バー
-		"normal"																	// 通常状態
-	);
-	this.imgData["weapon"] = new Array();											// 武器
-
+	destructor()
+	{
+		this.imgData = new Array();
+	}
 
 
 	//--------------------------------------------------
 	// 初期化
 	//--------------------------------------------------
-	this.init = function()
+	init()
 	{
 		var dynamicCtx = this.dynamicCtx;
 
@@ -98,7 +101,7 @@ function ImageData(dynamicCtx)
 	//--------------------------------------------------
 	// 描画イメージの取得
 	//--------------------------------------------------
-	this.getData = function(kind, stat)
+	getData(kind, stat)
 	{
 		return this.imgData[kind][stat];
 	}
@@ -107,7 +110,7 @@ function ImageData(dynamicCtx)
 	//--------------------------------------------------
 	// 描画イメージ配列の取得
 	//--------------------------------------------------
-	this.getDataArr = function(kind)
+	getDataArr(kind)
 	{
 		return this.imgData[kind];
 	}
@@ -116,7 +119,7 @@ function ImageData(dynamicCtx)
 	//--------------------------------------------------
 	// ボールの描画
 	//--------------------------------------------------
-	this.drawBall = function(stat, i)
+	drawBall(stat, i)
 	{
 		var dynamicCtx = this.dynamicCtx;
 
@@ -155,7 +158,7 @@ function ImageData(dynamicCtx)
 	//--------------------------------------------------
 	// ブロックの描画
 	//--------------------------------------------------
-	this.drawBlock = function(_type)
+	drawBlock(_type)
 	{
 		var dynamicCtx = this.dynamicCtx;
 
@@ -183,7 +186,7 @@ function ImageData(dynamicCtx)
 	//--------------------------------------------------
 	// アイテムの描画
 	//--------------------------------------------------
-	this.drawItem = function(_type)
+	drawItem(_type)
 	{
 		var dynamicCtx = this.dynamicCtx;
 
@@ -208,7 +211,7 @@ function ImageData(dynamicCtx)
 	//--------------------------------------------------
 	// ハートの描画
 	//--------------------------------------------------
-	this.drawHeart = function(stat)
+	drawHeart(stat)
 	{
 		var dynamicCtx = this.dynamicCtx;
 

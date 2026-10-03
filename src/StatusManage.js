@@ -4,27 +4,34 @@ import MessageBox from "./MessageBox.js";
 //--------------------------------------------------
 // ステータス計測
 //--------------------------------------------------
-function StatusManage()
+class StatusManage
 {
-	this.prevFPSTime = 0;													// 前回FPS計測時刻
-	this.realFPS = FPS;														// 実際のFPS
-	this.FPSCount = 0;														// FPS測定用表示回数カウンタ
-	this.lowFPSCount = 0;													// 低FPS回数カウンタ
-	this.startTime = 0;														// 測定開始時刻
-	this.playTime = 0;														// プレイ時間
-	this.displayPoint = 0;													// 表示用ポイント
-	this.displayPointStep = 1;												// 表示用ポイント増加幅
-	this.hiScore = 0;														// ハイスコア
-	this.blockNum = 0;														// 破壊可能ブロック数
-	this.life = 0;															// ライフ
-	this.hearts = new Array();												// ライフ表示用ハート
+	constructor()
+	{
+		this.prevFPSTime = 0;													// 前回FPS計測時刻
+		this.realFPS = FPS;														// 実際のFPS
+		this.FPSCount = 0;														// FPS測定用表示回数カウンタ
+		this.lowFPSCount = 0;													// 低FPS回数カウンタ
+		this.startTime = 0;														// 測定開始時刻
+		this.playTime = 0;														// プレイ時間
+		this.displayPoint = 0;													// 表示用ポイント
+		this.displayPointStep = 1;												// 表示用ポイント増加幅
+		this.hiScore = 0;														// ハイスコア
+		this.blockNum = 0;														// 破壊可能ブロック数
+		this.life = 0;															// ライフ
+		this.hearts = new Array();												// ライフ表示用ハート
+	}
 
+	destructor()
+	{
+		this.hearts = new Array();
+	}
 
 
 	//--------------------------------------------------
 	// 初期化
 	//--------------------------------------------------
-	this.init = function()
+	init()
 	{
 		// ハートインスタンスの生成
 		for( var i = 0; i < maxLife; i++ )
@@ -37,7 +44,7 @@ function StatusManage()
 	//--------------------------------------------------
 	// FPSの測定
 	//--------------------------------------------------
-	this.countFPS = function()
+	countFPS()
 	{
 		// 計算
 		this.FPSCount++;
@@ -77,7 +84,7 @@ function StatusManage()
 	//--------------------------------------------------
 	// 実測FPSの取得
 	//--------------------------------------------------
-	this.getRealFPS = function()
+	getRealFPS()
 	{
 		// 整形
 		var measuredFPS = String(this.realFPS);
@@ -90,9 +97,9 @@ function StatusManage()
 	//--------------------------------------------------
 	// プレイ時間の計測
 	//--------------------------------------------------
-	this.countPlayTime = function()
+	countPlayTime()
 	{
-		var ballNum = balls.length
+		var ballNum = balls.length;
 		if( (this.startTime == 0 && ballNum != 0) || ballNum == 0 || ctrl.pauseSwitch == 1 ) { this.startTime = Date.now() - this.playTime; }
 		if( ballNum > 0 ) { this.playTime = Date.now() - this.startTime; }
 	}
@@ -101,7 +108,7 @@ function StatusManage()
 	//--------------------------------------------------
 	// 表示用プレイ時間の秒数を取得
 	//--------------------------------------------------
-	this.getPlaySecTime = function()
+	getPlaySecTime()
 	{
 		// プレイ時間の秒数の取得
 		var playTime = ~~( ((Date.now() - this.startTime) % 60000) / 100 ) / 10;
@@ -118,7 +125,7 @@ function StatusManage()
 	//--------------------------------------------------
 	// 表示用プレイ時間の分数を取得
 	//--------------------------------------------------
-	this.getPlayMinTime = function()
+	getPlayMinTime()
 	{
 		var playTime_min = String(~~(( (Date.now() - this.startTime) / 60000 ) % 60));
 
@@ -129,7 +136,7 @@ function StatusManage()
 	//--------------------------------------------------
 	// 表示用ポイント数の取得
 	//--------------------------------------------------
-	this.getDisplayPoint = function()
+	getDisplayPoint()
 	{
 		// 滑らかに増加
 		if( this.displayPoint + this.displayPointStep < scoreMng.score ) {
@@ -149,7 +156,7 @@ function StatusManage()
 	//--------------------------------------------------
 	// 破壊可能ブロック数の計算
 	//--------------------------------------------------
-	this.countBlockNum = function()
+	countBlockNum()
 	{
 		for( var i = 0, len = blockMap.length; i < len; i++ )
 		{
@@ -171,7 +178,7 @@ function StatusManage()
 	//--------------------------------------------------
 	// ライフの加算
 	//--------------------------------------------------
-	this.addLife = function (_incr)
+	addLife(_incr)
 	{
 		// ライフの加算
 		this.life = Number(this.life) + Number(_incr);
@@ -193,7 +200,7 @@ function StatusManage()
 	//--------------------------------------------------
 	// ライフの有無（あればtrue、なければfalse）
 	//--------------------------------------------------
-	this.isAlive = function()
+	isAlive()
 	{
 		if( this.life > 0 ) { return true; }
 		else { return false; }
@@ -203,7 +210,7 @@ function StatusManage()
 	//--------------------------------------------------
 	// ライフの描画
 	//--------------------------------------------------
-	this.drawLife = function(ctx)
+	drawLife(ctx)
 	{
 		for(var i = 0; i < maxLife; i++)
 		{
