@@ -19,7 +19,6 @@ class Block
 		this.infinit = infinit;									// 破壊の可否
 		this.life = life;										// 残り衝突可能回数
 		this.item = null;										// アイテム
-		this.explode = 0;										// 爆発
 		this.simulate = 0;										// シミュレート用
 		this.breakLimit = 0;									// 破壊制限時間
 		this.moveInter = 0;										// 移動間隔
@@ -64,7 +63,6 @@ class Block
 	{
 		var obj = new Block(this.x / this.width, (this.y - statusBarHeight) / this.height, this.type, this.func, this.life, this.infinit, this.throughVect);
 		obj.item = this.item;
-		obj.explode = this.explode;
 		obj.simulate = this.simulate;
 		obj.breakLimit = this.breakLimit;
 		obj.moveInter = this.moveInter;
@@ -340,15 +338,17 @@ class Block
 		if( this.func == BLOCK_FUNCTION.EXPLODE || this.func == BLOCK_FUNCTION.EXPLODE_STRENGTH )
 		{
 			// シミュレートの確認
-			if( !ball.simulate ) {
+			if( !ball || !ball.simulate ) {
 				// 爆発モーションのセット
 				this.exploded = blockMotionTime * FPS;
 			}
 
 			// 短期間の貫通弾化
 			if( this.func == BLOCK_FUNCTION.EXPLODE_STRENGTH ) {
-				ball.status = BALL_STATUS.ULTIMATE;
-				ball.statusTime = ~~(ballStatusTime * 0.3 * FPS);
+				if( ball ) {
+					ball.status = BALL_STATUS.ULTIMATE;
+					ball.statusTime = ~~(ballStatusTime * 0.3 * FPS);
+				}
 			}
 
 			// 周りのブロックを破壊
@@ -358,7 +358,7 @@ class Block
 			addSpeed = ballDefaultSpeed;
 
 		// 強化球
-		} else if( ball.status == BALL_STATUS.STRONG && this.func != BLOCK_FUNCTION.WARP_ENTER ) {
+		} else if( ball && ball.status == BALL_STATUS.STRONG && this.func != BLOCK_FUNCTION.WARP_ENTER ) {
 			addSpeed = ballMaxSpeed - Math.abs(ballDefaultSpeed);
 
 		// 加速
@@ -433,15 +433,15 @@ class Block
 		}
 
 		// 破壊
-		if( (this.infinit != 1 || ball.status == BALL_STATUS.ULTIMATE || (ball.status == BALL_STATUS.STRONG && this.infinit != 1)) && this.func != BLOCK_FUNCTION.WARP_ENTER && this.func != BLOCK_FUNCTION.WARP_EXIT )
+		if( (this.infinit != 1 || (ball && (ball.status == BALL_STATUS.ULTIMATE || ball.status == BALL_STATUS.STRONG))) && this.func != BLOCK_FUNCTION.WARP_ENTER && this.func != BLOCK_FUNCTION.WARP_EXIT )
 		{
 			// 衝突回数の計算
-			ball.collisionNum++;
+			if( ball ) { ball.collisionNum++; }
 
 			// シミュレートでない場合
-			if( ball.simulate == 0 ) {
+			if( !ball || ball.simulate == 0 ) {
 				// 破壊
-				if( this.life < 1 || ball.status != BALL_STATUS.NORMAL ) {
+				if( this.life < 1 || !ball || ball.status != BALL_STATUS.NORMAL ) {
 					this.break(ball);
 
 				// 耐久性減少
@@ -450,21 +450,23 @@ class Block
 				}
 
 				// ポイント計算
-				scoreMng.score = Number(scoreMng.score) + ball.pointIncr;
-				ball.pointIncr = Number(ball.pointIncr) + blockIncrPoint;
+				if( ball ) {
+					scoreMng.score = Number(scoreMng.score) + ball.pointIncr;
+					ball.pointIncr = Number(ball.pointIncr) + blockIncrPoint;
 
-				// 連続破壊数の表示
-				if( ball.breakNum > scoreMng.awardNum.continuousBreakNum )
-				{
-					// 最大数の更新
-					scoreMng.awardNum.continuousBreakNum = ball.breakNum;
+					// 連続破壊数の表示
+					if( ball.breakNum > scoreMng.awardNum.continuousBreakNum )
+					{
+						// 最大数の更新
+						scoreMng.awardNum.continuousBreakNum = ball.breakNum;
 
-					// バルーンの追加
-					var bx = ball.getCenterX();
-					var by = ball.getCenterY();
-					if( bx > canvasWidth - 30 ) { bx = canvasWidth - 30; }
-					if( by > canvasHeight - 15 ) { by = canvasHeight - 15; }
-					balloons[balloons.length] = new Balloon(scoreMng.awardNum.continuousBreakNum, bx, by, 25, 10, 0.13, popBalloonBackColor, popBalloonFontColor, 12);
+						// バルーンの追加
+						var bx = ball.getCenterX();
+						var by = ball.getCenterY();
+						if( bx > canvasWidth - 30 ) { bx = canvasWidth - 30; }
+						if( by > canvasHeight - 15 ) { by = canvasHeight - 15; }
+						balloons[balloons.length] = new Balloon(scoreMng.awardNum.continuousBreakNum, bx, by, 25, 10, 0.13, popBalloonBackColor, popBalloonFontColor, 12);
+					}
 				}
 
 			// シミュレートの場合
@@ -578,13 +580,13 @@ class Block
 					var block = blockMap[i][j];
 
 					// 破壊可能ブロックのみ対象
-					if( block != null && block != this && ( ( ball.simulate == 0 && block.type != 0 ) || ( ball.simulate != 0 && block.simulate != 0 ) ) && block.infinit != 1 )
+					if( block != null && block != this && ( ( (!ball || ball.simulate == 0) && block.type != 0 ) || ( (ball && ball.simulate != 0) && block.simulate != 0 ) ) && block.infinit != 1 )
 					{
 						// 燃料・爆薬引火
 						if( block.func == BLOCK_FUNCTION.FUEL || block.func == BLOCK_FUNCTION.EXPLODE || block.func == BLOCK_FUNCTION.EXPLODE_STRENGTH )
 						{
 							// シミュレートでない場合
-							if( ball.simulate == 0 )
+							if( !ball || ball.simulate == 0 )
 							{
 								// 爆発モーションのセット
 								block.exploded = 60;
@@ -602,13 +604,13 @@ class Block
 						}
 
 						// シミュレートでない場合
-						if( ball.simulate == 0 ) {
+						if( !ball || ball.simulate == 0 ) {
 							// 爆発音
 							sounds.play('bomb');
 
 							// ポイント計算
 							scoreMng.score += ~~(blockDefaultPoint * 1.5);
-							ball.pointIncr += ~~(blockIncrPoint / 2);
+							if( ball ) { ball.pointIncr += ~~(blockIncrPoint / 2); }
 						}
 					}
 				}

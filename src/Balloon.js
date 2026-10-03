@@ -34,6 +34,7 @@ class Balloon
 
 	destructor()
 	{
+		this.endFlag = 1;
 	}
 
 

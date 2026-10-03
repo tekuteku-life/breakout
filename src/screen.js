@@ -1,4 +1,7 @@
-window.screenData = new Array();
+if (typeof window === 'undefined') {
+	globalThis.window = globalThis;
+}
+window.screenData = window.screenData || new Array();
 
 //----------------------------------------
 // 画面を開く
@@ -57,7 +60,7 @@ function toggleScreen(screenName)
 		// 閉じる
 		} else
 		{
-			closeScreen(screeName);
+			closeScreen(screenName);
 		}
 
 	// 例外処理
@@ -128,3 +131,13 @@ window.saveScreenData = saveScreenData;
 window.getScreenData = getScreenData;
 window.replaceScreenData = replaceScreenData;
 window.allClose = allClose;
+
+export {
+	openScreen,
+	closeScreen,
+	toggleScreen,
+	saveScreenData,
+	getScreenData,
+	replaceScreenData,
+	allClose
+};

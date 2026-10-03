@@ -163,6 +163,46 @@ class Control
 
 
 	//--------------------------------------------------
+	// 画面調整設定のトグル
+	//--------------------------------------------------
+	sizefitSwitchToggle()
+	{
+		// オン
+		if( this.sizeFitSwitch == 0 )
+		{
+			// 値の設定
+			this.sizeFitSwitch = 1;
+
+			// セレクタの変更
+			if( this.formSelector["sizefit"] && this.formSelector["sizefit"].childNodes.length > 1 )
+			{
+				this.formSelector["sizefit"].childNodes[0].selected = '';
+				this.formSelector["sizefit"].childNodes[1].selected = 'selected';
+			}
+
+		// オフ
+		} else
+		{
+			// 値の設定
+			this.sizeFitSwitch = 0;
+
+			// セレクタの変更
+			if( this.formSelector["sizefit"] && this.formSelector["sizefit"].childNodes.length > 1 )
+			{
+				this.formSelector["sizefit"].childNodes[0].selected = 'selected';
+				this.formSelector["sizefit"].childNodes[1].selected = '';
+			}
+		}
+
+		// 設定の記録
+		this.recordSizeFitSwitch();
+
+		// サイズ調整
+		this.fixSize();
+	}
+
+
+	//--------------------------------------------------
 	// 制御方法の設定のトグル
 	//--------------------------------------------------
 	ctrlSwitchToggle()
