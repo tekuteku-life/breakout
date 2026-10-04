@@ -228,9 +228,16 @@ globalThis.setInterval = function (fn, ms, ...args) {
 	return origSetInterval(fn, ms, ...args);
 };
 
-globalThis.gameLoopTick = function (timestamp = Date.now()) {
+let _virtualTickTime = Date.now();
+globalThis.gameLoopTick = function (timestamp = null) {
 	if (typeof globalThis._lastIntervalFn === 'function') {
 		globalThis._lastIntervalFn();
+	}
+	if (timestamp === null) {
+		_virtualTickTime += 20;
+		timestamp = _virtualTickTime;
+	} else {
+		_virtualTickTime = timestamp;
 	}
 	const current = [...animFrameCallbacks];
 	animFrameCallbacks = [];
@@ -240,6 +247,7 @@ globalThis.gameLoopTick = function (timestamp = Date.now()) {
 };
 
 export function setupEnvironment() {
+	_virtualTickTime = Date.now();
 	const elementsById = new Map();
 
 	function getOrCreate(id, tag = 'div') {

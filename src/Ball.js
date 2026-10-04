@@ -7,6 +7,7 @@ import {
 	BALL_CREATE_MODE,
 	BALL_COPY_MODE,
 	BALL_STATUS,
+	BALL_PARAM,
 	BLOCK_FUNCTION,
 	DEFAULT_CONFIG,
 } from "./const.js";
@@ -288,20 +289,12 @@ export default class Ball
 	{
 		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
 		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
-		const bSpin = 0.2;
-		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
-		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
-
 		const bar = this.getBar();
-		const blockMap = this.getBlockMap();
-		const cWidth = this.getCanvasWidth();
-		const cHeight = this.getCanvasHeight();
-		const sBarHeight = this.getStatusBarHeight();
 
 		// ボールの速度制限
 		if( Math.abs( this.vx ) > bMaxSpeed ) { this.vx = bMaxSpeed * (this.vx < 0 ? -1 : 1); }
 		if( Math.abs( this.vy ) > bMaxSpeed ) { this.vy = bMaxSpeed * (this.vy < 0 ? -1 : 1); }
-		else if( Math.abs( this.vy ) < bDefaultSpeed * 0.8 ) { this.vy = bMaxSpeed * 0.8 * (this.vy < 0 ? -1 : 1); }
+		else if( Math.abs( this.vy ) < bDefaultSpeed * BALL_PARAM.MIN_VY_RATIO ) { this.vy = bMaxSpeed * BALL_PARAM.MIN_VY_RATIO * (this.vy < 0 ? -1 : 1); }
 
 		// 状態時間の減少
 		if( this.statusTime > 0 ) {
@@ -324,6 +317,41 @@ export default class Ball
 		this.x += this.vx;
 		this.y += this.vy;
 
+		// 衝突判定
+		const throughFlag = this.checkCollision();
+
+		// ボールの速度制限
+		if( Math.abs( this.vx ) > bMaxSpeed ) { this.vx = bMaxSpeed * (this.vx < 0 ? -1 : 1); }
+		if( Math.abs( this.vy ) > bMaxSpeed ) { this.vy = bMaxSpeed * (this.vy < 0 ? -1 : 1); }
+
+		// 位置履歴の管理
+		if( throughFlag == 0 && this.isAbsorption == 0 && this.histX && this.histY ) {
+			this.histX.unshift(this.x);
+			this.histY.unshift(this.y);
+			if( this.histX.length > SYSTEM_PARAM.BALL_HIST_MAX ) {
+				this.histX.pop();
+				this.histY.pop();
+			}
+		}
+	}
+
+	//--------------------------------------------------
+	// 衝突判定
+	//--------------------------------------------------
+	checkCollision()
+	{
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
+		const bSpin = BALL_PARAM.SPIN_RATIO;
+		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
+
+		const bar = this.getBar();
+		const blockMap = this.getBlockMap();
+		const cWidth = this.getCanvasWidth();
+		const cHeight = this.getCanvasHeight();
+		const sBarHeight = this.getStatusBarHeight();
+
 		// 一時変数
 		var x = this.x;
 		var y = this.y;
@@ -341,6 +369,7 @@ export default class Ball
 
 			// 接触音（EventBus経由で通知）
 			if( simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'wall'); }
+			return 0;
 
 		// 右端
 		} else if( this.getRightX() > cWidth )
@@ -351,6 +380,7 @@ export default class Ball
 
 			// 接触音（EventBus経由で通知）
 			if( simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'wall'); }
+			return 0;
 		}
 
 		// 上端
@@ -362,6 +392,7 @@ export default class Ball
 
 			// 接触音（EventBus経由で通知）
 			if( simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'wall'); }
+			return 0;
 
 		// バー接触
 		} else if( bar && simulate == 0 && this.getBottomY() >= bar.getTopY() && Math.abs(x - bar.getCenterX()) <= bar.width / 2 )
@@ -392,19 +423,19 @@ export default class Ball
 
 			// 両端の傾斜による速度変化
 			var barEdgeWidth = bar.width * ( 0.5 - bar.edge * ~~(bar.height / 2) );
-			if( x < bar.getCenterX() - barEdgeWidth && vx > 0 ) { this.vx -= Math.abs( bDefaultSpeed - vx ) * 0.4; }
-			else if( x > bar.getCenterX() + barEdgeWidth && vx < 0 ) { this.vx += Math.abs( bDefaultSpeed + vx ) * 0.4; }
+			if( x < bar.getCenterX() - barEdgeWidth && vx > 0 ) { this.vx -= Math.abs( bDefaultSpeed - vx ) * BALL_PARAM.EDGE_ACCEL_RATIO; }
+			else if( x > bar.getCenterX() + barEdgeWidth && vx < 0 ) { this.vx += Math.abs( bDefaultSpeed + vx ) * BALL_PARAM.EDGE_ACCEL_RATIO; }
 
 			// ボールの縦方向速度の制御（速度が上方向が前提）
-			if( vy < -bDefaultSpeed ) { this.vy += 0.05; }
-			else if( vy > -bDefaultSpeed ) { this.vy -= 0.4; }
+			if( vy < -bDefaultSpeed ) { this.vy += BALL_PARAM.VY_UP_STEP; }
+			else if( vy > -bDefaultSpeed ) { this.vy -= BALL_PARAM.VY_DOWN_STEP; }
 
 			// ボールの横方向速度の制御
 			if( Math.abs(this.vx) > bMaxSpeed ) { this.vx = bMaxSpeed * ( this.vx < 0 ? -1 : 1 ); }
-			if( Math.abs(this.vx) < bDefaultSpeed * 0.01 ) { this.vx = bDefaultSpeed * 0.01; }
+			if( Math.abs(this.vx) < bDefaultSpeed * BALL_PARAM.MIN_VX_RATIO ) { this.vx = bDefaultSpeed * BALL_PARAM.MIN_VX_RATIO; }
 
 			// ポイント増分のリセット
-			this.pointIncr = 10;
+			this.pointIncr = BALL_PARAM.DEFAULT_POINT_INCR;
 
 			// 固定ブロック衝突回数のリセット
 			this.duaration = 0;
@@ -415,6 +446,7 @@ export default class Ball
 
 			// 接触音（EventBus経由で通知）
 			if( simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'bar'); }
+			return 0;
 
 		// 下端
 		} else if( this.getBottomY() > cHeight )
@@ -423,7 +455,7 @@ export default class Ball
 
 			// ボール落下
 			this.fall();
-			return;
+			return 0;
 		}
 		//-------ボール位置の制限及び壁・バーによる反射-------
 
@@ -460,7 +492,6 @@ export default class Ball
 					// 衝突検出
 					if( block != null && (( simulate == 0 && block.type != 0 ) || ( simulate == 1 && block.simulate != 0 )) )
 					{
-						// 衝突検出
 						collisionFlag = 1;
 
 						//----------衝突方向の判定----------
@@ -591,19 +622,7 @@ export default class Ball
 		}
 		//-------ブロック衝突判定-------
 
-		// ボールの速度制限
-		if( Math.abs( this.vx ) > bMaxSpeed ) { this.vx = bMaxSpeed * (this.vx < 0 ? -1 : 1); }
-		if( Math.abs( this.vy ) > bMaxSpeed ) { this.vy = bMaxSpeed * (this.vy < 0 ? -1 : 1); }
-
-		// 位置履歴の管理
-		if( throughFlag == 0 && this.isAbsorption == 0 && this.histX && this.histY ) {
-			this.histX.unshift(this.x);
-			this.histY.unshift(this.y);
-			if( this.histX.length > SYSTEM_PARAM.BALL_HIST_MAX ) {
-				this.histX.pop();
-				this.histY.pop();
-			}
-		}
+		return throughFlag;
 	}
 }
 

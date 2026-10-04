@@ -127,8 +127,8 @@ test('GameManage class unit tests', async (t) => {
 		gm.eventBus.emitEvent('status:addLife', 1);
 		assert.equal(gm.statusMng.life, initLife + 1);
 
-		// bar:endamage
-		gm.eventBus.emitEvent('bar:endamage', 2);
+		// bar:damage
+		gm.eventBus.emitEvent('bar:damage', 2);
 		assert.equal(gm.bar.hitPoint, 3);
 
 		// game:simulateReset

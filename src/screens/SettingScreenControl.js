@@ -2,6 +2,7 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import ScreenControl from "./ScreenControl.js";
+import { DEFAULT_CONFIG } from "../const.js";
 
 export default class SettingScreenControl extends ScreenControl {
 	constructor(screenManage, screenId = 'screen_setting', ctrl = null, storage = null, gameManage = null) {
@@ -60,7 +61,7 @@ export default class SettingScreenControl extends ScreenControl {
 				ctrl.setStageIndex(stageSel.value);
 				if (storage != null) {
 					ctrl.recordStageIndex();
-					const defLife = (this.gameManage && this.gameManage.defaultLife) || (this.screenManage && this.screenManage.game && this.screenManage.game.defaultLife) || 3;
+					const defLife = (this.gameManage && this.gameManage.defaultLife) || (this.screenManage && this.screenManage.game && this.screenManage.game.defaultLife) || DEFAULT_CONFIG.defaultLife;
 					storage.setItem("continue_life", defLife);
 					storage.setItem("continue_time", 0);
 					storage.setItem("continue_score", 0);

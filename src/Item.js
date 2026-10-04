@@ -5,6 +5,8 @@ import {
 	BALL_COPY_MODE,
 	BALL_STATUS,
 	DEFAULT_CONFIG,
+	ITEM_TYPE,
+	ITEM_PARAM,
 } from "./const.js";
 
 //--------------------------------------------------
@@ -111,8 +113,8 @@ export default class Item
 	{
 		const ctrl = this.getCtrl();
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
-		const itemSpeedList = (this.game && this.game.itemSpeed) || [4, 4, 4];
-		const speed = itemSpeedList[stageIdx] !== undefined ? itemSpeedList[stageIdx] : 4;
+		const itemSpeedList = (this.game && this.game.itemSpeed) || ITEM_PARAM.DEFAULT_SPEED;
+		const speed = itemSpeedList[stageIdx] !== undefined ? itemSpeedList[stageIdx] : ITEM_PARAM.DEFAULT_SPEED[0];
 		const canvasHeight = this.getCanvasHeight();
 
 		// 位置の決定
@@ -158,17 +160,29 @@ export default class Item
 		bus.emitEvent('award:add', { key: 'getItemNum', count: 1 });
 
 		// 取得音（EventBus経由で通知）
-		const soundName = (this.type == 4 || this.type == 6 || this.type == 11 || this.type == 12) ? 'minusItem' : 'plusItem';
+		const isMinus = (
+			this.type === ITEM_TYPE.SHORT ||
+			this.type === ITEM_TYPE.POISON ||
+			this.type === ITEM_TYPE.SLOW ||
+			this.type === ITEM_TYPE.VIBRATE
+		);
+		const soundName = isMinus ? 'minusItem' : 'plusItem';
 		bus.emitEvent('sound:play', soundName);
 
 		// 各種効果のEventBus通知
-		if (this.type === 0 || this.type === 1 || this.type === 2 || this.type === 7 || this.type === 8) {
+		if (
+			this.type === ITEM_TYPE.DOUBLE ||
+			this.type === ITEM_TYPE.HARD ||
+			this.type === ITEM_TYPE.FIRE ||
+			this.type === ITEM_TYPE.SPEED_UP ||
+			this.type === ITEM_TYPE.SPEED_DOWN
+		) {
 			// ボールに関する効果（増殖、強化、無敵、速度変化）
 			bus.emitEvent('ball:applyItem', this.type);
-		} else if (this.type === 5) {
+		} else if (this.type === ITEM_TYPE.LIFE) {
 			// ライフ回復
 			bus.emitEvent('status:addLife', 1);
-		} else if (this.type === 6) {
+		} else if (this.type === ITEM_TYPE.POISON) {
 			// ライフ減少
 			bus.emitEvent('status:addLife', -1);
 		} else {

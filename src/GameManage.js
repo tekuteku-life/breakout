@@ -19,9 +19,12 @@ import Balloon from "./Balloon.js";
 import Cloud from "./Cloud.js";
 import {
 	DEFAULT_CONFIG,
+	GAME_LOOP_PARAM,
 	BALL_CREATE_MODE,
 	BALL_COPY_MODE,
 	BALL_STATUS,
+	ITEM_TYPE,
+	BALL_PARAM,
 	AWARD_KEY_LIST,
 	APP_VER,
 	APP_ID,
@@ -584,10 +587,32 @@ export default class GameManage {
 	start() {
 		this.stop();
 		this.isRunning = true;
+		this.lastFrameTime = null;
+		this.accumulator = 0;
+
+		const stepTime = GAME_LOOP_PARAM.STEP_TIME;
+		const maxAccumulator = GAME_LOOP_PARAM.MAX_ACCUMULATOR;
 
 		const loop = (timestamp) => {
 			if (!this.isRunning) return;
-			this.step(timestamp);
+
+			if (this.lastFrameTime === null) {
+				this.lastFrameTime = timestamp - stepTime;
+			}
+			let elapsed = timestamp - this.lastFrameTime;
+			this.lastFrameTime = timestamp;
+
+			if (elapsed > maxAccumulator) {
+				elapsed = maxAccumulator;
+			}
+
+			this.accumulator += elapsed;
+
+			while (this.accumulator >= stepTime) {
+				this.step(timestamp, stepTime);
+				this.accumulator -= stepTime;
+			}
+
 			if (typeof requestAnimationFrame === 'function') {
 				this.animFrameId = requestAnimationFrame(loop);
 			}
@@ -600,6 +625,8 @@ export default class GameManage {
 
 	stop() {
 		this.isRunning = false;
+		this.lastFrameTime = null;
+		this.accumulator = 0;
 		if (this.animFrameId !== null) {
 			if (typeof cancelAnimationFrame === 'function') {
 				cancelAnimationFrame(this.animFrameId);
@@ -990,13 +1017,13 @@ export default class GameManage {
 	}
 
 	applyBallItem(type) {
-		const ballMaxNum = this.ballMaxNum || 4;
-		const ballStatusTime = this.ballStatusTime || 8;
+		const ballMaxNum = this.ballMaxNum || DEFAULT_CONFIG.ballMaxNum;
+		const ballStatusTime = this.ballStatusTime || BALL_PARAM.STATUS_TIME_SEC;
 		const fps = this.FPS || DEFAULT_CONFIG.FPS;
 		const ballNum = this.balls.length;
 
 		// 2倍増殖
-		if (type === 0) {
+		if (type === ITEM_TYPE.DOUBLE) {
 			const diffNum = ballMaxNum - ballNum;
 			const len = ballNum > diffNum ? diffNum : ballNum;
 			for (let i = 0; i < len; i++) {
@@ -1005,7 +1032,7 @@ export default class GameManage {
 				}
 			}
 		// 強化状態
-		} else if (type === 1) {
+		} else if (type === ITEM_TYPE.HARD) {
 			for (let i = 0; i < ballNum; i++) {
 				if (this.balls[i]) {
 					this.balls[i].status = BALL_STATUS.STRONG;
@@ -1013,7 +1040,7 @@ export default class GameManage {
 				}
 			}
 		// 無敵状態
-		} else if (type === 2) {
+		} else if (type === ITEM_TYPE.FIRE) {
 			for (let i = 0; i < ballNum; i++) {
 				if (this.balls[i]) {
 					this.balls[i].status = BALL_STATUS.ULTIMATE;
@@ -1021,19 +1048,19 @@ export default class GameManage {
 				}
 			}
 		// ボール速度増加
-		} else if (type === 7) {
+		} else if (type === ITEM_TYPE.SPEED_UP) {
 			for (let i = 0; i < ballNum; i++) {
 				if (this.balls[i]) {
-					this.balls[i].vx *= 1.3;
-					this.balls[i].vy *= 1.3;
+					this.balls[i].vx *= BALL_PARAM.SPEED_UP_RATIO;
+					this.balls[i].vy *= BALL_PARAM.SPEED_UP_RATIO;
 				}
 			}
 		// ボール速度減少
-		} else if (type === 8) {
+		} else if (type === ITEM_TYPE.SPEED_DOWN) {
 			for (let i = 0; i < ballNum; i++) {
 				if (this.balls[i]) {
-					this.balls[i].vx *= 0.7;
-					this.balls[i].vy *= 0.7;
+					this.balls[i].vx *= BALL_PARAM.SPEED_DOWN_RATIO;
+					this.balls[i].vy *= BALL_PARAM.SPEED_DOWN_RATIO;
 				}
 			}
 		}

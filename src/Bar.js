@@ -2,7 +2,7 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import Weapon from "./Weapon.js";
-import { DEFAULT_CONFIG } from "./const.js";
+import { DEFAULT_CONFIG, BAR_PARAM, ITEM_TYPE } from "./const.js";
 
 //--------------------------------------------------
 // 反射バー
@@ -18,9 +18,9 @@ export default class Bar
 		const bDefHeight = DEFAULT_CONFIG.barDefaultHeight;
 		const bDefSpeed = DEFAULT_CONFIG.barDefaultSpeed;
 		const bDefWidth = DEFAULT_CONFIG.barDefaultWidth;
-		const bEdge = 0.04;
-		const bColor = '#114400';
-		const bDefHP = 5;
+		const bEdge = BAR_PARAM.DEFAULT_EDGE;
+		const bColor = BAR_PARAM.DEFAULT_COLOR;
+		const bDefHP = BAR_PARAM.DEFAULT_HP;
 
 		this.pointX = px;										// 入力位置（EventBusイベント等で更新）
 		this.x = px;											// バー横軸位置
@@ -47,7 +47,6 @@ export default class Bar
 		// EventBus経由でイベントを購読
 		this.onPointXHandler = (x) => {
 			this.pointX = x;
-			this.hasReceivedInputPointX = true;
 		};
 		this.onDamageHandler = (damage = 1) => {
 			this.endamage(damage);
@@ -63,7 +62,6 @@ export default class Bar
 		if (bus && typeof bus.addOnEvent === 'function') {
 			bus.addOnEvent('input:pointX', this.onPointXHandler);
 			bus.addOnEvent('bar:damage', this.onDamageHandler);
-			bus.addOnEvent('bar:endamage', this.onDamageHandler);
 			bus.addOnEvent('bar:relaunch', this.onRelaunchHandler);
 			bus.addOnEvent('bar:applyItem', this.onApplyItemHandler);
 		}
@@ -76,7 +74,6 @@ export default class Bar
 			if (this.onPointXHandler) bus.removeOnEvent('input:pointX', this.onPointXHandler);
 			if (this.onDamageHandler) {
 				bus.removeOnEvent('bar:damage', this.onDamageHandler);
-				bus.removeOnEvent('bar:endamage', this.onDamageHandler);
 			}
 			if (this.onRelaunchHandler) bus.removeOnEvent('bar:relaunch', this.onRelaunchHandler);
 			if (this.onApplyItemHandler) bus.removeOnEvent('bar:applyItem', this.onApplyItemHandler);
@@ -108,7 +105,6 @@ export default class Bar
 	setPointX(val) {
 		this.pointX = val;
 		if (this.getEventBus()) {
-			this.getEventBus().emitEvent('input:pointX', val);
 			this.getEventBus().emitEvent('input:setPointX', val);
 		}
 	}
@@ -211,7 +207,6 @@ export default class Bar
 	{
 		const balls = this.getBalls();
 		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
-		const bSpin = 0.2;
 
 		// 吸着しているボールを探す
 		let found = false;
@@ -227,7 +222,7 @@ export default class Bar
 				// 球速の変更
 				if( Math.abs(this.vx) > bDefaultSpeed * 0.3 )
 				{
-					ball.vx = this.vx * bSpin;
+					ball.vx = this.vx * BAR_PARAM.SPIN_RATIO;
 
 				// ランダムに決定
 				} else
@@ -248,6 +243,26 @@ export default class Bar
 
 
 	//--------------------------------------------------
+	// 衝突判定（画面端との衝突・位置制限）
+	//--------------------------------------------------
+	checkCollision()
+	{
+		const canvasWidth = this.getCanvasWidth();
+		const half_barWidth = ~~(this.width / 2);
+		if( this.getLeftX() < 0 ) {
+			this.vx -= this.getLeftX();
+			this.x = half_barWidth;
+			return true;
+		} else if( this.getRightX() > canvasWidth ) {
+			this.vx -= this.getRightX() - canvasWidth;
+			this.x = canvasWidth - half_barWidth;
+			return true;
+		}
+		return false;
+	}
+
+
+	//--------------------------------------------------
 	// 移動・状態遷移
 	//--------------------------------------------------
 	move()
@@ -257,7 +272,7 @@ export default class Bar
 		const bDefaultWidth = DEFAULT_CONFIG.barDefaultWidth;
 		const bDefaultSpeed = DEFAULT_CONFIG.barDefaultSpeed;
 		const bDefaultHeight = DEFAULT_CONFIG.barDefaultHeight;
-		const bColor = '#114400';
+		const bColor = BAR_PARAM.DEFAULT_COLOR;
 
 		// バー速度の計算
 		this.vx = pointX - this.getCenterX();
@@ -288,15 +303,8 @@ export default class Bar
 			this.x += ~~((~~(Math.random() * 2) * 2 - 1 + edgeBias) * Math.random() * vibrationWidth);
 		}
 
-		// バー位置の制限
-		var half_barWidth = ~~(this.width / 2);
-		if( this.getLeftX() < 0 ) {
-			this.vx -= this.getLeftX();
-			this.x = half_barWidth;
-		} else if( this.getRightX() > canvasWidth ) {
-			this.vx -= this.getRightX() - canvasWidth;
-			this.x = canvasWidth - half_barWidth;
-		}
+		// 画面端との衝突判定・位置制限
+		this.checkCollision();
 
 		// 武器発射間隔の制御
 		if( this.weaponInter > 0 ) { this.weaponInter--; }
@@ -315,8 +323,8 @@ export default class Bar
 			this.speedStatusTime--;
 
 			// バーサイズの変更
-			if( this.vxMax > bDefaultSpeed ) { this.height = bDefaultHeight * 0.6; }
-			else { this.height = bDefaultHeight * 1.6; }
+			if( this.vxMax > bDefaultSpeed ) { this.height = bDefaultHeight * BAR_PARAM.SPEED_UP_HEIGHT_RATIO; }
+			else { this.height = bDefaultHeight * BAR_PARAM.SPEED_DOWN_HEIGHT_RATIO; }
 
 			// 状態解除
 			if( this.speedStatusTime <= 0 ) {
@@ -388,7 +396,7 @@ export default class Bar
 	//--------------------------------------------------
 	endamage(_damage)
 	{
-		const bDefHP = 5;
+		const bDefHP = BAR_PARAM.DEFAULT_HP;
 
 		// HPの減少
 		this.hitPoint = Number(this.hitPoint) - Number(_damage);
@@ -413,46 +421,46 @@ export default class Bar
 		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
 		const barMaxWidth = (this.game && this.game.barMaxWidth) || 140;
 		const barMinWidth = (this.game && this.game.barMinWidth) || 50;
-		const barStatusDefaultTime = (this.game && this.game.barStatusDefaultTime) || 10;
-		const barWeaponDefaultTime = (this.game && this.game.barWeaponDefaultTime) || 8;
+		const barStatusDefaultTime = (this.game && this.game.barStatusDefaultTime) || BAR_PARAM.STATUS_TIME_SEC;
+		const barWeaponDefaultTime = (this.game && this.game.barWeaponDefaultTime) || BAR_PARAM.WEAPON_TIME_SEC;
 		const barMinSpeed = (this.game && this.game.barMinSpeed) || 10;
 		const barImmortalColor = (this.game && this.game.barImmortalColor) || '#ffff00';
 
 		// バー幅伸長
-		if (type == 3) {
-			this.width = ~~(this.width * 1.3);
+		if (type === ITEM_TYPE.LONG) {
+			this.width = ~~(this.width * BAR_PARAM.LONG_WIDTH_RATIO);
 			if (this.width > barMaxWidth) { this.width = barMaxWidth; }
 			this.widthStatusTime = barStatusDefaultTime * fps;
 		// バー幅縮小
-		} else if (type == 4) {
-			this.width = ~~(this.width * 0.7);
+		} else if (type === ITEM_TYPE.SHORT) {
+			this.width = ~~(this.width * BAR_PARAM.SHORT_WIDTH_RATIO);
 			if (this.width < barMinWidth) { this.width = barMinWidth; }
 			this.widthStatusTime = barStatusDefaultTime * fps;
 		// 銃
-		} else if (type == 9) {
+		} else if (type === ITEM_TYPE.GUN) {
 			this.weapon = 1;
 			this.weaponTime = barWeaponDefaultTime * fps;
 		// ミサイル
-		} else if (type == 10) {
+		} else if (type === ITEM_TYPE.MISSILE) {
 			this.weapon = 2;
 			this.weaponTime = barWeaponDefaultTime * fps;
 		// 速度鈍化
-		} else if (type == 11) {
+		} else if (type === ITEM_TYPE.SLOW) {
 			this.vxMax -= ~~(Math.abs(this.vxMax - barMinSpeed) * 0.8);
 			if (this.vxMax < barMinSpeed) { this.vxMax = barMinSpeed; }
 			this.speedStatusTime = barStatusDefaultTime * fps;
 		// 加振
-		} else if (type == 12) {
+		} else if (type === ITEM_TYPE.VIBRATE) {
 			this.vibrationTime = barStatusDefaultTime * fps;
 		// 吸着
-		} else if (type == 13) {
+		} else if (type === ITEM_TYPE.ABSORB) {
 			this.absorptionStatusTime = barStatusDefaultTime * fps;
 		// 不死身
-		} else if (type == 14) {
+		} else if (type === ITEM_TYPE.IMMORTAL) {
 			this.color = barImmortalColor;
 			this.immortalStatusTime = barStatusDefaultTime * fps;
 		// 画面難視化
-		} else if (type == 15) {
+		} else if (type === ITEM_TYPE.DISTURB) {
 			this.disturbStatusTime = barStatusDefaultTime * fps;
 		}
 	}

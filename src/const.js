@@ -6,6 +6,13 @@ export const SYSTEM_PARAM = Object.freeze({
 	BALL_HIST_MAX: 4,			// ボール座標履歴最大数
 });
 
+// ゲームループ・タイムステップ制御用パラメータ
+export const GAME_LOOP_PARAM = Object.freeze({
+	BASE_FPS: 50,				// 基準フレームレート（FPS）
+	STEP_TIME: 1000 / 50,		// 1ステップ当たりの基準ミリ秒 (20ms)
+	MAX_ACCUMULATOR: 200,		// スパイラル防止用最大蓄積ミリ秒 (200ms)
+});
+
 // ボールインスタンス生成モード
 export const BALL_CREATE_MODE = Object.freeze({
 	LAUNCH: 1,					// 発射
@@ -48,6 +55,109 @@ export const BALL_STATUS = Object.freeze({
 	NORMAL: 0,					// 通常
 	STRONG: 1,					// 強化
 	ULTIMATE: 2,				// 無敵
+});
+
+// アイテム種別
+export const ITEM_TYPE = Object.freeze({
+	DOUBLE: 0,					// 球2倍増殖
+	HARD: 1,					// 球強化
+	FIRE: 2,					// 球無敵
+	LONG: 3,					// バー延長
+	SHORT: 4,					// バー短縮
+	LIFE: 5,					// ライフ+1
+	POISON: 6,					// ライフ-1
+	SPEED_UP: 7,				// バー高速化
+	SPEED_DOWN: 8,				// バー低速化
+	GUN: 9,						// 銃
+	MISSILE: 10,				// ミサイル
+	SLOW: 11,					// 球減速
+	VIBRATE: 12,				// バー振動
+	ABSORB: 13,					// 球吸着
+	IMMORTAL: 14,				// バー無敵
+	DISTURB: 15,				// 操作反転
+});
+
+// アイテム関連パラメータ
+export const ITEM_PARAM = Object.freeze({
+	DEFAULT_SPEED: Object.freeze([4, 4, 4]),	// ステージ毎のデフォルト落下速度
+	STATUS_TIME_SEC: 10,						// 状態変化系アイテムの継続時間（秒）
+	DEFAULT_FONT_SIZE: 14,						// アイテム表示フォントサイズ
+});
+
+// 武器種別
+export const WEAPON_TYPE = Object.freeze({
+	GUN: 0,						// 銃
+	MISSILE: 1,					// ミサイル
+});
+
+// 武器パラメータ
+export const WEAPON_PARAM = Object.freeze({
+	DEFAULT_SPEED: Object.freeze([8, 6]),		// 武器デフォルト速度 [銃, ミサイル]
+	MAX_NUM: Object.freeze([3, 2]),				// 武器最大発射数 [銃, ミサイル]
+	FIRE_INTERVAL: 12,							// 武器発射間隔（フレーム数）
+	MISSILE_ACCEL_RATIO: 0.5,					// ミサイル加速時間比率 (fps * 0.5)
+});
+
+// 反射バー用パラメータ
+export const BAR_PARAM = Object.freeze({
+	DEFAULT_COLOR: '#114400',					// デフォルトバー色
+	IMMORTAL_COLOR: '#E12F09',					// 不死身時バー色
+	DEFAULT_HP: 5,								// デフォルト耐久値
+	DEFAULT_EDGE: 0.04,							// バー端部傾斜係数
+	SPIN_RATIO: 0.2,							// バー移動による球へのスピン係数
+	STATUS_TIME_SEC: 10,						// 状態変化の継続時間（秒）
+	WEAPON_TIME_SEC: 8,							// 武器装備継続時間（秒）
+	SPEED_UP_RATIO: 1.6,						// バー速度アップ時の倍率
+	SPEED_DOWN_RATIO: 0.6,						// バー速度ダウン時の倍率
+	SPEED_UP_HEIGHT_RATIO: 0.6,					// バー速度アップ時の高さ倍率
+	SPEED_DOWN_HEIGHT_RATIO: 1.6,				// バー速度ダウン時の高さ倍率
+	LONG_WIDTH_RATIO: 1.3,						// バー延長時の幅倍率
+	SHORT_WIDTH_RATIO: 0.7,						// バー短縮時の幅倍率
+	BLINK_TIME_RATIO: 0.25,						// 終了予告点滅開始時間比率 (statusTime * 0.25)
+	BLINK_ALPHA_STEP: 0.05,						// 点滅時のアルファ増減ステップ
+	BLINK_ALPHA_MIN: 0.1,						// 点滅時の最小アルファ値
+	VIBRATION_TIME_RATIO: 4,					// 振動継続時間（秒）
+});
+
+// ボール用パラメータ
+export const BALL_PARAM = Object.freeze({
+	DEFAULT_POINT_INCR: 10,						// 連続ブロック破壊ポイント初期増分
+	STATUS_TIME_SEC: 8,							// 強化・無敵状態の継続時間（秒）
+	SPIN_RATIO: 0.2,							// バーからのスピン影響係数
+	LAUNCH_CHARGE_MAX_SEC: 1.0,					// 発射ため撃ち最大時間（秒）
+	MIN_VY_RATIO: 0.8,							// 最小縦方向速度比率 (defaultSpeed * 0.8)
+	MIN_VX_RATIO: 0.01,							// 最小横方向速度比率 (defaultSpeed * 0.01)
+	EDGE_ACCEL_RATIO: 0.4,						// バー端衝突時の加速係数
+	VY_UP_STEP: 0.05,							// バー接触時の上昇速度補正微調整
+	VY_DOWN_STEP: 0.4,							// バー接触時の下降速度補正微調整
+	SPEED_UP_RATIO: 1.3,						// 速度アップアイテム適用倍率
+	SPEED_DOWN_RATIO: 0.7,						// 速度ダウンアイテム適用倍率
+});
+
+// バルーン表示用パラメータ
+export const BALLOON_PARAM = Object.freeze({
+	FLOAT_SPEED: 1,								// 上昇速度
+	FADE_SPEED: 0.02,							// フェードアウト速度
+	DAMAGE_BALLOON: Object.freeze({				// バー被弾時のダメージ表示バルーン
+		WIDTH: 25,
+		HEIGHT: 10,
+		ALPHA: 0.13,
+		BACK_COLOR: '#000000',
+		FONT_COLOR: '#ff0000',
+		FONT_SIZE: 12,
+		OFFSET_X: -10,
+		OFFSET_Y: -15,
+	}),
+});
+
+// ブロック用パラメータ
+export const BLOCK_PARAM = Object.freeze({
+	DRAWING_DISTANCE: 80,						// 引力・斥力影響最大距離
+	MAGNET_ACCEL_BASE: 25,						// 引力加速度計算基準値
+	MAGNET_DIST_POW: 1.8,						// 引力距離減衰指数
+	MAGNET_VX_RATIO: 1.6,						// 引力横方向補正比率
+	MAGNET_VY_REL_NEG_RATIO: 0.4,				// 引力縦方向補正比率（異符号時）
+	MAGNET_VY_REL_POS_RATIO: 0.2,				// 引力縦方向補正比率（同符号時）
 });
 
 // アワードのキー
@@ -159,4 +269,3 @@ export const DEFAULT_CONFIG = Object.freeze({
 		Object.freeze(['Double', 'Hard', 'Fire', 'Long', 'Short', 'Life', 'Poison', 'SpeedUp', 'SpeedDown', 'Gun', 'Missile', 'Slow', 'Vibrate', 'Absorb', 'Immortal', 'Disturb']),
 	]),
 });
-

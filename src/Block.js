@@ -7,6 +7,7 @@ import Balloon from "./Balloon.js";
 import {
 	BALL_STATUS,
 	BLOCK_FUNCTION,
+	BLOCK_PARAM,
 	DEFAULT_CONFIG,
 } from "./const.js";
 
@@ -220,7 +221,7 @@ export default class Block
 		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
 		const blockLife = (this.game && this.game.blockLife) || [];
 		const blockMoveInter = (this.game && this.game.blockMoveInter) || 5;
-		const blockDrawingDistance = (this.game && this.game.blockDrawingDistance) || 80;
+		const blockDrawingDistance = (this.game && this.game.blockDrawingDistance) || BLOCK_PARAM.DRAWING_DISTANCE;
 		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
 		const blockAttackInter = (this.game && this.game.blockAttackInter) || 8;
 		const blockBlinkInter = (this.game && this.game.blockBlinkInter) || 5;
@@ -313,17 +314,17 @@ export default class Block
 					if( dist <= blockDrawingDistance ) {
 
 						// 加速度の計算
-						var acceleration = ballDefaultSpeed * 25 / Math.pow(dist, 1.8);
+						var acceleration = ballDefaultSpeed * BLOCK_PARAM.MAGNET_ACCEL_BASE / Math.pow(dist, BLOCK_PARAM.MAGNET_DIST_POW);
 
 						// 横方向の球速の変更
-						ball.vx += acceleration * 1.6 * (relX < 0 ? -1 : 1) * powVect;
+						ball.vx += acceleration * BLOCK_PARAM.MAGNET_VX_RATIO * (relX < 0 ? -1 : 1) * powVect;
 						if( Math.abs(ball.vx) <= ballDefaultSpeed * 0.1 ) { ball.vx = ballDefaultSpeed * 0.1 * (ball.vx >= 0 ? 1 : -1); }
 
 						// 縦方向の球速の変更
 						if( ball.vy * relY < 0 ) {
-							ball.vy += acceleration * 0.4 * (relY < 0 ? -1 : 1) * powVect;
+							ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_NEG_RATIO * (relY < 0 ? -1 : 1) * powVect;
 						} else {
-							ball.vy += acceleration * 0.2 * (relY < 0 ? -1 : 1) * powVect;
+							ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_POS_RATIO * (relY < 0 ? -1 : 1) * powVect;
 						}
 					}
 				}

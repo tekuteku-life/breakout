@@ -126,12 +126,23 @@ test('Bar class unit tests', async (t) => {
 		assert.doesNotThrow(() => bar.destructor());
 	});
 
-	await t.test('move clamps bar within left canvas boundary', () => {
+	await t.test('move and checkCollision clamp bar within canvas boundary', () => {
 		const bar = new Bar();
 		bar.x = 10;
 		globalThis.pointX = -100;
 		bar.move();
 		assert.ok(bar.getLeftX() >= 0, 'Bar should be clamped at left boundary');
+
+		bar.x = -50;
+		assert.equal(bar.checkCollision(), true);
+		assert.ok(bar.getLeftX() >= 0);
+
+		bar.x = 1000;
+		assert.equal(bar.checkCollision(), true);
+		assert.ok(bar.getRightX() <= bar.getCanvasWidth());
+
+		bar.x = 200;
+		assert.equal(bar.checkCollision(), false);
 	});
 
 	await t.test('Bar getters and setters via game instance', () => {

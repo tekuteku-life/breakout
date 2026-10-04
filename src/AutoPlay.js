@@ -5,6 +5,9 @@ import {
 	BALL_COPY_MODE,
 	SIMULATE_PARAM,
 	DEFAULT_CONFIG,
+	BAR_PARAM,
+	WEAPON_PARAM,
+	ITEM_PARAM,
 } from "./const.js";
 
 //--------------------------------------------------
@@ -73,11 +76,11 @@ export default class AutoPlay
 		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
 		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
 		const bDefaultSpeedBar = (this.game && this.game.barDefaultSpeed) || DEFAULT_CONFIG.barDefaultSpeed;
-		const bSpin = 0.2;
+		const bSpin = BAR_PARAM.SPIN_RATIO;
 		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
 		const bSize = (this.game && this.game.ballSize) || DEFAULT_CONFIG.ballSize;
-		const weaponMaxNum = [3, 2];
-		const itemSpeed = [4, 4, 4];
+		const weaponMaxNum = WEAPON_PARAM.MAX_NUM;
+		const itemSpeed = (this.game && this.game.itemSpeed) || ITEM_PARAM.DEFAULT_SPEED;
 		const itemProb = (this.game && this.game.itemProb) || [];
 
 		const balls = this.getBalls();

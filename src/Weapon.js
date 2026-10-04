@@ -2,7 +2,13 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import Balloon from "./Balloon.js";
-import { BLOCK_FUNCTION, DEFAULT_CONFIG } from "./const.js";
+import {
+	BLOCK_FUNCTION,
+	DEFAULT_CONFIG,
+	WEAPON_TYPE,
+	WEAPON_PARAM,
+	BALLOON_PARAM,
+} from "./const.js";
 
 //--------------------------------------------------
 // 武器
@@ -19,7 +25,7 @@ export default class Weapon
 		this.y = 0;										// 縦軸座標
 		this.vy = 0;									// 縦軸速度
 		this.vect = 0;									// 進行方向
-		this.size = (this.type == 0 ? 1 : 4);			// サイズ
+		this.size = (this.type == WEAPON_TYPE.GUN ? 1 : 4);	// サイズ
 		this.setInter = 0;								// 発射間隔制御フラグ
 
 		// 縦軸座標の設定
@@ -99,41 +105,32 @@ export default class Weapon
 	//--------------------------------------------------
 	move() {
 		const bar = this.getBar();
-		const blockMap = this.getBlockMap();
 		const canvasHeight = this.getCanvasHeight();
-		const statusBarHeight = this.getStatusBarHeight();
 
-		const weaponSpeedList = (this.game && this.game.weaponSpeed) || [8, 6];
+		const weaponSpeedList = (this.game && this.game.weaponSpeed) || WEAPON_PARAM.DEFAULT_SPEED;
 		const wSpeed = weaponSpeedList[this.type] !== undefined ? weaponSpeedList[this.type] : 6;
 		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
-		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
-		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
 
 		// 発射間隔の制御
 		if( this.setInter == 0 ) {
 			// 発射間隔の設定
-			if (bar) bar.weaponInter = 12;
+			if (bar) bar.weaponInter = WEAPON_PARAM.FIRE_INTERVAL;
 
 			this.setInter = 1;
 
 			// 発射音（EventBus経由で通知）
-			const weaponSound = (this.type == 0) ? 'gun' : 'missile';
+			const weaponSound = (this.type == WEAPON_TYPE.GUN) ? 'gun' : 'missile';
 			this.getEventBus()?.emitEvent('sound:play', weaponSound);
 		}
 
 		// 座標を進める
 		this.y -= this.vy * this.vect;
 
-		// 変数の置き換え
-		var x = this.x;
-		var y = this.y;
-		var vy = this.vy;
-
 		// ミサイル風加速モーション
 		if( this.vy < wSpeed ) {
 			// ミサイル
-			if( this.type == 1 ) {
-				this.vy += wSpeed / (fps * 0.5);
+			if( this.type == WEAPON_TYPE.MISSILE ) {
+				this.vy += wSpeed / (fps * WEAPON_PARAM.MISSILE_ACCEL_RATIO);
 				if( this.vy > wSpeed ) { this.vy = wSpeed; }
 
 			// 銃
@@ -143,9 +140,26 @@ export default class Weapon
 		}
 
 		// 画面からアウト
-		if( 0 > this.getBottomY() || this.getTopY() > canvasHeight ) { this.destructor(); }
+		if( 0 > this.getBottomY() || this.getTopY() > canvasHeight ) {
+			this.destructor();
+			return;
+		}
 
-		// ブロック衝突判定
+		// 衝突判定
+		this.checkCollision();
+	}
+
+	//--------------------------------------------------
+	// 衝突判定
+	//--------------------------------------------------
+	checkCollision() {
+		const bar = this.getBar();
+		const blockMap = this.getBlockMap();
+		const statusBarHeight = this.getStatusBarHeight();
+		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
+
+		// ブロック衝突判定（自機発射）
 		if( this.vect > 0 )
 		{
 			var collisionFlag = 0;
@@ -176,7 +190,7 @@ export default class Weapon
 							}
 
 							// ミサイル
-							if( this.type == 1 ) {
+							if( this.type == WEAPON_TYPE.MISSILE ) {
 								block.action(null, 0);
 
 							// 銃
@@ -203,7 +217,7 @@ export default class Weapon
 				}
 			}
 		}
-		// バー衝突判定
+		// バー衝突判定（敵ブロック攻撃）
 		else if( 0 > this.vect && bar )
 		{
 			if( this.getCenterY() + this.size * 6 >= bar.getTopY() && Math.abs(this.getCenterX() - bar.getCenterX()) <= bar.width/2 )
@@ -213,16 +227,17 @@ export default class Weapon
 
 				// バルーンの追加（EventBus経由で通知）
 				const nextHitPoint = Math.max(0, bar.hitPoint - 1);
+				const balloonCfg = BALLOON_PARAM.DAMAGE_BALLOON;
 				this.getEventBus()?.emitEvent('balloon:spawn', {
 					text: nextHitPoint,
-					x: bar.getCenterX() - 10,
-					y: bar.getTopY() - 15,
-					width: 25,
-					height: 10,
-					alpha: 0.13,
-					backColor: "#000000",
-					fontColor: "#ff0000",
-					fontSize: 12,
+					x: bar.getCenterX() + balloonCfg.OFFSET_X,
+					y: bar.getTopY() + balloonCfg.OFFSET_Y,
+					width: balloonCfg.WIDTH,
+					height: balloonCfg.HEIGHT,
+					alpha: balloonCfg.ALPHA,
+					backColor: balloonCfg.BACK_COLOR,
+					fontColor: balloonCfg.FONT_COLOR,
+					fontSize: balloonCfg.FONT_SIZE,
 				});
 
 				// 武器の消去
