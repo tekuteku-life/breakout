@@ -39,6 +39,7 @@ describe('Integration Test: Weapon-Block Interactions & Bar Damage', () => {
 
 		// Step movement -> hits block
 		gun.move();
+		g.resolveCollisions();
 		assert.equal(targetBlock.life, 1, 'Gun should decrease block life by 1');
 		assert.equal(g.weapons.length, 0, 'Gun should despawn after impact');
 	});
@@ -63,6 +64,7 @@ describe('Integration Test: Weapon-Block Interactions & Bar Damage', () => {
 		g.weapons = [missile];
 
 		missile.move();
+		g.resolveCollisions();
 		assert.equal(durableBlock.type, 0, 'Durable block should be destroyed in one hit by missile');
 		assert.equal(g.weapons.length, 0, 'Missile should despawn after impact');
 	});
@@ -80,6 +82,7 @@ describe('Integration Test: Weapon-Block Interactions & Bar Damage', () => {
 		g.weapons = [enemyWeapon];
 
 		enemyWeapon.move();
+		g.resolveCollisions();
 		assert.ok(bar.hitPoint < 5, 'Bar should take damage from downward enemy weapon');
 		assert.equal(g.weapons.length, 0, 'Enemy weapon should despawn upon hitting bar');
 	});

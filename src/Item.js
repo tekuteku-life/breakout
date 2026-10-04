@@ -2,8 +2,6 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import {
-	BALL_COPY_MODE,
-	BALL_STATUS,
 	DEFAULT_CONFIG,
 	ITEM_TYPE,
 	ITEM_PARAM,
@@ -52,10 +50,6 @@ export default class Item
 
 	getEventBus() {
 		return (this.game && this.game.eventBus) || null;
-	}
-
-	getBar() {
-		return (this.game && this.game.bar) || null;
 	}
 
 	getItems() {
@@ -120,17 +114,8 @@ export default class Item
 		// 位置の決定
 		this.y += speed;
 
-		// 未取得のまま落下
+		// 未取得のまま画面外へ落下
 		if( this.y > canvasHeight ) {
-			// アイテムの消去
-			this.destructor();
-
-		// バー接触（アイテム取得）
-		} else if( this.checkCollision() )
-		{
-			// アイテム効果の発動
-			this.applyEffect();
-
 			// アイテムの消去
 			this.destructor();
 		}
@@ -138,13 +123,12 @@ export default class Item
 
 
 	//--------------------------------------------------
-	// 衝突判定
+	// 衝突判定（バーとの交差判定）
 	//--------------------------------------------------
-	checkCollision(target)
+	checkCollision(bar)
 	{
-		var b = target || this.getBar();
-		if (!b) return false;
-		return (this.getBottomY() > b.getTopY() && b.getLeftX() <= this.getRightX() && b.getRightX() >= this.getLeftX());
+		if (!bar) { return false; }
+		return (this.getBottomY() > bar.getTopY() && bar.getLeftX() <= this.getRightX() && bar.getRightX() >= this.getLeftX());
 	}
 
 
@@ -154,7 +138,7 @@ export default class Item
 	applyEffect()
 	{
 		const bus = this.getEventBus();
-		if (!bus) return;
+		if (!bus) { return; }
 
 		// アイテム取得数の計算（EventBus経由で通知）
 		bus.emitEvent('award:add', { key: 'getItemNum', count: 1 });

@@ -13,14 +13,14 @@ export default class Bar
 	{
 		this.game = game;
 
-		const cHeight = (this.game && this.game.canvasHeight) ? this.game.canvasHeight : DEFAULT_CONFIG.canvasHeight;
+		const cHeight = (this.game && this.game.canvasHeight !== undefined) ? this.game.canvasHeight : DEFAULT_CONFIG.canvasHeight;
 		const px = (this.game && this.game.inputManage) ? this.game.inputManage.pointX : (DEFAULT_CONFIG.canvasWidth / 2);
-		const bDefHeight = DEFAULT_CONFIG.barDefaultHeight;
-		const bDefSpeed = DEFAULT_CONFIG.barDefaultSpeed;
-		const bDefWidth = DEFAULT_CONFIG.barDefaultWidth;
-		const bEdge = BAR_PARAM.DEFAULT_EDGE;
-		const bColor = BAR_PARAM.DEFAULT_COLOR;
-		const bDefHP = BAR_PARAM.DEFAULT_HP;
+		const bDefHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : DEFAULT_CONFIG.barDefaultHeight;
+		const bDefSpeed = (this.game && this.game.barDefaultSpeed !== undefined) ? this.game.barDefaultSpeed : DEFAULT_CONFIG.barDefaultSpeed;
+		const bDefWidth = (this.game && this.game.barDefaultWidth !== undefined) ? this.game.barDefaultWidth : DEFAULT_CONFIG.barDefaultWidth;
+		const bEdge = (this.game && this.game.barEdge !== undefined) ? this.game.barEdge : DEFAULT_CONFIG.barEdge;
+		const bColor = (this.game && this.game.barColor !== undefined) ? this.game.barColor : DEFAULT_CONFIG.barColor;
+		const bDefHP = (this.game && this.game.barDefaultHP !== undefined) ? this.game.barDefaultHP : DEFAULT_CONFIG.barDefaultHP;
 
 		this.pointX = px;										// 入力位置（EventBusイベント等で更新）
 		this.x = px;											// バー横軸位置
@@ -123,7 +123,7 @@ export default class Bar
 	//--------------------------------------------------
 	draw(ctx)
 	{
-		const bStatusDefaultTime = 10;
+		const bStatusDefaultTime = BAR_PARAM.STATUS_TIME_SEC;
 		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
 
 		// 武器の描画
@@ -133,11 +133,11 @@ export default class Bar
 		}
 
 		// バー状態解除前の点滅制御
-		if( (this.widthStatusTime != 0 && this.widthStatusTime <= bStatusDefaultTime * fps * 0.25) ||
-			(this.magnetStatusTime != 0 && this.magnetStatusTime <= bStatusDefaultTime * fps * 0.25)
+		if( (this.widthStatusTime != 0 && this.widthStatusTime <= bStatusDefaultTime * fps * BAR_PARAM.BLINK_TIME_RATIO) ||
+			(this.magnetStatusTime != 0 && this.magnetStatusTime <= bStatusDefaultTime * fps * BAR_PARAM.BLINK_TIME_RATIO)
 		) {
-			this.alpha -= 0.05;
-			if( this.alpha < 0.1 ) { this.alpha = 1; }
+			this.alpha -= BAR_PARAM.BLINK_ALPHA_STEP;
+			if( this.alpha < BAR_PARAM.BLINK_ALPHA_MIN ) { this.alpha = 1; }
 		} else {
 			this.alpha = 1;
 		}
@@ -263,16 +263,12 @@ export default class Bar
 
 
 	//--------------------------------------------------
-	// 移動・状態遷移
 	//--------------------------------------------------
-	move()
+	// 位置移動と画面端制限
+	//--------------------------------------------------
+	movePosition()
 	{
 		const pointX = this.getPointX();
-		const canvasWidth = this.getCanvasWidth();
-		const bDefaultWidth = DEFAULT_CONFIG.barDefaultWidth;
-		const bDefaultSpeed = DEFAULT_CONFIG.barDefaultSpeed;
-		const bDefaultHeight = DEFAULT_CONFIG.barDefaultHeight;
-		const bColor = BAR_PARAM.DEFAULT_COLOR;
 
 		// バー速度の計算
 		this.vx = pointX - this.getCenterX();
@@ -283,37 +279,64 @@ export default class Bar
 		// 位置の移動
 		this.x += this.vx;
 
-		// バーの振動
-		if( this.vibrationTime > 0 )
-		{
-			this.vibrationTime--;
-
-			// 振動幅の計算
-			var vibrationWidth = this.width;
-
-			// 画面端処理
-			var half_barWidth = ~~(this.width / 2);
-			var edgeBias = 0;
-			if( pointX < half_barWidth ) {
-				edgeBias = (half_barWidth - pointX)/half_barWidth;
-			} else if( pointX > canvasWidth - half_barWidth ) {
-				edgeBias = (canvasWidth - half_barWidth - pointX)/half_barWidth;
-			}
-
-			this.x += ~~((~~(Math.random() * 2) * 2 - 1 + edgeBias) * Math.random() * vibrationWidth);
-		}
-
 		// 画面端との衝突判定・位置制限
 		this.checkCollision();
+	}
 
+	//--------------------------------------------------
+	// バーの振動制御
+	//--------------------------------------------------
+	updateVibration()
+	{
+		if( this.vibrationTime <= 0 ) { return; }
+
+		this.vibrationTime--;
+		const pointX = this.getPointX();
+		const canvasWidth = this.getCanvasWidth();
+		const vibrationWidth = this.width;
+
+		// 画面端処理
+		const half_barWidth = ~~(this.width / 2);
+		let edgeBias = 0;
+		if( pointX < half_barWidth ) {
+			edgeBias = (half_barWidth - pointX) / half_barWidth;
+		} else if( pointX > canvasWidth - half_barWidth ) {
+			edgeBias = (canvasWidth - half_barWidth - pointX) / half_barWidth;
+		}
+
+		this.x += ~~((~~(Math.random() * 2) * 2 - 1 + edgeBias) * Math.random() * vibrationWidth);
+		this.checkCollision();
+	}
+
+	//--------------------------------------------------
+	// 武器状態・タイマー制御
+	//--------------------------------------------------
+	updateWeapon()
+	{
 		// 武器発射間隔の制御
 		if( this.weaponInter > 0 ) { this.weaponInter--; }
+
+		// 武器状態時間の制御
+		if( this.weaponTime > 0 )
+		{
+			this.weaponTime--;
+			if( this.weaponTime <= 0 ) { this.weapon = 0; }
+		}
+	}
+
+	//--------------------------------------------------
+	// ステータスタイマーの制御（幅・速度・吸着・不死身・難視化）
+	//--------------------------------------------------
+	updateStatusTimers()
+	{
+		const bDefaultWidth = (this.game && this.game.barDefaultWidth !== undefined) ? this.game.barDefaultWidth : DEFAULT_CONFIG.barDefaultWidth;
+		const bDefaultSpeed = (this.game && this.game.barDefaultSpeed !== undefined) ? this.game.barDefaultSpeed : DEFAULT_CONFIG.barDefaultSpeed;
+		const bDefaultHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : DEFAULT_CONFIG.barDefaultHeight;
+		const bColor = (this.game && this.game.barColor !== undefined) ? this.game.barColor : DEFAULT_CONFIG.barColor;
 
 		// バー長状態の制御
 		if( this.widthStatusTime > 0 ) {
 			this.widthStatusTime--;
-
-			// 状態解除
 			if( this.widthStatusTime <= 0 ) { this.width = bDefaultWidth; }
 		}
 
@@ -321,33 +344,19 @@ export default class Bar
 		if( this.speedStatusTime > 0 )
 		{
 			this.speedStatusTime--;
-
-			// バーサイズの変更
 			if( this.vxMax > bDefaultSpeed ) { this.height = bDefaultHeight * BAR_PARAM.SPEED_UP_HEIGHT_RATIO; }
 			else { this.height = bDefaultHeight * BAR_PARAM.SPEED_DOWN_HEIGHT_RATIO; }
 
-			// 状態解除
 			if( this.speedStatusTime <= 0 ) {
 				this.vxMax = bDefaultSpeed;
 				this.height = bDefaultHeight;
 			}
 		}
 
-		// 武器状態の制御
-		if( this.weaponTime > 0 )
-		{
-			this.weaponTime--;
-
-			// 状態解除
-			if( this.weaponTime <= 0 ) { this.weapon = 0; }
-		}
-
 		// 吸着状態の制御
 		if( this.absorptionStatusTime > 0 )
 		{
 			this.absorptionStatusTime--;
-
-			// 吸着状態解除
 			if( this.absorptionStatusTime <= 0 )
 			{
 				while( this.absorptionNum > 0 )
@@ -366,13 +375,9 @@ export default class Bar
 		if( this.immortalStatusTime > 0 )
 		{
 			this.immortalStatusTime--;
-
-			// 不死身状態の解除
 			if( this.immortalStatusTime <= 0 )
 			{
 				this.immortalStatusTime = 0;
-
-				// バー色を戻す
 				this.color = bColor;
 			}
 		}
@@ -381,13 +386,22 @@ export default class Bar
 		if( this.disturbStatusTime > 0 )
 		{
 			this.disturbStatusTime--;
-
-			// 画面の難視化状態の解除
 			if( this.disturbStatusTime <= 0 )
 			{
 				this.disturbStatusTime = 0;
 			}
 		}
+	}
+
+	//--------------------------------------------------
+	// 移動・状態遷移
+	//--------------------------------------------------
+	move()
+	{
+		this.movePosition();
+		this.updateVibration();
+		this.updateWeapon();
+		this.updateStatusTimers();
 	}
 
 
@@ -396,7 +410,7 @@ export default class Bar
 	//--------------------------------------------------
 	endamage(_damage)
 	{
-		const bDefHP = BAR_PARAM.DEFAULT_HP;
+		const bDefHP = (this.game && this.game.barDefaultHP !== undefined) ? this.game.barDefaultHP : DEFAULT_CONFIG.barDefaultHP;
 
 		// HPの減少
 		this.hitPoint = Number(this.hitPoint) - Number(_damage);
@@ -418,13 +432,13 @@ export default class Bar
 	//--------------------------------------------------
 	applyItemEffect(type)
 	{
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
-		const barMaxWidth = (this.game && this.game.barMaxWidth) || 140;
-		const barMinWidth = (this.game && this.game.barMinWidth) || 50;
-		const barStatusDefaultTime = (this.game && this.game.barStatusDefaultTime) || BAR_PARAM.STATUS_TIME_SEC;
-		const barWeaponDefaultTime = (this.game && this.game.barWeaponDefaultTime) || BAR_PARAM.WEAPON_TIME_SEC;
-		const barMinSpeed = (this.game && this.game.barMinSpeed) || 10;
-		const barImmortalColor = (this.game && this.game.barImmortalColor) || '#ffff00';
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const barMaxWidth = (this.game && this.game.barMaxWidth !== undefined) ? this.game.barMaxWidth : DEFAULT_CONFIG.barMaxWidth;
+		const barMinWidth = (this.game && this.game.barMinWidth !== undefined) ? this.game.barMinWidth : DEFAULT_CONFIG.barMinWidth;
+		const barStatusDefaultTime = (this.game && this.game.barStatusDefaultTime !== undefined) ? this.game.barStatusDefaultTime : DEFAULT_CONFIG.barStatusDefaultTime;
+		const barWeaponDefaultTime = (this.game && this.game.barWeaponDefaultTime !== undefined) ? this.game.barWeaponDefaultTime : DEFAULT_CONFIG.barWeaponDefaultTime;
+		const barMinSpeed = (this.game && this.game.barMinSpeed !== undefined) ? this.game.barMinSpeed : DEFAULT_CONFIG.barMinSpeed;
+		const barImmortalColor = (this.game && this.game.barImmortalColor !== undefined) ? this.game.barImmortalColor : DEFAULT_CONFIG.barImmortalColor;
 
 		// バー幅伸長
 		if (type === ITEM_TYPE.LONG) {

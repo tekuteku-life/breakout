@@ -43,6 +43,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballL.histY = [ballL.y];
 		g.balls = [ballL];
 		ballL.move();
+		g.resolveCollisions();
 		assert.ok(ballL.vx < 0, 'Ball should reflect horizontally from left');
 
 		// 2. Collision from Right (moving left)
@@ -57,6 +58,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballR.histY = [ballR.y];
 		g.balls = [ballR];
 		ballR.move();
+		g.resolveCollisions();
 		assert.ok(ballR.vx > 0, 'Ball should reflect horizontally from right');
 
 		// 3. Collision from Top (moving down)
@@ -71,6 +73,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballT.histY = [ballT.y];
 		g.balls = [ballT];
 		ballT.move();
+		g.resolveCollisions();
 		assert.ok(ballT.vy < 0, 'Ball should reflect vertically from top');
 
 		// 4. Collision from Bottom (moving up)
@@ -85,6 +88,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballB.histY = [ballB.y];
 		g.balls = [ballB];
 		ballB.move();
+		g.resolveCollisions();
 		assert.ok(ballB.vy > 0, 'Ball should reflect vertically from bottom');
 
 		// 5. Diagonal collision where vx > vy (X reflection dominates)
@@ -99,6 +103,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballD.histY = [ballD.y];
 		g.balls = [ballD];
 		ballD.move();
+		g.resolveCollisions();
 		assert.ok(ballD.vx < 0);
 	});
 
@@ -126,6 +131,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballUp.histY = [ballUp.y];
 		g.balls = [ballUp];
 		ballUp.move();
+		g.resolveCollisions();
 		assert.ok(ballUp.vy < 0, 'Ball should pass through without reflecting');
 
 		// 2. Acceleration block at col=6, row=3
@@ -140,6 +146,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballAccel.histY = [ballAccel.y];
 		g.balls = [ballAccel];
 		ballAccel.move();
+		g.resolveCollisions();
 		assert.ok(ballAccel.vx < 0, 'Should reflect after accelerating');
 
 		// 3. Deceleration block at col=8, row=3
@@ -154,6 +161,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballDecel.histY = [ballDecel.y];
 		g.balls = [ballDecel];
 		ballDecel.move();
+		g.resolveCollisions();
 		assert.ok(ballDecel.vx < 0, 'Should reflect after decelerating');
 
 		// 4. Warp Enter at col=2, row=4 and Exit at col=10, row=7
@@ -171,6 +179,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballWarp.histY = [ballWarp.y];
 		g.balls = [ballWarp];
 		ballWarp.move();
+		g.resolveCollisions();
 		assert.equal(ballWarp.x, warpOut.getCenterX(), 'Ball should teleport to warp exit block');
 	});
 
@@ -193,7 +202,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballMag.vx = 1;
 		ballMag.vy = 0;
 		g.balls = [ballMag];
-		magnetBlock.move();
+		g.applyFieldEffects();
 		assert.ok(ballMag.vx !== 1 || ballMag.vy !== 0, 'Magnet should pull ball');
 
 		// 2. Repull block
@@ -205,7 +214,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballRepull.vx = 2;
 		ballRepull.vy = 0;
 		g.balls = [ballRepull];
-		repullBlock.move();
+		g.applyFieldEffects();
 
 		// 3. Bomb chain reaction
 		const bomb1 = new Block(2, 2, 1, BLOCK_FUNCTION.EXPLODE, 0, 0, 0, g);
@@ -234,6 +243,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		strongBall.histY = [strongBall.y];
 		g.balls = [strongBall];
 		strongBall.move();
+		g.resolveCollisions();
 		assert.equal(blockPen.type, 0, 'Normal block should be broken by strong ball');
 
 		// 5. Simulate mode execution
@@ -249,6 +259,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		simBall.histX = [simBall.x];
 		simBall.histY = [simBall.y];
 		simBall.move();
+		g.resolveCollisions();
 		assert.equal(simBlock.type, 1, 'Real block type should not be destroyed in simulate mode');
 	});
 
@@ -278,6 +289,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		g.balls = [ball1];
 
 		ball1.move();
+		g.resolveCollisions();
 		assert.equal(singleHitBlock.type, 0, 'Standard block should be destroyed (type = 0) on collision');
 		assert.equal(g.statusMng.blockNum, 0, 'statusMng blockNum should decrease to 0');
 		assert.ok(g.scoreMng.score > initialScore, 'Score should increase after block destruction');
@@ -298,6 +310,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		g.balls = [ball2];
 
 		ball2.move();
+		g.resolveCollisions();
 		assert.equal(durableBlock.type, 1, 'Durable block should survive first hit');
 		assert.equal(durableBlock.life, 0, 'Durable block life should decrement to 0');
 		assert.equal(g.statusMng.blockNum, 1, 'statusMng blockNum should remain 1 after non-fatal hit');
@@ -313,7 +326,54 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		g.balls = [ball3];
 
 		ball3.move();
+		g.resolveCollisions();
 		assert.equal(durableBlock.type, 0, 'Durable block should be destroyed on second hit');
 		assert.equal(g.statusMng.blockNum, 0, 'statusMng blockNum should decrement to 0 on final destruction');
+	});
+
+	it('does not trigger ghost side collision in block gaps between horizontally adjacent blocks', () => {
+		const g = window.gameManage;
+		g.blockMap = [];
+		for (let r = 0; r < 10; r++) {
+			g.blockMap[r] = [];
+			for (let c = 0; c < 15; c++) {
+				g.blockMap[r][c] = null;
+			}
+		}
+
+		// Place two adjacent blocks horizontally in row 3: col=4 and col=5
+		const blockA = new Block(4, 3, 1, BLOCK_FUNCTION.NORMAL, 0, 0, 0, g);
+		const blockB = new Block(5, 3, 1, BLOCK_FUNCTION.NORMAL, 0, 0, 0, g);
+		g.blockMap[3][4] = blockA;
+		g.blockMap[3][5] = blockB;
+		g.statusMng.blockNum = 2;
+
+		// Ball flying upwards right at the seam/gap between blockA and blockB
+		const gapX = blockA.getRightX(); // exactly on the boundary between A and B
+		const ball = new Ball(BALL_CREATE_MODE.OTHER, g);
+		ball.x = gapX;
+		ball.y = blockA.getBottomY() + ball.radius + 1;
+		ball.vx = 0.5;
+		ball.vy = -3;
+		ball.histX = [ball.x];
+		ball.histY = [ball.y];
+		g.balls = [ball];
+
+		ball.move();
+		g.resolveCollisions();
+
+		// Ball should reflect downwards (vy > 0), NOT sideways (side collision was prevented)
+		assert.ok(ball.vy > 0, 'Ball should reflect vertically downwards from bottom surface');
+		assert.ok(ball.y >= blockA.getBottomY(), 'Ball position should be pushed below the blocks');
+
+		// Only one block should be destroyed (or touched), not both simultaneously
+		const remainingBlocks = (blockA.type !== 0 ? 1 : 0) + (blockB.type !== 0 ? 1 : 0);
+		assert.equal(remainingBlocks, 1, 'Only one block should be affected, not both simultaneously');
+
+		// In the next frame, ball moves downwards away from the remaining block
+		ball.move();
+		g.resolveCollisions();
+		const finalRemaining = (blockA.type !== 0 ? 1 : 0) + (blockB.type !== 0 ? 1 : 0);
+		assert.equal(finalRemaining, 1, 'Remaining adjacent block must NOT be destroyed on next frame');
 	});
 });

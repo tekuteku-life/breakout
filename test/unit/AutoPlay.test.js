@@ -8,6 +8,7 @@ import Block from '../../src/Block.js';
 import Item from '../../src/Item.js';
 import Weapon from '../../src/Weapon.js';
 import EventBus from '../../src/EventBus.js';
+import GameManage from '../../src/GameManage.js';
 import { BALL_CREATE_MODE } from '../../src/const.js';
 
 test('AutoPlay class unit tests', async (t) => {
@@ -237,5 +238,89 @@ test('AutoPlay class unit tests', async (t) => {
 	await t.test('step() returns early if bar is not present', () => {
 		const ap = new AutoPlay({});
 		assert.doesNotThrow(() => ap.step());
+	});
+
+	await t.test('auto optimizes route: simulates block collisions and computes dvx trajectory', () => {
+		const gm = new GameManage({
+			FPS: 60,
+			ballDefaultSpeed: 4,
+			barDefaultSpeed: 8,
+			blockWidth: 30,
+			blockHeight: 15,
+		});
+		gm.init(0);
+		gm.ctrl.autoSwitch = 1;
+
+		// Setup blocks in row 5
+		const blocks = [];
+		for (let j = 0; j < 15; j++) {
+			blocks.push(new Block(j, 5, 1, 0, 1, 0, 0, gm));
+		}
+		gm.blockMap = [[], [], [], [], [], blocks];
+		gm.statusMng.countBlockNum();
+
+		const ball = new Ball(BALL_CREATE_MODE.OTHER, gm);
+		ball.x = 200;
+		ball.y = 480;
+		ball.vx = 2;
+		ball.vy = 4;
+		gm.balls = [ball];
+
+		gm.bar.x = 180;
+		gm.bar.y = 500;
+		gm.bar.pointX = 180;
+
+		gm.autoPlay.step();
+
+		const sim = gm.autoPlay.simuData;
+		assert.ok(sim, 'simuData should be populated');
+		assert.ok(sim.breakMaxNum > 0 || sim.collisionMaxNum > 0, 'Should detect block collision/destruction in simulation');
+		assert.ok(typeof sim.dvx === 'number', 'sim.dvx should be computed');
+		assert.ok(typeof gm.bar.pointX === 'number', 'bar.pointX should be updated');
+	});
+
+	await t.test('auto optimizes route with multiple balls and handles leftSpeed swap', () => {
+		const gm = new GameManage({
+			FPS: 60,
+			ballDefaultSpeed: 4,
+			barDefaultSpeed: 8,
+			blockWidth: 30,
+			blockHeight: 15,
+		});
+		gm.init(0);
+		gm.ctrl.autoSwitch = 1;
+
+		const blocks = [];
+		for (let j = 0; j < 15; j++) {
+			blocks.push(new Block(j, 5, 1, 0, 1, 0, 0, gm));
+		}
+		gm.blockMap = [[], [], [], [], [], blocks];
+		gm.statusMng.countBlockNum();
+
+		// Ball 1: near bar, falling, located on right side of screen
+		const ball1 = new Ball(BALL_CREATE_MODE.OTHER, gm);
+		ball1.x = 650;
+		ball1.y = 485;
+		ball1.vx = -1;
+		ball1.vy = 4;
+
+		// Ball 2: far away, ascending
+		const ball2 = new Ball(BALL_CREATE_MODE.OTHER, gm);
+		ball2.x = 100;
+		ball2.y = 200;
+		ball2.vx = 2;
+		ball2.vy = -3;
+
+		gm.balls = [ball1, ball2];
+		gm.bar.x = 640;
+		gm.bar.y = 500;
+		gm.bar.pointX = 640;
+
+		gm.autoPlay.step();
+
+		const sim = gm.autoPlay.simuData;
+		assert.ok(sim, 'simuData should be created');
+		assert.ok(typeof sim.dvx === 'number');
+		assert.ok(typeof gm.bar.pointX === 'number');
 	});
 });

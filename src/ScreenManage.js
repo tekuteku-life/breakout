@@ -8,7 +8,6 @@ import StageClearScreenControl from "./screens/StageClearScreenControl.js";
 import AllClearScreenControl from "./screens/AllClearScreenControl.js";
 import GameOverScreenControl from "./screens/GameOverScreenControl.js";
 import AboutScreenControl from "./screens/AboutScreenControl.js";
-import ScreenControl from "./screens/ScreenControl.js";
 import { DEFAULT_CONFIG } from "./const.js";
 
 export default class ScreenManage {

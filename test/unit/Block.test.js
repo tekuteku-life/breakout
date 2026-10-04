@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { setupEnvironment, createMock2DContext } from '../helpers/setupEnv.js';
 import Block from '../../src/Block.js';
 import ImageData from '../../src/ImageData.js';
+import EventBus from '../../src/EventBus.js';
 import { BLOCK_FUNCTION, BALL_STATUS } from '../../src/const.js';
 
 test('Block class unit tests', async (t) => {
@@ -121,10 +122,9 @@ test('Block class unit tests', async (t) => {
 				if (name === 'weapon:spawn') spawnedWeapon = data;
 			}
 		};
-		const mockGame = { eventBus: mockBus, FPS: 60 };
+		const mockGame = { eventBus: mockBus, FPS: 60, balls: [{}] };
 		const bAttack = new Block(1, 1, 1, BLOCK_FUNCTION.ATTACK, 0, 0, 0, mockGame);
 		bAttack.attackInter = 0;
-		bAttack.getBalls = () => [{}];
 		bAttack.move();
 		assert.ok(spawnedWeapon !== null);
 	});
@@ -296,7 +296,7 @@ test('Block class unit tests', async (t) => {
 		assert.equal(bMove.moveVect, -1, 'Moving block should reverse when blocked');
 	});
 
-	await t.test('move handles magnet and repull acceleration forces', () => {
+	await t.test('applyMagneticForce handles magnet and repull acceleration forces', () => {
 		const mockMagnetGame = {
 			balls: [],
 			FPS: 50,
@@ -314,15 +314,14 @@ test('Block class unit tests', async (t) => {
 			vx: 1,
 			vy: -2,
 		};
-		mockMagnetGame.balls = [ball];
 
 		// Magnet pull
-		bMagnet.move();
+		bMagnet.applyMagneticForce(ball);
 		assert.ok(typeof ball.vx === 'number');
 
 		// Repull push with ball.vy * relY < 0
 		ball.vy = -2;
-		bRepull.move();
+		bRepull.applyMagneticForce(ball);
 		assert.ok(typeof ball.vy === 'number');
 	});
 
@@ -392,7 +391,6 @@ test('Block class unit tests', async (t) => {
 		assert.equal(b.getGame(), mockGame);
 		assert.equal(b.getStaticCtx(), mockStaticCtx);
 		assert.equal(b.getBlockMap(), mockBlockMap);
-		assert.equal(b.getBalls(), mockBalls);
 		assert.equal(b.getCtrl(), mockCtrl);
 		assert.equal(b.getCanvasWidth(), 800);
 		assert.equal(b.getCanvasHeight(), 600);
@@ -404,6 +402,48 @@ test('Block class unit tests', async (t) => {
 		b.clear = () => {};
 		b.destructor();
 		assert.equal(itemDestructorCalled, true);
+	});
+
+	await t.test('infinite block (infinit=1) cannot be destroyed by Hard (STRONG) ball, only by Fire (ULTIMATE) ball', () => {
+		const bus = new EventBus();
+		const mockGame = {
+			eventBus: bus,
+			FPS: 60,
+			blockMap: [],
+			canvasWidth: 750,
+			canvasHeight: 530,
+			statusBarHeight: 0,
+		};
+
+		// 1. Hit by STRONG (Hard) ball: should NOT be destroyed
+		const infBlock1 = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 0, 1, 0, mockGame);
+		const hardBall = {
+			simulate: 0,
+			status: BALL_STATUS.STRONG,
+			collisionNum: 0,
+			breakNum: 0,
+			pointIncr: 10,
+			getCenterX: () => 60,
+			getCenterY: () => 30,
+		};
+		infBlock1.action(hardBall, 1);
+		assert.equal(infBlock1.type, 1, 'Infinite block must NOT be destroyed by STRONG (Hard) ball');
+		assert.equal(hardBall.breakNum, 0, 'breakNum should not increase for unbroken infinite block');
+
+		// 2. Hit by ULTIMATE (Fire) ball: SHOULD be destroyed
+		const infBlock2 = new Block(3, 2, 1, BLOCK_FUNCTION.NORMAL, 0, 1, 0, mockGame);
+		const fireBall = {
+			simulate: 0,
+			status: BALL_STATUS.ULTIMATE,
+			collisionNum: 0,
+			breakNum: 0,
+			pointIncr: 10,
+			getCenterX: () => 90,
+			getCenterY: () => 30,
+		};
+		infBlock2.action(fireBall, 1);
+		assert.equal(infBlock2.type, 0, 'Infinite block MUST be destroyed by ULTIMATE (Fire) ball');
+		assert.equal(fireBall.breakNum, 1, 'breakNum should increase when destroyed by ULTIMATE ball');
 	});
 });
 

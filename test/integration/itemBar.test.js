@@ -64,6 +64,7 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		// Move should detect collision, apply effect and remove item
 		const initialScoreAward = g.scoreMng.awardNum.getItemNum;
 		item.move();
+		g.resolveCollisions();
 		assert.equal(g.items.length, 0, 'Item should be consumed upon bar collision');
 		assert.equal(g.scoreMng.awardNum.getItemNum, initialScoreAward + 1);
 	});

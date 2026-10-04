@@ -1,9 +1,6 @@
 // src/Block.js
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
-import Item from "./Item.js";
-import Weapon from "./Weapon.js";
-import Balloon from "./Balloon.js";
 import {
 	BALL_STATUS,
 	BLOCK_FUNCTION,
@@ -23,9 +20,9 @@ export default class Block
 		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
 		const sBarHeight = this.getStatusBarHeight();
 		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
-		const bMoveInter = (this.game && this.game.blockMoveInter) || 5;
-		const bBlinkInter = (this.game && this.game.blockBlinkInter) || 5;
-		const bAttackInter = (this.game && this.game.blockAttackInter) || 5;
+		const bMoveInter = (this.game && this.game.blockMoveInter !== undefined) ? this.game.blockMoveInter : DEFAULT_CONFIG.blockMoveInter;
+		const bBlinkInter = (this.game && this.game.blockBlinkInter !== undefined) ? this.game.blockBlinkInter : DEFAULT_CONFIG.blockBlinkInter;
+		const bAttackInter = (this.game && this.game.blockAttackInter !== undefined) ? this.game.blockAttackInter : DEFAULT_CONFIG.blockAttackInter;
 		const imgSource = (this.game && this.game.imgData) ? this.game.imgData : null;
 
 		this.width = blkWidth;									// ブロックの横幅
@@ -72,7 +69,7 @@ export default class Block
 	destructor()
 	{
 		const ctx = this.getStaticCtx();
-		if (ctx) this.clear(ctx);
+		if (ctx) { this.clear(ctx); }
 		if (this.item && typeof this.item.destructor === 'function') {
 			this.item.destructor();
 		}
@@ -95,10 +92,6 @@ export default class Block
 
 	getBlockMap() {
 		return (this.game && this.game.blockMap) || [];
-	}
-
-	getBalls() {
-		return (this.game && this.game.balls) || [];
 	}
 
 	getCtrl() {
@@ -208,23 +201,15 @@ export default class Block
 
 
 	//--------------------------------------------------
-	// 動き・状態遷移
 	//--------------------------------------------------
-	move()
+	// 状態・カウントダウン更新（見た目・耐久度）
+	//--------------------------------------------------
+	updateState()
 	{
-		const staticCtx = this.getStaticCtx();
-		const balls = this.getBalls();
-		const blockMap = this.getBlockMap();
-		const canvasWidth = this.getCanvasWidth();
-		const statusBarHeight = this.getStatusBarHeight();
-
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 		const blockLife = (this.game && this.game.blockLife) || [];
-		const blockMoveInter = (this.game && this.game.blockMoveInter) || 5;
-		const blockDrawingDistance = (this.game && this.game.blockDrawingDistance) || BLOCK_PARAM.DRAWING_DISTANCE;
-		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
-		const blockAttackInter = (this.game && this.game.blockAttackInter) || 8;
-		const blockBlinkInter = (this.game && this.game.blockBlinkInter) || 5;
+		const balls = (this.game && this.game.balls) || [];
+		const staticCtx = this.getStaticCtx();
 
 		// 爆発モーションのカウントダウン
 		if( this.exploded > 0 ) { this.exploded--; }
@@ -236,7 +221,7 @@ export default class Block
 			if( balls.length == 0 ) { this.breakLimit = 1; }
 
 			// 残り時間の計算
-			var countDownTime = ~~(this.breakLimit / fps * 10) / 10;
+			const countDownTime = ~~(this.breakLimit / fps * 10) / 10;
 
 			// 出力文字の作成
 			if( countDownTime * 10 % 10 == 0 ) { this.text = String(~~countDownTime + ".0"); }
@@ -254,131 +239,170 @@ export default class Block
 			}
 
 			// 描画
-			if (staticCtx) this.draw(staticCtx);
+			if (staticCtx) { this.draw(staticCtx); }
 		}
+	}
 
-		if( this.type != 0 )
+	//--------------------------------------------------
+	// 移動処理（横移動ブロック）
+	//--------------------------------------------------
+	movePosition()
+	{
+		if( this.type == 0 || this.func !== BLOCK_FUNCTION.VERTICAL_MOVE ) return;
+
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const blockMoveInter = (this.game && this.game.blockMoveInter !== undefined) ? this.game.blockMoveInter : DEFAULT_CONFIG.blockMoveInter;
+		const blockMap = this.getBlockMap();
+		const canvasWidth = this.getCanvasWidth();
+		const statusBarHeight = this.getStatusBarHeight();
+		const staticCtx = this.getStaticCtx();
+
+		this.moveInter--;
+
+		if( this.moveInter <= 0 )
 		{
-			// 移動処理
-			if( this.func == BLOCK_FUNCTION.VERTICAL_MOVE )
+			const i = Math.round((this.getTopY() - statusBarHeight) / this.height);
+			const j = Math.round(this.getLeftX() / this.width);
+			let forBlock = (blockMap && blockMap[i]) ? blockMap[i][j + this.moveVect] : null;
+
+			// 移動
+			if( blockMap && blockMap[i] && (!forBlock || forBlock.type == 0) && (j + this.moveVect) < canvasWidth / this.width && j + this.moveVect >= 0 )
 			{
-				this.moveInter--;
+				// 描画を消去
+				if (staticCtx) { this.clear(staticCtx); }
 
-				if( this.moveInter <= 0 )
-				{
-					var i = Math.round((this.getTopY() - statusBarHeight) / this.height);
-					var j = Math.round(this.getLeftX() / this.width);
-					var forBlock = (blockMap && blockMap[i]) ? blockMap[i][j + this.moveVect] : null;
+				// 移動
+				blockMap[i][j + this.moveVect] = this.copy();
+				forBlock = blockMap[i][j + this.moveVect];
+				forBlock.x += this.width * this.moveVect;
+				forBlock.moveInter = blockMoveInter * fps + (this.moveVect == 1 ? 1 : 0);
 
-					// 移動
-					if( blockMap && blockMap[i] && (!forBlock || forBlock.type == 0) && (j + this.moveVect) < canvasWidth / this.width && j + this.moveVect >= 0 )
-					{
-						// 描画を消去
-						if (staticCtx) this.clear(staticCtx);
+				// 再描画
+				if (staticCtx) { forBlock.draw(staticCtx); }
 
-						// 移動
-						blockMap[i][j + this.moveVect] = this.copy();
-						forBlock = blockMap[i][j + this.moveVect];
-						forBlock.x += this.width * this.moveVect;
-						forBlock.moveInter = blockMoveInter * fps + (this.moveVect == 1 ? 1 : 0);
+				// 無効化
+				this.type = 0;
 
-						// 再描画
-						if (staticCtx) forBlock.draw(staticCtx);
-
-						// 無効化
-						this.type = 0;
-
-					// 反転
-					} else {
-						this.moveVect *= -1;
-					}
-				}
-			}
-			// 引力処理
-			else if( this.func == BLOCK_FUNCTION.MAGNET || this.func == BLOCK_FUNCTION.REPULL )
-			{
-				// 引力・斥力の判別
-				var powVect = 1;
-				if( this.func == BLOCK_FUNCTION.MAGNET ) { powVect = -1; }
-				else { powVect = 1; }
-
-				for( var i = 0, len = balls.length; i < len; i++ ) {
-					var ball = balls[i];
-
-					// 相対座標の取得
-					var relX = ball.getCenterX() - this.getCenterX();
-					var relY = ball.getCenterY() - this.getCenterY();
-
-					// 引力影響範囲内の球のみ対象
-					var dist = Math.sqrt(Math.pow(relX, 2) + Math.pow(relY, 2));
-					if( dist <= blockDrawingDistance ) {
-
-						// 加速度の計算
-						var acceleration = ballDefaultSpeed * BLOCK_PARAM.MAGNET_ACCEL_BASE / Math.pow(dist, BLOCK_PARAM.MAGNET_DIST_POW);
-
-						// 横方向の球速の変更
-						ball.vx += acceleration * BLOCK_PARAM.MAGNET_VX_RATIO * (relX < 0 ? -1 : 1) * powVect;
-						if( Math.abs(ball.vx) <= ballDefaultSpeed * 0.1 ) { ball.vx = ballDefaultSpeed * 0.1 * (ball.vx >= 0 ? 1 : -1); }
-
-						// 縦方向の球速の変更
-						if( ball.vy * relY < 0 ) {
-							ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_NEG_RATIO * (relY < 0 ? -1 : 1) * powVect;
-						} else {
-							ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_POS_RATIO * (relY < 0 ? -1 : 1) * powVect;
-						}
-					}
-				}
-			}
-			// 攻撃処理
-			else if( this.func == BLOCK_FUNCTION.ATTACK && balls.length > 0 )
-			{
-				// 経過時間のカウント
-				this.attackInter--;
-
-				// 攻撃
-				if( this.attackInter <= 0 )
-				{
-					// タイマーのリセット
-					this.attackInter = blockAttackInter * fps * (Math.random()*0.2 + 0.8);
-
-					// 武器の発射（EventBus経由で通知）
-					this.getEventBus()?.emitEvent('weapon:spawn', {
-						type: 1,
-						x: this.getCenterX(),
-						y: this.getBottomY() + 1,
-						vect: -1
-					});
-				}
-			}
-		}
-		// 点滅処理
-		if( this.func == BLOCK_FUNCTION.BLINK && this.blinkSwitch != 0 )
-		{
-			// 経過時間のカウント
-			this.blinkInter--;
-
-			if( this.blinkInter <= 0 ) {
-				// カウントの初期化
-				this.blinkInter = blockBlinkInter * fps * (0.7 + Math.random()*0.3);
-
-				// スイッチの反転
-				this.blinkSwitch *= -1;
-
-				// 消灯・点灯の切り替え
-				if( this.blinkSwitch == -1 )
-				{
-					this.type = 0;
-					if (staticCtx) this.clear(staticCtx);
-
-				} else
-				{
-					this.type = this.blinkType;
-					if (staticCtx) this.draw(staticCtx);
-				}
+			// 反転
+			} else {
+				this.moveVect *= -1;
 			}
 		}
 	}
 
+	//--------------------------------------------------
+	// 攻撃処理（攻撃ブロックの弾発射通知）
+	//--------------------------------------------------
+	updateAttack()
+	{
+		if( this.type == 0 || this.func !== BLOCK_FUNCTION.ATTACK ) return;
+		const balls = (this.game && this.game.balls) || [];
+		if( balls.length === 0 ) return;
+
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const blockAttackInter = (this.game && this.game.blockAttackInter !== undefined) ? this.game.blockAttackInter : DEFAULT_CONFIG.blockAttackInter;
+
+		// 経過時間のカウント
+		this.attackInter--;
+
+		// 攻撃
+		if( this.attackInter <= 0 )
+		{
+			// タイマーのリセット
+			this.attackInter = blockAttackInter * fps * (Math.random() * 0.2 + 0.8);
+
+			// 武器の発射（EventBus経由で通知）
+			this.getEventBus()?.emitEvent('weapon:spawn', {
+				type: 1,
+				x: this.getCenterX(),
+				y: this.getBottomY() + 1,
+				vect: -1
+			});
+		}
+	}
+
+	//--------------------------------------------------
+	// 点滅処理（点滅ブロックの表示・非表示切り替え）
+	//--------------------------------------------------
+	updateBlink()
+	{
+		if( this.func !== BLOCK_FUNCTION.BLINK || this.blinkSwitch === 0 ) return;
+
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const blockBlinkInter = (this.game && this.game.blockBlinkInter !== undefined) ? this.game.blockBlinkInter : DEFAULT_CONFIG.blockBlinkInter;
+		const staticCtx = this.getStaticCtx();
+
+		// 経過時間のカウント
+		this.blinkInter--;
+
+		if( this.blinkInter <= 0 ) {
+			// カウントの初期化
+			this.blinkInter = blockBlinkInter * fps * (0.7 + Math.random() * 0.3);
+
+			// スイッチの反転
+			this.blinkSwitch *= -1;
+
+			// 消灯・点灯の切り替え
+			if( this.blinkSwitch == -1 )
+			{
+				this.type = 0;
+				if (staticCtx) { this.clear(staticCtx); }
+			} else
+			{
+				this.type = this.blinkType;
+				if (staticCtx) { this.draw(staticCtx); }
+			}
+		}
+	}
+
+	//--------------------------------------------------
+	// 動き・状態遷移
+	//--------------------------------------------------
+	move()
+	{
+		this.updateState();
+		this.movePosition();
+		this.updateAttack();
+		this.updateBlink();
+	}
+
+
+	//--------------------------------------------------
+	// 引力・斥力の適用
+	//--------------------------------------------------
+	applyMagneticForce(ball)
+	{
+		if (!ball) { return; }
+		if (this.type === 0) { return; }
+		if (this.func !== BLOCK_FUNCTION.MAGNET && this.func !== BLOCK_FUNCTION.REPULL) { return; }
+
+		const blockDrawingDistance = (this.game && this.game.blockDrawingDistance !== undefined) ? this.game.blockDrawingDistance : DEFAULT_CONFIG.blockDrawingDistance;
+		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed !== undefined) ? this.game.ballDefaultSpeed : DEFAULT_CONFIG.ballDefaultSpeed;
+
+		const powVect = (this.func === BLOCK_FUNCTION.MAGNET) ? -1 : 1;
+
+		// 相対座標の取得
+		const relX = ball.getCenterX() - this.getCenterX();
+		const relY = ball.getCenterY() - this.getCenterY();
+
+		// 引力影響範囲内の球のみ対象
+		const dist = Math.sqrt(Math.pow(relX, 2) + Math.pow(relY, 2));
+		if( dist <= blockDrawingDistance ) {
+			// 加速度の計算
+			const acceleration = ballDefaultSpeed * BLOCK_PARAM.MAGNET_ACCEL_BASE / Math.pow(dist, BLOCK_PARAM.MAGNET_DIST_POW);
+
+			// 横方向の球速の変更
+			ball.vx += acceleration * BLOCK_PARAM.MAGNET_VX_RATIO * (relX < 0 ? -1 : 1) * powVect;
+			if( Math.abs(ball.vx) <= ballDefaultSpeed * 0.1 ) { ball.vx = ballDefaultSpeed * 0.1 * (ball.vx >= 0 ? 1 : -1); }
+
+			// 縦方向の球速の変更
+			if( ball.vy * relY < 0 ) {
+				ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_NEG_RATIO * (relY < 0 ? -1 : 1) * powVect;
+			} else {
+				ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_POS_RATIO * (relY < 0 ? -1 : 1) * powVect;
+			}
+		}
+	}
 
 
 	//--------------------------------------------------
@@ -392,18 +416,18 @@ export default class Block
 		const canvasHeight = this.getCanvasHeight();
 		const statusBarHeight = this.getStatusBarHeight();
 
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
-		const blockMotionTime = (this.game && this.game.blockMotionTime) || 1;
-		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint) || 10;
-		const ballStatusTime = (this.game && this.game.ballStatusTime) || 8;
-		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
-		const ballMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
-		const ballSize = (this.game && this.game.ballSize) || DEFAULT_CONFIG.ballSize;
-		const blockIncrPoint = (this.game && this.game.blockIncrPoint) || 10;
-		const popBalloonBackColor = (this.game && this.game.popBalloonBackColor) || '#B5F002';
-		const popBalloonFontColor = (this.game && this.game.popBalloonFontColor) || '#000000';
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const blockMotionTime = (this.game && this.game.blockMotionTime !== undefined) ? this.game.blockMotionTime : DEFAULT_CONFIG.blockMotionTime;
+		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint !== undefined) ? this.game.blockDefaultPoint : DEFAULT_CONFIG.blockDefaultPoint;
+		const ballStatusTime = (this.game && this.game.ballStatusTime !== undefined) ? this.game.ballStatusTime : DEFAULT_CONFIG.ballStatusTime;
+		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed !== undefined) ? this.game.ballDefaultSpeed : DEFAULT_CONFIG.ballDefaultSpeed;
+		const ballMaxSpeed = (this.game && this.game.ballMaxSpeed !== undefined) ? this.game.ballMaxSpeed : DEFAULT_CONFIG.ballMaxSpeed;
+		const ballSize = (this.game && this.game.ballSize !== undefined) ? this.game.ballSize : DEFAULT_CONFIG.ballSize;
+		const blockIncrPoint = (this.game && this.game.blockIncrPoint !== undefined) ? this.game.blockIncrPoint : DEFAULT_CONFIG.blockIncrPoint;
+		const popBalloonBackColor = (this.game && this.game.popBalloonBackColor !== undefined) ? this.game.popBalloonBackColor : DEFAULT_CONFIG.popBalloonBackColor;
+		const popBalloonFontColor = (this.game && this.game.popBalloonFontColor !== undefined) ? this.game.popBalloonFontColor : DEFAULT_CONFIG.popBalloonFontColor;
 		const blockBreakLimit = (this.game && this.game.blockBreakLimit) || [];
-		const ballInfBoundCancel = (this.game && this.game.ballInfBoundCancel !== undefined) ? this.game.ballInfBoundCancel : 1;
+		const ballInfBoundCancel = (this.game && this.game.ballInfBoundCancel !== undefined) ? this.game.ballInfBoundCancel : DEFAULT_CONFIG.ballInfBoundCancel;
 
 		// 接触音（EventBus経由で通知）
 		if( ball != null && ball.simulate == 0 )
@@ -540,7 +564,7 @@ export default class Block
 		}
 
 		// 破壊
-		if( (this.infinit != 1 || (ball && (ball.status == BALL_STATUS.ULTIMATE || ball.status == BALL_STATUS.STRONG))) && this.func != BLOCK_FUNCTION.WARP_ENTER && this.func != BLOCK_FUNCTION.WARP_EXIT )
+		if( (this.infinit != 1 || (ball && ball.status == BALL_STATUS.ULTIMATE)) && this.func != BLOCK_FUNCTION.WARP_ENTER && this.func != BLOCK_FUNCTION.WARP_EXIT )
 		{
 			// 衝突回数の計算
 			if( ball ) { ball.collisionNum++; }
@@ -594,14 +618,15 @@ export default class Block
 		}
 
 		// 無限ループ回避
+		var duaration = ball.duaration;
 		if( this.infinit == 1 || (blockBreakLimit[this.type] && blockBreakLimit[this.type] > 0) )
 		{
 			// 固定ブロック衝突回数の増加
 			ball.duaration++;
+			duaration = ball.duaration;
 
 			// 無限ループ回避
-			var duaration = ball.duaration;
-			if( ballInfBoundCancel == 1 && duaration > 80 )
+			if( ballInfBoundCancel == 1 && duaration > BLOCK_PARAM.MAX_DUARATION_LIMIT )
 			{
 				// 速度を変更
 				ball.vx += ~~((Math.random()*2)*2 - 1) * (Math.random()*0.5 + 0.5) * ballDefaultSpeed / 10;
@@ -627,6 +652,11 @@ export default class Block
 	//--------------------------------------------------
 	break(ball)
 	{
+		// 既に破壊済みの場合は重複実行しない
+		if (this.type === 0 && (!ball || ball.simulate !== 1)) {
+			return;
+		}
+
 		// シミュレートの場合
 		if( ball != null && ball.simulate == 1 ) {
 			// 破壊処理
@@ -688,7 +718,7 @@ export default class Block
 		this.life--;
 
 		// 描画
-		if (staticCtx) this.draw(staticCtx);
+		if (staticCtx) { this.draw(staticCtx); }
 
 		// 制限時間のセット
 		if( blockBreakLimit[this.type] > 0 ) { this.breakLimit = blockBreakLimit[this.type] * fps; }
@@ -701,8 +731,10 @@ export default class Block
 	explode(x, y, area, ball)
 	{
 		const blockMap = this.getBlockMap();
-		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint) || 10;
-		const blockIncrPoint = (this.game && this.game.blockIncrPoint) || 10;
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const blockMotionTime = (this.game && this.game.blockMotionTime !== undefined) ? this.game.blockMotionTime : DEFAULT_CONFIG.blockMotionTime;
+		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint !== undefined) ? this.game.blockDefaultPoint : DEFAULT_CONFIG.blockDefaultPoint;
+		const blockIncrPoint = (this.game && this.game.blockIncrPoint !== undefined) ? this.game.blockIncrPoint : DEFAULT_CONFIG.blockIncrPoint;
 
 		for(var i = -area + y; i <= area + y; i++)
 		{
@@ -720,7 +752,7 @@ export default class Block
 							if( !ball || ball.simulate == 0 )
 							{
 								// 爆発モーションのセット
-								block.exploded = 60;
+								block.exploded = ~~(blockMotionTime * fps);
 							}
 
 							// 破壊処理

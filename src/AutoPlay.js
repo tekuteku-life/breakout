@@ -76,10 +76,10 @@ export default class AutoPlay
 		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
 		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
 		const bDefaultSpeedBar = (this.game && this.game.barDefaultSpeed) || DEFAULT_CONFIG.barDefaultSpeed;
-		const bSpin = BAR_PARAM.SPIN_RATIO;
+		const bSpin = (this.game && this.game.barSpin !== undefined) ? this.game.barSpin : ((bar && bar.spin !== undefined) ? bar.spin : BAR_PARAM.SPIN_RATIO);
 		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
 		const bSize = (this.game && this.game.ballSize) || DEFAULT_CONFIG.ballSize;
-		const weaponMaxNum = WEAPON_PARAM.MAX_NUM;
+		const weaponMaxNum = (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
 		const itemSpeed = (this.game && this.game.itemSpeed) || ITEM_PARAM.DEFAULT_SPEED;
 		const itemProb = (this.game && this.game.itemProb) || [];
 
@@ -159,7 +159,7 @@ export default class AutoPlay
 
 				// 実行
 				} else {
-					ball.move();
+					this.simulateBallStep(ball);
 				}
 			}
 		}
@@ -290,7 +290,7 @@ export default class AutoPlay
 				sim["vx"] = fallBallVX;
 				sim["status"] = fallBall.status;
 				sim["statusTime"] = fallBall.statusTime;
-				sim["self"] = fallBall.copy();
+				sim["self"] = fallBall.copy(BALL_COPY_MODE.SIMULATE);
 				sim["breakMaxNum"] = 0;
 				sim["collisionMaxNum"] = 0;
 				sim["returnTime"] = MAX_PREDICT;
@@ -340,7 +340,7 @@ export default class AutoPlay
 					{
 						for( var i = 0; i < ballNum; i++ ) {
 							var ball = simulate[i];
-							if( ball.getBottomY() <= bar.getTopY() ) { ball.move(); }
+							if( ball.getBottomY() <= bar.getTopY() ) { this.simulateBallStep(ball); }
 						}
 					}
 
@@ -364,7 +364,7 @@ export default class AutoPlay
 			}
 
 			// 衝突見込みなしの場合の探索
-			if( fallBallTime <= 2 && sim["breakMaxNum"] == 0 && sim["collisionNum"] == 0 && Math.random() > 0.3 )
+			if( fallBallTime <= 2 && sim["breakMaxNum"] == 0 && (sim["collisionMaxNum"] || 0) == 0 && Math.random() > 0.3 )
 			{
 				var dx = canvasWidth;
 				plusSpeed = bDefaultSpeed * ( 0.8 + Math.random() * 0.4 ) * ( ~~(Math.random() * 2) * 2 - 1 ) - fallBallVX;
@@ -380,7 +380,7 @@ export default class AutoPlay
 						check.vx = vx;
 						if (bus) bus.emitEvent('game:simulateReset');
 
-						for( var t = 0; check.getBottomY() <= bar.getTopY() && t <= MAX_PREDICT; t++ ) { check.move(); }
+						for( var t = 0; check.getBottomY() <= bar.getTopY() && t <= MAX_PREDICT; t++ ) { this.simulateBallStep(check); }
 
 						// 目的地に応じた速度選択
 						if( check.breakNum > 0 && dx > Math.abs( x - fallBallX ) ) {
@@ -487,6 +487,36 @@ export default class AutoPlay
 
 			// 移動
 			bar.setPointX(targetX - plusSpeed);
+		}
+	}
+
+	simulateBallStep(ball)
+	{
+		if (!ball) { return; }
+		if (typeof ball.move === 'function') { ball.move(); }
+		if (typeof ball.checkCollisionWithWall === 'function') {
+			ball.checkCollisionWithWall(
+				this.game?.canvasWidth,
+				this.game?.canvasHeight,
+				this.game?.statusBarHeight
+			);
+		}
+		if (this.game && typeof this.game.getNearbyBlocks === 'function') {
+			const nearBlocks = this.game.getNearbyBlocks(ball.x, ball.y, ball.radius, ball.vx, ball.vy);
+			for (let i = 0; i < nearBlocks.length; i++) {
+				const blk = nearBlocks[i];
+				if (typeof ball.checkCollision === 'function' && ball.checkCollision(blk) === true) {
+					const isChangedVY = (ball.lastHitAxis === 'y') ? 1 : 0;
+					const addSpeed = blk.action(ball, isChangedVY);
+					if (addSpeed && typeof ball.applySpeedDelta === 'function') {
+						ball.applySpeedDelta(addSpeed);
+					}
+					break;
+				}
+			}
+		}
+		if (typeof ball.updateHistory === 'function') {
+			ball.updateHistory();
 		}
 	}
 

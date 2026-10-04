@@ -90,7 +90,7 @@ export default class StatusManage
 	countFPS()
 	{
 		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
-		const lowFPSAlartRatio = (this.game && this.game.lowFPSAlartRatio !== undefined) ? this.game.lowFPSAlartRatio : 0.8;
+		const lowFPSAlartRatio = (this.game && this.game.lowFPSAlartRatio !== undefined) ? this.game.lowFPSAlartRatio : DEFAULT_CONFIG.lowFPSAlartRatio;
 		const balls = this.getBalls();
 		const ctrl = this.getCtrl();
 
@@ -244,7 +244,8 @@ export default class StatusManage
 		// ライフの加算
 		this.life = Number(this.life) + Number(_incr);
 
-		// 最大を制限
+		// 下限・上限を制限
+		if( this.life < 0 ) { this.life = 0; }
 		if( this.life > maxLife ) { this.life = maxLife; }
 
 		// ハートインスタンスの生成
@@ -281,6 +282,32 @@ export default class StatusManage
 				this.hearts[i].draw(ctx);
 			}
 		}
+	}
+
+	//--------------------------------------------------
+	// ステータスの表示
+	//--------------------------------------------------
+	printStatus(dynamicCtx) {
+		if (typeof document === 'undefined' || !this.game || !this.game.scoreMng || !this.game.ctrl) { return; }
+		const playInfo = document.getElementById("play_info");
+		if (!playInfo) { return; }
+
+		const scoreMng = this.getScoreMng();
+		const ctrl = this.getCtrl();
+		const displayPoint = this.getDisplayPoint();
+		const playTime = this.getPlaySecTime();
+		const playTime_min = this.getPlayMinTime();
+		const stageTitles = this.stageTitle || [];
+		const stageTitleStr = stageTitles[ctrl.stageIndex] || '';
+
+		let text = '/ Score:' + displayPoint + ' / Hi-Score:' + String(scoreMng.hiScore);
+		text += ' / Stage:' + stageTitleStr + ' / Time:' + playTime_min + '\'' + playTime + ' / Mode:' + (ctrl.autoSwitch === 0 ? 'MP' : 'AP');
+		text += '<span style="font-size: 0.8em; margin-left: 3em;">' + this.getRealFPS() + 'fps / ' + String(this.game.balls.length) + '</span>';
+
+		const maxLife = this.game.maxLife || DEFAULT_CONFIG.maxLife;
+		const lifeSpaceSize = maxLife * 17 + 5;
+
+		playInfo.innerHTML = 'Life' + '<span style="margin-left: ' + lifeSpaceSize + 'px;">' + text + '</span>';
 	}
 }
 

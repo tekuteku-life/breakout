@@ -4,6 +4,7 @@
 // システムパラメータ
 export const SYSTEM_PARAM = Object.freeze({
 	BALL_HIST_MAX: 4,			// ボール座標履歴最大数
+	DISTURB_OVERLAY_COLOR: 'rgba(0, 0, 0, 0.85)', // 画面難視化オーバーレイ色
 });
 
 // ゲームループ・タイムステップ制御用パラメータ
@@ -92,8 +93,8 @@ export const WEAPON_TYPE = Object.freeze({
 
 // 武器パラメータ
 export const WEAPON_PARAM = Object.freeze({
-	DEFAULT_SPEED: Object.freeze([8, 6]),		// 武器デフォルト速度 [銃, ミサイル]
-	MAX_NUM: Object.freeze([3, 2]),				// 武器最大発射数 [銃, ミサイル]
+	DEFAULT_SPEED: Object.freeze([7, 5]),		// 武器デフォルト速度 [銃, ミサイル] (setup/default.jsと一致)
+	MAX_NUM: Object.freeze([5, 3]),				// 武器最大発射数 [銃, ミサイル] (setup/default.jsと一致)
 	FIRE_INTERVAL: 12,							// 武器発射間隔（フレーム数）
 	MISSILE_ACCEL_RATIO: 0.5,					// ミサイル加速時間比率 (fps * 0.5)
 });
@@ -101,7 +102,7 @@ export const WEAPON_PARAM = Object.freeze({
 // 反射バー用パラメータ
 export const BAR_PARAM = Object.freeze({
 	DEFAULT_COLOR: '#114400',					// デフォルトバー色
-	IMMORTAL_COLOR: '#E12F09',					// 不死身時バー色
+	IMMORTAL_COLOR: '#ffff00',					// 不死身時バー色 (setup/default.jsと一致)
 	DEFAULT_HP: 5,								// デフォルト耐久値
 	DEFAULT_EDGE: 0.04,							// バー端部傾斜係数
 	SPIN_RATIO: 0.2,							// バー移動による球へのスピン係数
@@ -117,6 +118,9 @@ export const BAR_PARAM = Object.freeze({
 	BLINK_ALPHA_STEP: 0.05,						// 点滅時のアルファ増減ステップ
 	BLINK_ALPHA_MIN: 0.1,						// 点滅時の最小アルファ値
 	VIBRATION_TIME_RATIO: 4,					// 振動継続時間（秒）
+	MAX_WIDTH: 140,								// 最大バー幅 (setup/default.jsと一致)
+	MIN_WIDTH: 50,								// 最小バー幅 (setup/default.jsと一致)
+	MIN_SPEED: 10,								// バー移動最低速度 (setup/default.jsと一致)
 });
 
 // ボール用パラメータ
@@ -152,12 +156,21 @@ export const BALLOON_PARAM = Object.freeze({
 
 // ブロック用パラメータ
 export const BLOCK_PARAM = Object.freeze({
-	DRAWING_DISTANCE: 80,						// 引力・斥力影響最大距離
+	DRAWING_DISTANCE: 125,						// 引力・斥力影響最大距離 (setup/default.jsと一致)
 	MAGNET_ACCEL_BASE: 25,						// 引力加速度計算基準値
 	MAGNET_DIST_POW: 1.8,						// 引力距離減衰指数
 	MAGNET_VX_RATIO: 1.6,						// 引力横方向補正比率
 	MAGNET_VY_REL_NEG_RATIO: 0.4,				// 引力縦方向補正比率（異符号時）
 	MAGNET_VY_REL_POS_RATIO: 0.2,				// 引力縦方向補正比率（同符号時）
+	DEFAULT_MOVE_INTER_SEC: 0.6,				// 移動ブロック移動間隔（秒）(setup/default.jsと一致)
+	DEFAULT_ATTACK_INTER_SEC: 2.8,				// 攻撃ブロック発射間隔（秒）(setup/default.jsと一致)
+	DEFAULT_BLINK_INTER_SEC: 1.2,				// 点滅ブロック点滅間隔（秒）(setup/default.jsと一致)
+	DEFAULT_MOTION_TIME_SEC: 0.6,				// 爆発モーション時間（秒）(setup/default.jsと一致)
+	DEFAULT_POINT: 4,							// ブロック基本破壊ポイント (setup/default.jsと一致)
+	DEFAULT_INCR_POINT: 2,						// 連続破壊追加ポイント (setup/default.jsと一致)
+	BALLOON_BACK_COLOR: '#B5F002',				// 連続破壊バルーン背景色
+	BALLOON_FONT_COLOR: '#000000',				// 連続破壊バルーン文字色
+	MAX_DUARATION_LIMIT: 80,					// 無限バウンド防止衝突回数上限
 });
 
 // アワードのキー
@@ -176,16 +189,31 @@ export const AWARD_KEY_LIST = Object.freeze([
 export const APP_VER = 'v1.7.6';
 export const APP_ID = 'breakout';
 
-// デフォルトゲーム定数
+// デフォルトゲーム定数（setup/default.jsと完全同期）
 export const DEFAULT_CONFIG = Object.freeze({
 	FPS: 50,
-	canvasWidth: 750,
-	canvasHeight: 530,
+	lowFPSAlartRatio: 0.8,
 	statusBarHeight: 22,
-	blockWidth: 50,
-	blockHeight: 20,
 	defaultLife: 3,
 	maxLife: 5,
+	heartColor: '#F00B3F',
+	heartWidth: 7,
+	heartHeight: 9,
+	canvasWidth: 750,
+	canvasHeight: 530,
+	barDefaultWidth: 80,
+	barMaxWidth: 140,
+	barMinWidth: 50,
+	barDefaultHeight: 7,
+	barColor: '#114400',
+	barDefaultSpeed: 75,
+	barMinSpeed: 10,
+	barStatusDefaultTime: 10,
+	barWeaponDefaultTime: 8,
+	barEdge: 0.04,
+	barSpin: 0.2,
+	barImmortalColor: '#ffff00',
+	barDefaultHP: 5,
 	ballSize: 5,
 	ballDefaultSpeed: 3.5,
 	ballMaxSpeed: 5,
@@ -193,13 +221,25 @@ export const DEFAULT_CONFIG = Object.freeze({
 	ballStrongColor: '#0CA366',
 	ballUltimateColor: '#DC210C',
 	ballMaxNum: 4,
-	heartColor: '#F00B3F',
-	heartWidth: 7,
-	heartHeight: 9,
-	barDefaultWidth: 80,
-	barDefaultHeight: 7,
-	barDefaultSpeed: 75,
+	ballStatusTime: 8,
+	ballInfBoundCancel: 1,
+	popBalloonBackColor: '#B5F002',
+	popBalloonFontColor: '#000000',
 	itemFontSize: 14,
+	weaponSpeed: Object.freeze([7, 5]),
+	weaponMaxNum: Object.freeze([5, 3]),
+	weaponColor: Object.freeze(['#000000', '#fefefe']),
+	weaponLineColor: Object.freeze(['#000000', '#000000']),
+	blockWidth: 50,
+	blockHeight: 20,
+	blockMotionTime: 0.6,
+	blockDefaultPoint: 4,
+	blockIncrPoint: 2,
+	blockMoveInter: 0.6,
+	blockFontSize: 15,
+	blockBlinkInter: 1.2,
+	blockDrawingDistance: 125,
+	blockAttackInter: 2.8,
 	soundFile: Object.freeze({
 		'bomb': './sound/bomb.wav',
 		'block': './sound/block.wav',
@@ -260,7 +300,7 @@ export const DEFAULT_CONFIG = Object.freeze({
 		Object.freeze(['#463EDF', '#224442', '#E12F09', '#C0C0C0', '#AFAF61', '#FFD1E9', '#6B255A', '', '', '#000000', '#ffffff', '#4E5344', '#ffff00', '#92D050', '#2E9260', '#4F6228']),
 	]),
 	itemLineColor: Object.freeze([
-		Object.freeze(['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '', '', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff']),
+		Object.freeze(['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '', '', '#ffffff', '#000000', '#ffffff', '#000000', '#000000', '#ffffff', '#ffffff']),
 	]),
 	itemTextColor: Object.freeze([
 		Object.freeze(['#ffffff', '#ffffff', '#000000', '#000000', '#000000', '#FF0000', '#c5c5c5', '', '', '#c0c0c0', '#CC0000', '#cccccc', '#000000', '#FFFF00', '#ffffff', '#ffffff']),
@@ -268,4 +308,26 @@ export const DEFAULT_CONFIG = Object.freeze({
 	itemText: Object.freeze([
 		Object.freeze(['Double', 'Hard', 'Fire', 'Long', 'Short', 'Life', 'Poison', 'SpeedUp', 'SpeedDown', 'Gun', 'Missile', 'Slow', 'Vibrate', 'Absorb', 'Immortal', 'Disturb']),
 	]),
+	blockText: Object.freeze([
+		'', '', 'Bomb', '', '', 'Fuel', '', 'Napalm', '', 'Active', '▲▲▲', '▼▼▼', 'In', 'Out', 'Magnet', 'Repull', 'Blink', 'Attack'
+	]),
+	blockTextColor: Object.freeze([
+		'', '', '#000000', '', '', '#000000', '', '#ffffff', '#2f2f00', '#ffffff', '#ffffff', '#ffffff', '#dfdfdf', '#dfdfdf', '#FF1A1F', '#FF1A1F', '#bfbfbf', '#ff0000'
+	]),
+	blockLife: Object.freeze([
+		0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0
+	]),
+	blockThrough: Object.freeze([
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0
+	]),
+	blockInfinit: Object.freeze([
+		0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1
+	]),
+	blockBreakLimit: Object.freeze([
+		0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	]),
+	blockFunction: Object.freeze([
+		0, 0, 1, 0, 0, 2, 3, 6, 0, 7, 0, 0, 8, 9, 10, 11, 12, 13
+	]),
 });
+

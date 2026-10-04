@@ -50,20 +50,25 @@ test('Item class unit tests', async (t) => {
 
 	await t.test('checkCollision detects bar contact accurately', () => {
 		const item = new Item(0, 100, 490, '#fff', '#000', mockGame);
-		globalThis.bar.x = 100;
-		globalThis.bar.y = 500;
-		globalThis.bar.width = 80;
+		const bar = {
+			x: 100,
+			y: 500,
+			width: 80,
+			getTopY: () => 500,
+			getLeftX: () => 60,
+			getRightX: () => 140,
+		};
 
-		assert.equal(item.checkCollision(), true);
+		assert.equal(item.checkCollision(bar), true);
 
 		// Missed X
 		item.x = 999;
-		assert.equal(item.checkCollision(), false);
+		assert.equal(item.checkCollision(bar), false);
 
 		// Missed Y
 		item.x = 100;
 		item.y = 100;
-		assert.equal(item.checkCollision(), false);
+		assert.equal(item.checkCollision(bar), false);
 
 		// Custom target
 		const customTarget = {
@@ -100,10 +105,14 @@ test('Item class unit tests', async (t) => {
 		itemFalling.move();
 		assert.equal(mockGame.items.length, 0);
 
-		// Collision with bar
+		// Collision with bar (上位調停フロー)
 		const itemHit = new Item(0, 100, 495, '#fff', '#000', mockGame);
 		mockGame.items = [itemHit];
 		itemHit.move();
+		if (itemHit.checkCollision(mockBar)) {
+			itemHit.applyEffect();
+			itemHit.destructor();
+		}
 		assert.equal(mockGame.items.length, 0);
 		assert.equal(awardAdded, true);
 	});
@@ -158,7 +167,6 @@ test('Item class unit tests', async (t) => {
 		};
 		const item = new Item(0, 50, 60, '#fff', '#000', mockGame);
 		assert.equal(item.getGame(), mockGame);
-		assert.equal(item.getBar(), mockBar);
 		assert.equal(item.getItems(), mockItems);
 		assert.equal(item.getCtrl(), mockCtrl);
 		assert.equal(item.getCanvasHeight(), 600);

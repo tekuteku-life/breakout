@@ -2,9 +2,7 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import MessageBox from "./MessageBox.js";
-import Ball from "./Ball.js";
-import Weapon from "./Weapon.js";
-import { BALL_CREATE_MODE, DEFAULT_CONFIG } from "./const.js";
+import { DEFAULT_CONFIG } from "./const.js";
 
 //--------------------------------------------------
 // 入力管理クラス

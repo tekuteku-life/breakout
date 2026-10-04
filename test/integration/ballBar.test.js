@@ -38,6 +38,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 
 		// Collision with moving bar
 		ball.move();
+		g.resolveCollisions();
 		assert.ok(ball.vy < 0, 'Ball should reflect upward');
 		assert.ok(ball.vx !== 0, 'Spin from moving bar should affect ball.vx');
 
@@ -47,6 +48,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.vx = 1;
 		ball.vy = 5;
 		ball.move();
+		g.resolveCollisions();
 		assert.ok(ball.vy < 0);
 
 		// Right edge hit
@@ -55,6 +57,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.vx = -1;
 		ball.vy = 5;
 		ball.move();
+		g.resolveCollisions();
 		assert.ok(ball.vy < 0);
 	});
 
@@ -74,6 +77,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 
 		// Ball hits bar during absorption
 		ball.move();
+		g.resolveCollisions();
 		assert.equal(ball.isAbsorption, 1, 'Ball should be absorbed');
 		assert.equal(bar.absorptionNum, 1);
 
@@ -202,5 +206,42 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		enemyWeapon.vy = 5;
 		g.weapons = [enemyWeapon];
 		g.autoPlay.auto();
+	});
+
+	it('absorbs ball on bar hit during absorption mode without triggering fall', () => {
+		const g = window.gameManage;
+		const bar = g.bar;
+		bar.absorptionStatusTime = 500;
+		bar.absorptionNum = 0;
+
+		const ball = new Ball(BALL_CREATE_MODE.OTHER, g);
+		ball.x = bar.getCenterX();
+		ball.y = bar.getTopY() - 2;
+		ball.vx = 0;
+		ball.vy = 8;
+		g.balls = [ball];
+
+		// Step movement
+		ball.move();
+
+		let fallCalled = false;
+		ball.fall = () => { fallCalled = true; };
+
+		// Resolve collisions
+		g.resolveCollisions();
+
+		assert.equal(fallCalled, false, 'Ball should NOT fall when hitting bar in absorption mode');
+		assert.equal(ball.isAbsorption, 1, 'Ball should be absorbed');
+		assert.equal(bar.absorptionNum, 1, 'Bar absorptionNum should increment to 1');
+		assert.equal(g.balls.length, 1, 'Ball must remain in balls array');
+		assert.ok(ball.y <= bar.getTopY(), 'Ball position should be at or above bar surface');
+
+		// Subsequent frames while absorbed: must not fall
+		for (let frame = 0; frame < 5; frame++) {
+			ball.move();
+			g.resolveCollisions();
+			assert.equal(fallCalled, false, `Ball should not fall during absorbed frame ${frame}`);
+			assert.equal(ball.isAbsorption, 1);
+		}
 	});
 });

@@ -62,13 +62,11 @@ export default class ImageData
 		const canvasWidth = g.canvasWidth !== undefined ? g.canvasWidth : DEFAULT_CONFIG.canvasWidth;
 		const canvasHeight = g.canvasHeight !== undefined ? g.canvasHeight : DEFAULT_CONFIG.canvasHeight;
 		const blockColor = (g.blockColor !== undefined ? g.blockColor : (typeof window !== 'undefined' ? window.blockColor : [])) || [];
-		const blockLineColor = (g.blockLineColor !== undefined ? g.blockLineColor : (typeof window !== 'undefined' ? window.blockLineColor : [])) || [];
 		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : (typeof window !== 'undefined' && window.blockWidth !== undefined ? window.blockWidth : DEFAULT_CONFIG.blockWidth);
 		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : (typeof window !== 'undefined' && window.blockHeight !== undefined ? window.blockHeight : DEFAULT_CONFIG.blockHeight);
 		const ctrl = this.getCtrl();
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
 		const itemColor = (g.itemColor !== undefined ? g.itemColor : (typeof window !== 'undefined' ? window.itemColor : [])) || [];
-		const itemLineColor = (g.itemLineColor !== undefined ? g.itemLineColor : (typeof window !== 'undefined' ? window.itemLineColor : [])) || [];
 		const heartWidth = g.heartWidth !== undefined ? g.heartWidth : DEFAULT_CONFIG.heartWidth;
 		const heartHeight = g.heartHeight !== undefined ? g.heartHeight : DEFAULT_CONFIG.heartHeight;
 

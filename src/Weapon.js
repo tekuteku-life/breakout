@@ -1,13 +1,10 @@
 // src/Weapon.js
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
-import Balloon from "./Balloon.js";
 import {
-	BLOCK_FUNCTION,
 	DEFAULT_CONFIG,
 	WEAPON_TYPE,
 	WEAPON_PARAM,
-	BALLOON_PARAM,
 } from "./const.js";
 
 //--------------------------------------------------
@@ -18,7 +15,7 @@ export default class Weapon
 	constructor(type, x, y, vect, game = null)
 	{
 		this.game = game;
-		const bar = this.getBar();
+		const bar = (this.game && this.game.bar) || null;
 
 		this.type = type - 1;							// 武器の種類（0:銃、1：ミサイル）
 		this.x = x;										// 横軸座標
@@ -53,14 +50,6 @@ export default class Weapon
 
 	getEventBus() {
 		return (this.game && this.game.eventBus) || null;
-	}
-
-	getBar() {
-		return (this.game && this.game.bar) || null;
-	}
-
-	getBlockMap() {
-		return (this.game && this.game.blockMap) || [];
 	}
 
 	getWeapons() {
@@ -104,21 +93,15 @@ export default class Weapon
 	// 移動
 	//--------------------------------------------------
 	move() {
-		const bar = this.getBar();
 		const canvasHeight = this.getCanvasHeight();
 
 		const weaponSpeedList = (this.game && this.game.weaponSpeed) || WEAPON_PARAM.DEFAULT_SPEED;
-		const wSpeed = weaponSpeedList[this.type] !== undefined ? weaponSpeedList[this.type] : 6;
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const wSpeed = (weaponSpeedList[this.type] !== undefined) ? weaponSpeedList[this.type] : (WEAPON_PARAM.DEFAULT_SPEED[this.type] !== undefined ? WEAPON_PARAM.DEFAULT_SPEED[this.type] : 6);
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 
-		// 発射間隔の制御
+		// 発射音（EventBus経由で通知）
 		if( this.setInter == 0 ) {
-			// 発射間隔の設定
-			if (bar) bar.weaponInter = WEAPON_PARAM.FIRE_INTERVAL;
-
 			this.setInter = 1;
-
-			// 発射音（EventBus経由で通知）
 			const weaponSound = (this.type == WEAPON_TYPE.GUN) ? 'gun' : 'missile';
 			this.getEventBus()?.emitEvent('sound:play', weaponSound);
 		}
@@ -142,108 +125,35 @@ export default class Weapon
 		// 画面からアウト
 		if( 0 > this.getBottomY() || this.getTopY() > canvasHeight ) {
 			this.destructor();
-			return;
 		}
-
-		// 衝突判定
-		this.checkCollision();
 	}
 
 	//--------------------------------------------------
-	// 衝突判定
+	// 衝突判定（BlockまたはBarとの交差判定）
 	//--------------------------------------------------
-	checkCollision() {
-		const bar = this.getBar();
-		const blockMap = this.getBlockMap();
-		const statusBarHeight = this.getStatusBarHeight();
-		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
-		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
+	checkCollision(target) {
+		if (!target) { return false; }
 
-		// ブロック衝突判定（自機発射）
-		if( this.vect > 0 )
-		{
-			var collisionFlag = 0;
-
-			// 横方向
-			var colDetStartX = ~~( this.getLeftX() / blkWidth );
-			var colDetEndX = ~~( this.getRightX() / blkWidth );
-
-			// 縦方向
-			var colDetStartY = ~~( (this.getTopY() - statusBarHeight) / blkHeight );
-			var colDetEndY = ~~( (this.getBottomY() - statusBarHeight) / blkHeight );
-
-			// ボールが存在するエリア内を検査
-			for( var i = colDetEndY; i >= colDetStartY; i-- )
-			{
-				var blockLine = blockMap[i];
-				if( blockLine != null ){
-					for( var j = colDetStartX; j <= colDetEndX; j++ )
-					{
-						var block = blockLine[j];
-
-						// 衝突検出
-						if( block != null && block.type != 0 )
-						{
-							// 接触音（EventBus経由で通知）
-							if( block.func != BLOCK_FUNCTION.EXPLODE && block.func != BLOCK_FUNCTION.EXPLODE_STRENGTH ) {
-								this.getEventBus()?.emitEvent('sound:play', 'block');
-							}
-
-							// ミサイル
-							if( this.type == WEAPON_TYPE.MISSILE ) {
-								block.action(null, 0);
-
-							// 銃
-							} else if( block.infinit != 1 )
-							{
-								// 破壊
-								if( block.life < 1 ) {
-									block.action(null, 0);
-
-								// ライフの減少
-								} else {
-									block.decreaseLife();
-								}
-							}
-
-							// 武器の消去
-							this.destructor();
-
-							collisionFlag = 1;
-							break;
-						}
-					}
-					if( collisionFlag == 1 ) { break; }
-				}
-			}
+		// バーとの衝突判定（敵武器の場合など）
+		if (typeof target.getTopY === 'function' && typeof target.getCenterX === 'function' && target.edge !== undefined) {
+			return (
+				this.getCenterY() + this.size * 6 >= target.getTopY() &&
+				Math.abs(this.getCenterX() - target.getCenterX()) <= target.width / 2
+			);
 		}
-		// バー衝突判定（敵ブロック攻撃）
-		else if( 0 > this.vect && bar )
-		{
-			if( this.getCenterY() + this.size * 6 >= bar.getTopY() && Math.abs(this.getCenterX() - bar.getCenterX()) <= bar.width/2 )
-			{
-				// バーへのダメージ（EventBus経由で通知）
-				this.getEventBus()?.emitEvent('bar:damage', 1);
 
-				// バルーンの追加（EventBus経由で通知）
-				const nextHitPoint = Math.max(0, bar.hitPoint - 1);
-				const balloonCfg = BALLOON_PARAM.DAMAGE_BALLOON;
-				this.getEventBus()?.emitEvent('balloon:spawn', {
-					text: nextHitPoint,
-					x: bar.getCenterX() + balloonCfg.OFFSET_X,
-					y: bar.getTopY() + balloonCfg.OFFSET_Y,
-					width: balloonCfg.WIDTH,
-					height: balloonCfg.HEIGHT,
-					alpha: balloonCfg.ALPHA,
-					backColor: balloonCfg.BACK_COLOR,
-					fontColor: balloonCfg.FONT_COLOR,
-					fontSize: balloonCfg.FONT_SIZE,
-				});
-
-				// 武器の消去
-				this.destructor();
-			}
+		// ブロックとの衝突判定（自機武器の場合など）
+		if (typeof target.getLeftX === 'function' && target.type !== undefined) {
+			if (target.type === 0) { return false; }
+			return (
+				this.getLeftX() <= target.getRightX() &&
+				this.getRightX() >= target.getLeftX() &&
+				this.getTopY() <= target.getBottomY() &&
+				this.getBottomY() >= target.getTopY()
+			);
 		}
+
+		return false;
 	}
 
 
@@ -269,6 +179,7 @@ export default class Weapon
 		} else if( this.type == 1 )
 		{
 			// 弾頭
+			if (typeof dynamicCtx.save === 'function') { dynamicCtx.save(); }
 			dynamicCtx.beginPath();
 			dynamicCtx.scale(1, 1.4);
 			dynamicCtx.strokeStyle = wLineColor[this.type];
@@ -276,7 +187,11 @@ export default class Weapon
 			dynamicCtx.arc(this.x + 0.5, this.y / 1.4 + 0.5, this.size, 0, 2 * Math.PI, false);
 			dynamicCtx.fill();
 			dynamicCtx.stroke();
-			dynamicCtx.scale(1, 1 / 1.4);
+			if (typeof dynamicCtx.restore === 'function') {
+				dynamicCtx.restore();
+			} else {
+				dynamicCtx.scale(1, 1 / 1.4);
+			}
 
 			// 胴体
 			dynamicCtx.beginPath();

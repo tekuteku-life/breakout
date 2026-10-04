@@ -83,12 +83,15 @@ export default class ScoreManage
 		const pointPerFallBall = (this.game && this.game.pointPerFallBall) || [];
 
 		// 残りライフ数
-		if( statusMng && statusMng.life > 1 )
+		if( statusMng && typeof statusMng.isAlive === 'function' ? statusMng.isAlive() && statusMng.life > 1 : (statusMng && statusMng.life > 1) )
 		{
 			const ptLife = pointPerLife[stageIdx] !== undefined ? pointPerLife[stageIdx] : 50;
 			this.awardNum.remainderLife = statusMng.life;
 			this.awardPt.remainderLife = ptLife * statusMng.life;
 			this.score += this.awardPt.remainderLife;
+		} else {
+			this.awardNum.remainderLife = 0;
+			this.awardPt.remainderLife = 0;
 		}
 
 		// ボール個数
