@@ -5,21 +5,40 @@ import ScoreManage from '../../src/ScoreManage.js';
 
 test('ScoreManage class unit tests', async (t) => {
 	const { storage } = setupEnvironment();
-	const origPrint = globalThis.printRecordScreen;
-	globalThis.printRecordScreen = () => {};
-	t.after(() => {
-		globalThis.printRecordScreen = origPrint;
+	const createMockGame = (overrides = {}) => ({
+		storage,
+		stageTitle: ['Stage 1', 'Stage 2'],
+		ctrl: { stageIndex: 0 },
+		statusMng: {
+			life: 3,
+			isAlive: () => true,
+			getPlaySecTime: () => '30.0',
+			getPlayMinTime: () => '0',
+		},
+		balls: [
+			{ status: 1, breakNum: 5 },
+			{ status: 0, breakNum: 2 },
+		],
+		pointPerLife: [50],
+		pointPerBall: [100],
+		strongBallClear: [200],
+		pointPerContBreak: [30],
+		clearTimeThreashould: [60],
+		pointPerClearTime: [10],
+		pointPerGetItem: [20],
+		pointPerFallBall: [10],
+		...overrides,
 	});
 
 	await t.test('constructor initializes properties and loads hiScore', () => {
 		storage.setItem('record_hiScore', '9999');
-		const sm = new ScoreManage();
+		const sm = new ScoreManage(createMockGame());
 		assert.equal(sm.hiScore, '9999');
 		assert.equal(sm.score, 0);
 	});
 
 	await t.test('init resets awardNum and awardPt', () => {
-		const sm = new ScoreManage();
+		const sm = new ScoreManage(createMockGame());
 		sm.awardNum['ballNum'] = 5;
 		sm.init();
 		assert.equal(sm.awardNum['ballNum'], 0);
@@ -27,17 +46,8 @@ test('ScoreManage class unit tests', async (t) => {
 	});
 
 	await t.test('calculateAwardPoint handles all awards and score adjustment', () => {
-		const sm = new ScoreManage();
-		globalThis.statusMng = {
-			life: 3,
-			isAlive: () => true,
-			getPlaySecTime: () => '30.0',
-			getPlayMinTime: () => '0',
-		};
-		globalThis.balls = [
-			{ status: 1, breakNum: 5 }, // Strong ball
-			{ status: 0, breakNum: 2 },
-		];
+		const game = createMockGame();
+		const sm = new ScoreManage(game);
 		sm.awardNum = {
 			remainderLife: 0,
 			ballNum: 0,
@@ -53,19 +63,20 @@ test('ScoreManage class unit tests', async (t) => {
 		assert.ok(sm.score > 0);
 		assert.ok(sm.stageScore > 0);
 
-		// Test dead state time calculation
-		globalThis.statusMng.isAlive = () => false;
+		// 死亡状態でのタイムボーナス計算テスト
+		game.statusMng.isAlive = () => false;
 		sm.calculateAwardPoint();
 		assert.equal(sm.awardPt.clearTime, 0);
 
-		// Test score fallback when sumPrevScore > score
+		// スコア補正テスト
 		sm.sumPrevScore = 999999;
 		sm.calculateAwardPoint();
 		assert.equal(sm.stageScore, 0);
 	});
 
 	await t.test('recordScore records plays, clears, and best/ave/worst stats', () => {
-		const sm = new ScoreManage();
+		const game = createMockGame();
+		const sm = new ScoreManage(game);
 		sm.stageScore = 500;
 		sm.awardNum = {
 			clearTime: 45,
@@ -75,17 +86,16 @@ test('ScoreManage class unit tests', async (t) => {
 
 		sm.recordScore(1);
 
-		globalThis.ctrl = globalThis.ctrl || { stageIndex: 0 };
-		const stageName = String(globalThis.stageTitle[globalThis.ctrl.stageIndex]).replace(/_/g, '__');
+		const stageName = String(game.stageTitle[game.ctrl.stageIndex]).replace(/_/g, '__');
 		assert.equal(storage.getItem(`record_${stageName}_playNum`), '1');
 		assert.equal(storage.getItem(`record_${stageName}_clearNum`), '1');
 		assert.equal(storage.getItem(`record_best_${stageName}_stageScore`), '500');
 
-		// Second record with worse/better scores
+		// 2回目のスコア記録
 		sm.stageScore = 200;
-		sm.awardNum.clearTime = 30; // Better time (smaller is better)
-		sm.awardNum.fallBallNum = 5; // Worse fall count
-		sm.awardNum.getItemNum = 15; // Better item count
+		sm.awardNum.clearTime = 30;
+		sm.awardNum.fallBallNum = 5;
+		sm.awardNum.getItemNum = 15;
 		sm.recordScore(1);
 
 		assert.equal(storage.getItem(`record_${stageName}_playNum`), '2');
@@ -93,17 +103,14 @@ test('ScoreManage class unit tests', async (t) => {
 		assert.equal(storage.getItem(`record_best_${stageName}_clearTime`), '30');
 		assert.equal(storage.getItem(`record_best_${stageName}_getItemNum`), '15');
 
-		// Null storage branch
-		const oldStorage = globalThis.storage;
-		globalThis.storage = null;
+		// storageがnullのケース
+		game.storage = null;
 		assert.doesNotThrow(() => sm.recordScore(1));
-		globalThis.storage = oldStorage;
 	});
 
 	await t.test('deleteRecord removes all record_ keys and calls MessageBox', () => {
-		const sm = new ScoreManage();
-		const oldPrint = globalThis.printRecordScreen;
-		globalThis.printRecordScreen = () => {};
+		const game = createMockGame();
+		const sm = new ScoreManage(game);
 		storage.setItem('record_test_1', 'abc');
 		storage.setItem('record_test_2', 'def');
 		storage.setItem('other_key', 'ghi');
@@ -112,11 +119,32 @@ test('ScoreManage class unit tests', async (t) => {
 		assert.equal(storage.getItem('record_test_1'), null);
 		assert.equal(storage.getItem('record_test_2'), null);
 		assert.equal(storage.getItem('other_key'), 'ghi');
-		globalThis.printRecordScreen = oldPrint;
 	});
 
 	await t.test('destructor can be called', () => {
-		const sm = new ScoreManage();
+		const sm = new ScoreManage(createMockGame());
 		assert.doesNotThrow(() => sm.destructor());
 	});
+
+	await t.test('ScoreManage getters access injected game properties', () => {
+		const mockStorage = { getItem: () => null, storageProp: true };
+		const mockStatusMng = { statusProp: true };
+		const mockCtrl = { ctrlProp: true };
+		const mockBalls = [{ ballProp: true }];
+		const mockGame = {
+			storage: mockStorage,
+			statusMng: mockStatusMng,
+			ctrl: mockCtrl,
+			balls: mockBalls,
+		};
+
+		const sm = new ScoreManage(mockGame);
+		assert.equal(sm.getGame(), mockGame);
+		assert.equal(sm.getStorage(), mockStorage);
+		assert.equal(sm.getStatusMng(), mockStatusMng);
+		assert.equal(sm.getCtrl(), mockCtrl);
+		assert.equal(sm.getBalls(), mockBalls);
+	});
 });
+
+

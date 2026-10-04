@@ -1,10 +1,16 @@
+// src/Control.js
+// Copyright (C) 2010-2012 kt9, All rights reserved.
+
+import { DEFAULT_CONFIG } from "./const.js";
+
 //--------------------------------------------------
 // ゲーム制御
 //--------------------------------------------------
-class Control
+export default class Control
 {
-	constructor()
+	constructor(game = null)
 	{
+		this.game = game;
 		this.autoSwitch = 0;							// 自動プレイスイッチ
 		this.pauseSwitch = 0;							// 一時停止スイッチ
 		this.soundSwitch = 0;							// 音のスイッチ
@@ -17,16 +23,56 @@ class Control
 		this.scale = 1;									// 倍率
 
 		// 設定欄のオブジェクトの取得
-		this.formSelector["setting"] = document.getElementById('setup_select');
-		this.formSelector["stage"] = document.getElementById('stage_select');
-		this.formSelector["continue"] = document.getElementById('continue_select');
-		this.formSelector["sound"] = document.getElementById('sound_select');
-		this.formSelector["sizefit"] = document.getElementById('sizefit_select');
-		this.formSelector["ctrl"] = document.getElementById('ctrl_select');
+		if (typeof document !== 'undefined') {
+			this.formSelector["setting"] = document.getElementById('setup_select');
+			this.formSelector["stage"] = document.getElementById('stage_select');
+			this.formSelector["continue"] = document.getElementById('continue_select');
+			this.formSelector["sound"] = document.getElementById('sound_select');
+			this.formSelector["sizefit"] = document.getElementById('sizefit_select');
+			this.formSelector["ctrl"] = document.getElementById('ctrl_select');
+		}
 	}
 
 	destructor()
 	{
+		if (this.formSelector) {
+			for (const key of Object.keys(this.formSelector)) {
+				this.formSelector[key] = null;
+			}
+		}
+		this.formSelector = null;
+		this.game = null;
+	}
+
+	getGame() {
+		return this.game || null;
+	}
+
+	getEventBus() {
+		return (this.game && this.game.eventBus) || null;
+	}
+
+	getStorage() {
+		return (this.game && this.game.storage) || null;
+	}
+
+	getBlockMapSet() {
+		return (this.game && this.game.blockMapSet) || [];
+	}
+
+	getDefaultLife() {
+		const g = this.getGame();
+		return (g && g.defaultLife) || DEFAULT_CONFIG.defaultLife;
+	}
+
+	getCanvasWidth() {
+		const g = this.getGame();
+		return (g && g.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+	}
+
+	getCanvasHeight() {
+		const g = this.getGame();
+		return (g && g.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
 	}
 
 
@@ -35,11 +81,13 @@ class Control
 	//--------------------------------------------------
 	loadSoundSwitch()
 	{
-		if( storage.getItem("setting_soundSwitch") != null ) { this.soundSwitch = storage.getItem("setting_soundSwitch"); }
+		const storage = this.getStorage();
+		if( storage && storage.getItem("setting_soundSwitch") != null ) { this.soundSwitch = storage.getItem("setting_soundSwitch"); }
 	}
 	recordSoundSwitch()
 	{
-		storage.setItem("setting_soundSwitch", this.soundSwitch);
+		const storage = this.getStorage();
+		if( storage ) { storage.setItem("setting_soundSwitch", this.soundSwitch); }
 	}
 
 
@@ -48,11 +96,13 @@ class Control
 	//--------------------------------------------------
 	loadSizeFitSwitch()
 	{
-		if( storage.getItem("setting_sizeFitSwitch") != null ) { this.sizeFitSwitch = storage.getItem("setting_sizeFitSwitch"); }
+		const storage = this.getStorage();
+		if( storage && storage.getItem("setting_sizeFitSwitch") != null ) { this.sizeFitSwitch = storage.getItem("setting_sizeFitSwitch"); }
 	}
 	recordSizeFitSwitch()
 	{
-		storage.setItem("setting_sizeFitSwitch", this.sizeFitSwitch);
+		const storage = this.getStorage();
+		if( storage ) { storage.setItem("setting_sizeFitSwitch", this.sizeFitSwitch); }
 	}
 
 
@@ -61,11 +111,13 @@ class Control
 	//--------------------------------------------------
 	loadContinueSwitch()
 	{
-		if( storage.getItem("setting_continueSwitch") != null ) { this.continueSwitch = storage.getItem("setting_continueSwitch"); }
+		const storage = this.getStorage();
+		if( storage && storage.getItem("setting_continueSwitch") != null ) { this.continueSwitch = storage.getItem("setting_continueSwitch"); }
 	}
 	recordContinueSwitch()
 	{
-		storage.setItem("setting_continueSwitch", this.continueSwitch);
+		const storage = this.getStorage();
+		if( storage ) { storage.setItem("setting_continueSwitch", this.continueSwitch); }
 	}
 
 
@@ -74,11 +126,13 @@ class Control
 	//--------------------------------------------------
 	loadCtrlSwitch()
 	{
-		if( storage.getItem("setting_ctrlSwitch") != null ) { this.ctrlSwitch = storage.getItem("setting_ctrlSwitch"); }
+		const storage = this.getStorage();
+		if( storage && storage.getItem("setting_ctrlSwitch") != null ) { this.ctrlSwitch = storage.getItem("setting_ctrlSwitch"); }
 	}
 	recordCtrlSwitch()
 	{
-		storage.setItem("setting_ctrlSwitch", this.ctrlSwitch);
+		const storage = this.getStorage();
+		if( storage ) { storage.setItem("setting_ctrlSwitch", this.ctrlSwitch); }
 	}
 
 
@@ -87,11 +141,13 @@ class Control
 	//--------------------------------------------------
 	loadStageIndex()
 	{
-		if( storage.getItem("continue_stageIndex") != null && this.continueSwitch == 1 ) { this.setStageIndex(storage.getItem("continue_stageIndex")); }
+		const storage = this.getStorage();
+		if( storage && storage.getItem("continue_stageIndex") != null && this.continueSwitch == 1 ) { this.setStageIndex(storage.getItem("continue_stageIndex")); }
 	}
 	recordStageIndex()
 	{
-		storage.setItem("continue_stageIndex", this.stageIndex);
+		const storage = this.getStorage();
+		if( storage ) { storage.setItem("continue_stageIndex", this.stageIndex); }
 	}
 
 
@@ -110,17 +166,23 @@ class Control
 	//--------------------------------------------------
 	pauseSwitchOn()
 	{
-		// 画面の切り替え
-		allClose();
-		openScreen('screen_pause');
+		// 画面の切り替え（EventBus経由で通知）
+		const bus = this.getEventBus();
+		if (bus) {
+			bus.emitEvent('screen:allClose');
+			bus.emitEvent('screen:open', 'screen_pause');
+		}
 
 		// 値の設定
 		this.pauseSwitch = 1;
 	}
 	pauseSwitchOff()
 	{
-		// 画面の切り替え
-		closeScreen('screen_pause');
+		// 画面の切り替え（EventBus経由で通知）
+		const bus = this.getEventBus();
+		if (bus) {
+			bus.emitEvent('screen:close', 'screen_pause');
+		}
 
 		this.pauseSwitch = 0;
 	}
@@ -136,6 +198,7 @@ class Control
 	//--------------------------------------------------
 	soundSwitchToggle()
 	{
+		const sel = this.formSelector && this.formSelector["sound"];
 		// オン
 		if( this.soundSwitch == 0 )
 		{
@@ -143,8 +206,10 @@ class Control
 			this.soundSwitch = 1;
 
 			// セレクタの変更
-			ctrl.formSelector["sound"].childNodes[0].selected = '';
-			ctrl.formSelector["sound"].childNodes[1].selected = 'selected';
+			if (sel && sel.childNodes && sel.childNodes.length > 1) {
+				sel.childNodes[0].selected = '';
+				sel.childNodes[1].selected = 'selected';
+			}
 
 		// オフ
 		} else
@@ -153,8 +218,10 @@ class Control
 			this.soundSwitch = 0;
 
 			// セレクタの変更
-			ctrl.formSelector["sound"].childNodes[0].selected = 'selected';
-			ctrl.formSelector["sound"].childNodes[1].selected = '';
+			if (sel && sel.childNodes && sel.childNodes.length > 1) {
+				sel.childNodes[0].selected = 'selected';
+				sel.childNodes[1].selected = '';
+			}
 		}
 
 		// 設定の記録
@@ -167,6 +234,7 @@ class Control
 	//--------------------------------------------------
 	sizefitSwitchToggle()
 	{
+		const sel = this.formSelector && this.formSelector["sizefit"];
 		// オン
 		if( this.sizeFitSwitch == 0 )
 		{
@@ -174,10 +242,10 @@ class Control
 			this.sizeFitSwitch = 1;
 
 			// セレクタの変更
-			if( this.formSelector["sizefit"] && this.formSelector["sizefit"].childNodes.length > 1 )
+			if( sel && sel.childNodes && sel.childNodes.length > 1 )
 			{
-				this.formSelector["sizefit"].childNodes[0].selected = '';
-				this.formSelector["sizefit"].childNodes[1].selected = 'selected';
+				sel.childNodes[0].selected = '';
+				sel.childNodes[1].selected = 'selected';
 			}
 
 		// オフ
@@ -187,10 +255,10 @@ class Control
 			this.sizeFitSwitch = 0;
 
 			// セレクタの変更
-			if( this.formSelector["sizefit"] && this.formSelector["sizefit"].childNodes.length > 1 )
+			if( sel && sel.childNodes && sel.childNodes.length > 1 )
 			{
-				this.formSelector["sizefit"].childNodes[0].selected = 'selected';
-				this.formSelector["sizefit"].childNodes[1].selected = '';
+				sel.childNodes[0].selected = 'selected';
+				sel.childNodes[1].selected = '';
 			}
 		}
 
@@ -207,6 +275,7 @@ class Control
 	//--------------------------------------------------
 	ctrlSwitchToggle()
 	{
+		const sel = this.formSelector && this.formSelector["ctrl"];
 		// キーボード制御へ
 		if( this.ctrlSwitch == 0 )
 		{
@@ -214,8 +283,10 @@ class Control
 			this.ctrlSwitch = 1;
 
 			// セレクタの変更
-			ctrl.formSelector["ctrl"].childNodes[0].selected = '';
-			ctrl.formSelector["ctrl"].childNodes[1].selected = 'selected';
+			if (sel && sel.childNodes && sel.childNodes.length > 1) {
+				sel.childNodes[0].selected = '';
+				sel.childNodes[1].selected = 'selected';
+			}
 
 		// マウス制御へ
 		} else
@@ -224,8 +295,10 @@ class Control
 			this.ctrlSwitch = 0;
 
 			// セレクタの変更
-			ctrl.formSelector["ctrl"].childNodes[0].selected = 'selected';
-			ctrl.formSelector["ctrl"].childNodes[1].selected = '';
+			if (sel && sel.childNodes && sel.childNodes.length > 1) {
+				sel.childNodes[0].selected = 'selected';
+				sel.childNodes[1].selected = '';
+			}
 		}
 
 		// 設定の記録
@@ -238,21 +311,28 @@ class Control
 	//--------------------------------------------------
 	setStageIndex(_stage)
 	{
+		const blockMapSet = this.getBlockMapSet();
+		const sel = this.formSelector && this.formSelector["stage"];
+
 		// ステージセレクタのリセット
-		if( this.formSelector["stage"].childNodes.length > 0 ) { this.formSelector["stage"].childNodes[this.stageIndex].selected = ''; }
+		if( sel && sel.childNodes && sel.childNodes.length > this.stageIndex && sel.childNodes[this.stageIndex] ) {
+			sel.childNodes[this.stageIndex].selected = '';
+		}
 
 		// 値の設定
 		this.stageIndex = _stage;
 
 		// ステージインデックスの制限
 		if( 0 > this.stageIndex ) { this.stageIndex = 0; }
-		else if( this.stageIndex >= blockMapSet.length )
+		else if( blockMapSet.length > 0 && this.stageIndex >= blockMapSet.length )
 		{
 			this.stageIndex = 0;
 		}
 
 		// ステージセレクタのセット
-		if( this.formSelector["stage"].childNodes.length > 0 ) { this.formSelector["stage"].childNodes[this.stageIndex].selected = 'selected'; }
+		if( sel && sel.childNodes && sel.childNodes.length > this.stageIndex && sel.childNodes[this.stageIndex] ) {
+			sel.childNodes[this.stageIndex].selected = 'selected';
+		}
 	}
 
 
@@ -261,27 +341,36 @@ class Control
 	//--------------------------------------------------
 	forwardStageIndex()
 	{
+		const blockMapSet = this.getBlockMapSet();
+		const storage = this.getStorage();
+		const defLife = this.getDefaultLife();
+		const sel = this.formSelector && this.formSelector["stage"];
+
 		// ステージセレクタのリセット
-		if( this.formSelector["stage"].childNodes.length > 0 ) { this.formSelector["stage"].childNodes[this.stageIndex].selected = ''; }
+		if( sel && sel.childNodes && sel.childNodes.length > this.stageIndex && sel.childNodes[this.stageIndex] ) {
+			sel.childNodes[this.stageIndex].selected = '';
+		}
 
 		// 値の設定
 		this.stageIndex++;
 
 		// ステージインデックスの制限
 		if( 0 > this.stageIndex ) { this.stageIndex = 0; }
-		else if( this.stageIndex >= blockMapSet.length )
+		else if( blockMapSet.length > 0 && this.stageIndex >= blockMapSet.length )
 		{
 			this.stageIndex = 0;
 			this.stageEnded = 1;
 		}
 
 		// ステージセレクタのセット
-		if( this.formSelector["stage"].childNodes.length > 0 ) { this.formSelector["stage"].childNodes[this.stageIndex].selected = 'selected'; }
+		if( sel && sel.childNodes && sel.childNodes.length > this.stageIndex && sel.childNodes[this.stageIndex] ) {
+			sel.childNodes[this.stageIndex].selected = 'selected';
+		}
 
 		// 継続情報のクリア
 		if( storage != null )
 		{
-			storage.setItem("continue_life", defaultLife);
+			storage.setItem("continue_life", defLife);
 			storage.setItem("continue_time", 0);
 			storage.setItem("continue_score", 0);
 		}
@@ -293,27 +382,36 @@ class Control
 	//--------------------------------------------------
 	backwardStageIndex()
 	{
+		const blockMapSet = this.getBlockMapSet();
+		const storage = this.getStorage();
+		const defLife = this.getDefaultLife();
+		const sel = this.formSelector && this.formSelector["stage"];
+
 		// ステージセレクタのリセット
-		if( this.formSelector["stage"].childNodes.length > 0 ) { this.formSelector["stage"].childNodes[this.stageIndex].selected = ''; }
+		if( sel && sel.childNodes && sel.childNodes.length > this.stageIndex && sel.childNodes[this.stageIndex] ) {
+			sel.childNodes[this.stageIndex].selected = '';
+		}
 
 		// 値の設定
 		this.stageIndex--;
 
 		// ステージインデックスの制限
 		if( 0 > this.stageIndex ) { this.stageIndex = 0; }
-		else if( this.stageIndex >= blockMapSet.length )
+		else if( blockMapSet.length > 0 && this.stageIndex >= blockMapSet.length )
 		{
 			this.stageIndex = 0;
 			this.stageEnded = 1;
 		}
 
 		// ステージセレクタのセット
-		if( this.formSelector["stage"].childNodes.length > 0 ) { this.formSelector["stage"].childNodes[this.stageIndex].selected = 'selected'; }
+		if( sel && sel.childNodes && sel.childNodes.length > this.stageIndex && sel.childNodes[this.stageIndex] ) {
+			sel.childNodes[this.stageIndex].selected = 'selected';
+		}
 
 		// 継続情報のクリア
 		if( storage != null )
 		{
-			storage.setItem("continue_life", defaultLife);
+			storage.setItem("continue_life", defLife);
 			storage.setItem("continue_time", 0);
 			storage.setItem("continue_score", 0);
 		}
@@ -325,14 +423,14 @@ class Control
 	//--------------------------------------------------
 	fixSize()
 	{
+		if (typeof document === 'undefined') return;
+		const canvasWidth = this.getCanvasWidth();
+		const canvasHeight = this.getCanvasHeight();
+
 		// 画面サイズの取得
-		var screenWidth = 0;
-		var screenHeight = 0;
-		if( document.all != null )
-		{
-			screenWidth = document.clientWidth;
-			screenHeight = document.clientHeight;
-		} else {
+		let screenWidth = 0;
+		let screenHeight = 0;
+		if (typeof window !== 'undefined') {
 			screenWidth = window.innerWidth;
 			screenHeight = window.innerHeight;
 		}
@@ -350,21 +448,23 @@ class Control
 		if( this.sizeFitSwitch == 0 ) { this.scale = 1; }
 
 		// 適用
-		var bodyObjStyle = document.getElementsByTagName('body')[0].style;
-		var transform = "scale(" + this.scale + ", " + this.scale + ")";
-		var transformOrigin = "top left";
-		bodyObjStyle.transform = transform;
-		bodyObjStyle.webkitTransform = transform;
-		bodyObjStyle.MozTransform = transform;
-		bodyObjStyle.msTransform = transform;
-		bodyObjStyle.OTransform = transform;
+		const bodyEls = document.getElementsByTagName('body');
+		if (bodyEls && bodyEls[0]) {
+			var bodyObjStyle = bodyEls[0].style;
+			var transform = "scale(" + this.scale + ", " + this.scale + ")";
+			var transformOrigin = "top left";
+			bodyObjStyle.transform = transform;
+			bodyObjStyle.webkitTransform = transform;
+			bodyObjStyle.MozTransform = transform;
+			bodyObjStyle.msTransform = transform;
+			bodyObjStyle.OTransform = transform;
 
-		bodyObjStyle.transformOrigin = transformOrigin;
-		bodyObjStyle.webkitTransformOrigin = transformOrigin;
-		bodyObjStyle.MozTransformOrigin = transformOrigin;
-		bodyObjStyle.msTransformOrigin = transformOrigin;
-		bodyObjStyle.OTransformOrigin = transformOrigin;
+			bodyObjStyle.transformOrigin = transformOrigin;
+			bodyObjStyle.webkitTransformOrigin = transformOrigin;
+			bodyObjStyle.MozTransformOrigin = transformOrigin;
+			bodyObjStyle.msTransformOrigin = transformOrigin;
+			bodyObjStyle.OTransformOrigin = transformOrigin;
+		}
 	}
 }
 
-export default Control;

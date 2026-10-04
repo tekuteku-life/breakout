@@ -1,9 +1,9 @@
 // test/all.test.js
 import './helpers/setupEnv.js';
-import '../src/screen.js';
 import '../src/main.js';
 
 // Unit tests
+import './unit/AutoPlay.test.js';
 import './unit/Ball.test.js';
 import './unit/Balloon.test.js';
 import './unit/Bar.test.js';

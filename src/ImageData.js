@@ -1,10 +1,16 @@
+// src/ImageData.js
+// Copyright (C) 2010-2012 kt9, All rights reserved.
+
+import { DEFAULT_CONFIG } from "./const.js";
+
 //--------------------------------------------------
 // 描画イメージ
 //--------------------------------------------------
-class ImageData
+export default class ImageData
 {
-	constructor(dynamicCtx)
+	constructor(dynamicCtx, game = null)
 	{
+		this.game = game;
 		this.imgData = new Array();
 		this.dynamicCtx = dynamicCtx;
 
@@ -34,6 +40,12 @@ class ImageData
 	destructor()
 	{
 		this.imgData = new Array();
+		this.dynamicCtx = null;
+		this.game = null;
+	}
+
+	getCtrl() {
+		return (this.game && this.game.ctrl) || null;
 	}
 
 
@@ -42,7 +54,23 @@ class ImageData
 	//--------------------------------------------------
 	init()
 	{
-		var dynamicCtx = this.dynamicCtx;
+		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!dynamicCtx) return;
+
+		const g = this.game || {};
+		const ballSize = g.ballSize !== undefined ? g.ballSize : DEFAULT_CONFIG.ballSize;
+		const canvasWidth = g.canvasWidth !== undefined ? g.canvasWidth : DEFAULT_CONFIG.canvasWidth;
+		const canvasHeight = g.canvasHeight !== undefined ? g.canvasHeight : DEFAULT_CONFIG.canvasHeight;
+		const blockColor = (g.blockColor !== undefined ? g.blockColor : (typeof window !== 'undefined' ? window.blockColor : [])) || [];
+		const blockLineColor = (g.blockLineColor !== undefined ? g.blockLineColor : (typeof window !== 'undefined' ? window.blockLineColor : [])) || [];
+		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : (typeof window !== 'undefined' && window.blockWidth !== undefined ? window.blockWidth : DEFAULT_CONFIG.blockWidth);
+		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : (typeof window !== 'undefined' && window.blockHeight !== undefined ? window.blockHeight : DEFAULT_CONFIG.blockHeight);
+		const ctrl = this.getCtrl();
+		const stageIdx = ctrl ? ctrl.stageIndex : 0;
+		const itemColor = (g.itemColor !== undefined ? g.itemColor : (typeof window !== 'undefined' ? window.itemColor : [])) || [];
+		const itemLineColor = (g.itemLineColor !== undefined ? g.itemLineColor : (typeof window !== 'undefined' ? window.itemLineColor : [])) || [];
+		const heartWidth = g.heartWidth !== undefined ? g.heartWidth : DEFAULT_CONFIG.heartWidth;
+		const heartHeight = g.heartHeight !== undefined ? g.heartHeight : DEFAULT_CONFIG.heartHeight;
 
 		//----------描画イメージを取得----------
 		// ボール
@@ -58,32 +86,45 @@ class ImageData
 				else if( stat == 2 ) { dataName = "fire"; }
 				if( stat > 0 && i >= 0 ) { dataName += "_tail" + String(i); }
 
-				// イメージの取得
-				var radius = ballSize * (1 - 0.08 * i);
+				// ボールを描画
 				this.drawBall(stat, i);
-				imgDataBall[dataName] = dynamicCtx.getImageData(0, 0, radius*2, radius*2);
+
+				// イメージデータの取得
+				imgDataBall[dataName] = dynamicCtx.getImageData(0, 0, ballSize * 2, ballSize * 2);
+
+				// 描画の削除
 				dynamicCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-				// 通常の場合は残像を作らない
 				if( stat == 0 ) { break; }
 			}
 		}
 
 		// ブロック
 		var imgDataBlock = this.imgData["block"];
-		for( var i = 0, len = blockText.length; i < len; i++ )
+		for( var i = 0; i < blockColor.length; i++ )
 		{
+			// ブロックを描画
 			this.drawBlock(i);
-			imgDataBlock[i] = dynamicCtx.getImageData(0.5, 0.5, blockWidth + 0.5, blockHeight + 0.5);
+
+			// イメージデータの取得
+			imgDataBlock[i] = dynamicCtx.getImageData(0, 0, blockWidth, blockHeight);
+
+			// 描画の削除
 			dynamicCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 		}
 
 		// アイテム
 		var imgDataItem = this.imgData["item"];
-		for( var i = 0, len = itemText[ctrl.stageIndex].length; i < len; i++ )
+		const curItemColor = itemColor[stageIdx] || (itemColor[0] || []);
+		for( var i = 0; i < curItemColor.length; i++ )
 		{
+			// アイテムを描画
 			this.drawItem(i);
-			imgDataItem[i] = dynamicCtx.getImageData(0.5, 0.5, blockWidth + 0.5, blockHeight + 0.5);
+
+			// イメージデータの取得
+			imgDataItem[i] = dynamicCtx.getImageData(0, 0, blockWidth, blockHeight);
+
+			// 描画の削除
 			dynamicCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 		}
 
@@ -91,8 +132,13 @@ class ImageData
 		var imgDataHeart = this.imgData["heart"];
 		for( var i = 0; i < 2; i++ )
 		{
+			// ハートを描画
 			this.drawHeart(i);
-			imgDataHeart[i] = dynamicCtx.getImageData(0, 0, heartWidth*3.5, heartHeight*2.3);
+
+			// イメージデータの取得
+			imgDataHeart[i] = dynamicCtx.getImageData(0, 0, heartWidth * 2.3, heartHeight * 2.5);
+
+			// 描画の削除
 			dynamicCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 		}
 	}
@@ -101,57 +147,52 @@ class ImageData
 	//--------------------------------------------------
 	// 描画イメージの取得
 	//--------------------------------------------------
-	getData(kind, stat)
+	getData(category, name)
 	{
-		return this.imgData[kind][stat];
+		var data = this.imgData[category];
+		return data != null ? (data[name] ?? null) : null;
 	}
 
 
 	//--------------------------------------------------
 	// 描画イメージ配列の取得
 	//--------------------------------------------------
-	getDataArr(kind)
+	getDataArr(category)
 	{
-		return this.imgData[kind];
+		return this.imgData[category];
 	}
 
 
 	//--------------------------------------------------
 	// ボールの描画
 	//--------------------------------------------------
-	drawBall(stat, i)
+	drawBall(stat, tailNum)
 	{
-		var dynamicCtx = this.dynamicCtx;
+		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!dynamicCtx) return;
 
-		// iの補正
-		if( i < 0 ) { i = 0; }
+		const g = this.game || {};
+		const ballSize = g.ballSize !== undefined ? g.ballSize : DEFAULT_CONFIG.ballSize;
+		const ballColor = g.ballColor !== undefined ? g.ballColor : DEFAULT_CONFIG.ballColor;
+		const ballStrongColor = g.ballStrongColor !== undefined ? g.ballStrongColor : DEFAULT_CONFIG.ballStrongColor;
+		const ballUltimateColor = g.ballUltimateColor !== undefined ? g.ballUltimateColor : DEFAULT_CONFIG.ballUltimateColor;
 
-		// 強化・無敵球
-		if( stat != 0 )
-		{
-			// 球の描画
-			dynamicCtx.beginPath();
+		// 色の選択
+		if( stat == 0 ) { dynamicCtx.fillStyle = ballColor; }
+		else if( stat == 1 ) { dynamicCtx.fillStyle = ballStrongColor; }
+		else if( stat == 2 ) { dynamicCtx.fillStyle = ballUltimateColor; }
 
-			// 色の選択
-			if( stat == 1 ) { dynamicCtx.fillStyle = ballStrongColor; }
-			else if( stat == 2 ) { dynamicCtx.fillStyle = ballUltimateColor; }
+		// 半径の選択
+		var radius = ballSize * ( 1 - 0.08 * tailNum );
 
-			// 透過率，半径の決定
-			dynamicCtx.globalAlpha = 1 - i * 0.2;
-			var radius = ballSize * (1 - 0.08 * i);
+		// アルファ値の選択
+		dynamicCtx.globalAlpha = 1 - tailNum * 0.2;
 
-			dynamicCtx.arc(radius, radius, radius, 0, Math.PI * 2, false);
-			dynamicCtx.fill();
-			dynamicCtx.globalAlpha = 1;
-
-		// 通常弾
-		} else
-		{
-			dynamicCtx.beginPath();
-			dynamicCtx.fillStyle = ballColor;
-			dynamicCtx.arc(ballSize, ballSize, ballSize, 0, Math.PI * 2, false);
-			dynamicCtx.fill();
-		}
+		// 球の描画
+		dynamicCtx.beginPath();
+		dynamicCtx.arc(ballSize, ballSize, radius, 0, Math.PI * 2, false);
+		dynamicCtx.fill();
+		dynamicCtx.globalAlpha = 1;
 	}
 
 
@@ -160,24 +201,37 @@ class ImageData
 	//--------------------------------------------------
 	drawBlock(_type)
 	{
-		var dynamicCtx = this.dynamicCtx;
+		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!dynamicCtx) return;
 
-		// 矩形を描画
+		const g = this.game || {};
+		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : (typeof window !== 'undefined' && window.blockWidth !== undefined ? window.blockWidth : DEFAULT_CONFIG.blockWidth);
+		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : (typeof window !== 'undefined' && window.blockHeight !== undefined ? window.blockHeight : DEFAULT_CONFIG.blockHeight);
+		const blockColor = (g.blockColor !== undefined ? g.blockColor : (typeof window !== 'undefined' ? window.blockColor : [])) || [];
+		const blockLineColor = (g.blockLineColor !== undefined ? g.blockLineColor : (typeof window !== 'undefined' ? window.blockLineColor : [])) || [];
+		const blockFontSize = g.blockFontSize !== undefined ? g.blockFontSize : (typeof window !== 'undefined' && window.blockFontSize !== undefined ? window.blockFontSize : 15);
+		const blockText = (g.blockText !== undefined ? g.blockText : (typeof window !== 'undefined' ? window.blockText : [])) || [];
+		const blockTextColor = (g.blockTextColor !== undefined ? g.blockTextColor : (typeof window !== 'undefined' ? window.blockTextColor : [])) || [];
+
+		const bcolor = blockColor[_type] || '';
+		const lcolor = blockLineColor[_type] || '';
+
 		dynamicCtx.beginPath();
-		dynamicCtx.strokeStyle = blockLineColor[_type];
-		dynamicCtx.fillStyle = blockColor[_type];
-		dynamicCtx.rect(0.5, 0.5, blockWidth, blockHeight);
+		dynamicCtx.strokeStyle = lcolor;
+		dynamicCtx.fillStyle = bcolor;
+		dynamicCtx.rect(0.5, 0.5, blockWidth - 1, blockHeight - 1);
 		dynamicCtx.fill();
 		dynamicCtx.stroke();
 
 		// ブロックの文字を描画
-		var text = blockText[_type];
-		if( text != null )
-		{
+		const text = blockText[_type];
+		if (text) {
+			const textColor = blockTextColor[_type] || '#000000';
+			dynamicCtx.beginPath();
 			dynamicCtx.textBaseline = 'middle';
 			dynamicCtx.textAlign = 'center';
-			dynamicCtx.font = blockFontSize + "px 'ＭＳ Ｐゴシック'";
-			dynamicCtx.fillStyle = blockTextColor[_type];
+			dynamicCtx.font = blockFontSize + "px 'ＭＳ Ｐゴシック', sans-serif";
+			dynamicCtx.fillStyle = textColor;
 			dynamicCtx.fillText(text, 0.5 * blockWidth, 0.5 * blockHeight, blockWidth);
 		}
 	}
@@ -188,23 +242,47 @@ class ImageData
 	//--------------------------------------------------
 	drawItem(_type)
 	{
-		var dynamicCtx = this.dynamicCtx;
+		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!dynamicCtx) return;
 
-		// 矩形を描画
+		const g = this.game || {};
+		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : (typeof window !== 'undefined' && window.blockWidth !== undefined ? window.blockWidth : DEFAULT_CONFIG.blockWidth);
+		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : (typeof window !== 'undefined' && window.blockHeight !== undefined ? window.blockHeight : DEFAULT_CONFIG.blockHeight);
+		const itemFontSize = g.itemFontSize !== undefined ? g.itemFontSize : (typeof window !== 'undefined' && window.itemFontSize !== undefined ? window.itemFontSize : DEFAULT_CONFIG.itemFontSize);
+		const ctrl = this.getCtrl();
+		const stageIdx = ctrl ? ctrl.stageIndex : 0;
+		const itemColor = (g.itemColor !== undefined ? g.itemColor : (typeof window !== 'undefined' ? window.itemColor : [])) || [];
+		const itemLineColor = (g.itemLineColor !== undefined ? g.itemLineColor : (typeof window !== 'undefined' ? window.itemLineColor : [])) || [];
+		const itemTextColor = (g.itemTextColor !== undefined ? g.itemTextColor : (typeof window !== 'undefined' ? window.itemTextColor : [])) || [];
+		const itemText = (g.itemText !== undefined ? g.itemText : (typeof window !== 'undefined' ? window.itemText : [])) || [];
+
+		const curItemColor = itemColor[stageIdx] || (itemColor[0] || []);
+		const curItemLineColor = itemLineColor[stageIdx] || (itemLineColor[0] || []);
+		const curItemTextColor = itemTextColor[stageIdx] || (itemTextColor[0] || []);
+		const curItemText = itemText[stageIdx] || (itemText[0] || []);
+
+		const bcolor = curItemColor[_type] || '';
+		const lcolor = curItemLineColor[_type] || '';
+		const txtColor = curItemTextColor[_type] || '#000000';
+		const txt = curItemText[_type] || '';
+
+		// アイテムの枠を描画
 		dynamicCtx.beginPath();
-		dynamicCtx.strokeStyle = itemLineColor[ctrl.stageIndex][_type];
-		dynamicCtx.fillStyle = itemColor[ctrl.stageIndex][_type];
-		dynamicCtx.rect(0.5, 0.5, blockWidth, blockHeight);
+		dynamicCtx.strokeStyle = lcolor;
+		dynamicCtx.fillStyle = bcolor;
+		dynamicCtx.rect(0.5, 0.5, blockWidth - 1, blockHeight - 1);
 		dynamicCtx.fill();
 		dynamicCtx.stroke();
 
 		// アイテムの文字を描画
-		dynamicCtx.beginPath();
-		dynamicCtx.textBaseline = 'middle';
-		dynamicCtx.textAlign = 'center';
-		dynamicCtx.font = itemFontSize + "px 'ＭＳ Ｐゴシック'";
-		dynamicCtx.fillStyle = itemTextColor[ctrl.stageIndex][_type];
-		dynamicCtx.fillText(itemText[ctrl.stageIndex][_type], 0.5 * blockWidth, 0.5 * blockHeight, blockWidth * 0.95);
+		if (txt) {
+			dynamicCtx.beginPath();
+			dynamicCtx.textBaseline = 'middle';
+			dynamicCtx.textAlign = 'center';
+			dynamicCtx.font = itemFontSize + "px 'ＭＳ Ｐゴシック', sans-serif";
+			dynamicCtx.fillStyle = txtColor;
+			dynamicCtx.fillText(txt, 0.5 * blockWidth, 0.5 * blockHeight, blockWidth * 0.95);
+		}
 	}
 
 
@@ -213,9 +291,15 @@ class ImageData
 	//--------------------------------------------------
 	drawHeart(stat)
 	{
-		var dynamicCtx = this.dynamicCtx;
+		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!dynamicCtx) return;
 
-		// Circle
+		const g = this.game || {};
+		const heartColor = g.heartColor !== undefined ? g.heartColor : DEFAULT_CONFIG.heartColor;
+		const heartWidth = g.heartWidth !== undefined ? g.heartWidth : DEFAULT_CONFIG.heartWidth;
+		const heartHeight = g.heartHeight !== undefined ? g.heartHeight : DEFAULT_CONFIG.heartHeight;
+
+		// 円の描画
 		dynamicCtx.beginPath();
 		dynamicCtx.strokeStyle = heartColor;
 		dynamicCtx.scale(1, 3/2);
@@ -228,7 +312,7 @@ class ImageData
 		dynamicCtx.fill();
 		dynamicCtx.scale(1, 2/3);
 
-		// line
+		// 線の描画
 		dynamicCtx.moveTo(0.5, heartHeight + 0.5);
 		dynamicCtx.lineTo(heartWidth + 1, heartHeight*2 + 0.5);
 
@@ -236,7 +320,7 @@ class ImageData
 		dynamicCtx.lineTo(heartWidth*1.1, heartHeight*2 + 1.5);
 		dynamicCtx.stroke();
 
-		// fill
+		// 塗りつぶしの描画
 		dynamicCtx.beginPath();
 		if( stat == 1 ) { dynamicCtx.strokeStyle = heartColor; }
 		else { dynamicCtx.strokeStyle = '#ffffff'; }
@@ -250,4 +334,3 @@ class ImageData
 	}
 }
 
-export default ImageData;

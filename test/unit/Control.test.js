@@ -4,25 +4,36 @@ import { setupEnvironment } from '../helpers/setupEnv.js';
 import Control from '../../src/Control.js';
 
 test('Control class unit tests', async (t) => {
-	const origAllClose = globalThis.allClose;
-	const origOpenScreen = globalThis.openScreen;
-	const origCloseScreen = globalThis.closeScreen;
+	let origScreenManage;
+	t.before(() => {
+		origScreenManage = globalThis.screenManage;
+	});
 
 	t.beforeEach(() => {
 		setupEnvironment();
-		globalThis.allClose = () => {};
-		globalThis.openScreen = () => {};
-		globalThis.closeScreen = () => {};
+		globalThis.screenManage = {
+			allClose: () => {},
+			openScreen: () => {},
+			closeScreen: () => {},
+		};
 	});
 
 	t.after(() => {
-		globalThis.allClose = origAllClose;
-		globalThis.openScreen = origOpenScreen;
-		globalThis.closeScreen = origCloseScreen;
+		if (origScreenManage !== undefined) {
+			globalThis.screenManage = origScreenManage;
+		} else {
+			delete globalThis.screenManage;
+		}
+	});
+
+	const createMockGame = (overrides = {}) => ({
+		storage,
+		blockMapSet: (globalThis.blockMapSet && globalThis.blockMapSet.length > 0) ? globalThis.blockMapSet : [[], [], []],
+		...overrides,
 	});
 
 	await t.test('constructor initializes properties and formSelectors', () => {
-		const ctrl = new Control();
+		const ctrl = new Control(createMockGame());
 		assert.equal(ctrl.autoSwitch, 0);
 		assert.equal(ctrl.pauseSwitch, 0);
 		assert.equal(ctrl.soundSwitch, 0);
@@ -31,7 +42,7 @@ test('Control class unit tests', async (t) => {
 	});
 
 	await t.test('load and record methods for storage integration', () => {
-		const ctrl = new Control();
+		const ctrl = new Control(createMockGame());
 
 		// Sound
 		ctrl.soundSwitch = 1;
@@ -73,7 +84,7 @@ test('Control class unit tests', async (t) => {
 	});
 
 	await t.test('toggle methods toggle state and update selectors', () => {
-		const ctrl = new Control();
+		const ctrl = new Control(createMockGame());
 		globalThis.ctrl = ctrl;
 
 		// autoSwitch
@@ -106,8 +117,9 @@ test('Control class unit tests', async (t) => {
 	});
 
 	await t.test('stage navigation methods handle bounds and clear storage', () => {
-		const ctrl = new Control();
-		globalThis.ctrl = ctrl;
+		const game = createMockGame();
+		const ctrl = new Control(game);
+		game.ctrl = ctrl;
 
 		// setStageIndex
 		ctrl.setStageIndex(2);
@@ -124,7 +136,7 @@ test('Control class unit tests', async (t) => {
 		assert.equal(storage.getItem('continue_score'), '0');
 
 		// Loop past max
-		ctrl.setStageIndex(globalThis.blockMapSet.length - 1);
+		ctrl.setStageIndex(game.blockMapSet.length - 1);
 		ctrl.forwardStageIndex();
 		assert.equal(ctrl.stageIndex, 0);
 		assert.equal(ctrl.stageEnded, 1);

@@ -4,11 +4,15 @@ import assert from 'node:assert/strict';
 import { setupEnvironment } from '../helpers/setupEnv.js';
 import '../../src/main.js';
 import Balloon from '../../src/Balloon.js';
+import Ball from '../../src/Ball.js';
+import Item from '../../src/Item.js';
+import Weapon from '../../src/Weapon.js';
+import { BALL_CREATE_MODE } from '../../src/const.js';
 
 describe('System Test SYS-02 & SYS-03: Game Play, Launch, and Loop', () => {
 	beforeEach(() => {
 		setupEnvironment();
-		window.init(0);
+		window.gameManage.init(0);
 	});
 
 	afterEach(() => {
@@ -16,63 +20,70 @@ describe('System Test SYS-02 & SYS-03: Game Play, Launch, and Loop', () => {
 	});
 
 	it('SYS-02: handles mouse press to launch ball and inhibits duplicate launches', () => {
+		const g = window.gameManage;
+		const input = window.inputManage;
+
 		// Verify initial state
-		assert.equal(window.balls.length, 0);
+		assert.equal(g.balls.length, 0);
 
 		// Mouse down to charge launch
-		window.dynamicCanvas.onmousedown();
-		assert.ok(window.mouseDownTime > 0, 'Mouse down time should be recorded');
+		g.dynamicCanvas.onmousedown();
+		assert.ok(input.mouseDownTime > 0, 'Mouse down time should be recorded');
 
 		// Mouse up to launch
-		window.dynamicCanvas.onmouseup({ button: 0 });
-		assert.equal(window.balls.length, 1, 'Ball should be launched');
-		assert.equal(window.mouseDownTime, 0, 'Mouse down time should reset');
+		g.dynamicCanvas.onmouseup({ button: 0 });
+		assert.equal(g.balls.length, 1, 'Ball should be launched');
+		assert.equal(input.mouseDownTime, 0, 'Mouse down time should reset');
 
 		// Attempt duplicate launch while ball is in play
-		window.dynamicCanvas.onmousedown();
-		window.dynamicCanvas.onmouseup({ button: 0 });
-		assert.equal(window.balls.length, 1, 'Duplicate ball launch should be prevented');
+		g.dynamicCanvas.onmousedown();
+		g.dynamicCanvas.onmouseup({ button: 0 });
+		assert.equal(g.balls.length, 1, 'Duplicate ball launch should be prevented');
 	});
 
 	it('SYS-02: handles weapon firing and absorbed ball relaunching on click', () => {
-		// Set bar weapon
-		window.bar.weapon = 1; // Gun
-		window.bar.weaponInter = 0;
+		const g = window.gameManage;
 
-		window.dynamicCanvas.onmousedown();
-		assert.equal(window.weapons.length, 1, 'Weapon should be fired on mousedown');
+		// Set bar weapon
+		g.bar.weapon = 1; // Gun
+		g.bar.weaponInter = 0;
+
+		g.dynamicCanvas.onmousedown();
+		assert.equal(g.weapons.length, 1, 'Weapon should be fired on mousedown');
 
 		// Absorbed ball relaunch
-		window.bar.absorptionNum = 1;
+		g.bar.absorptionNum = 1;
 		let relaunched = false;
-		window.bar.relaunch = () => { relaunched = true; window.bar.absorptionNum = 0; };
-		window.dynamicCanvas.onmouseup({ button: 0 });
+		g.bar.relaunch = () => { relaunched = true; g.bar.absorptionNum = 0; };
+		g.dynamicCanvas.onmouseup({ button: 0 });
 		assert.ok(relaunched, 'Absorbed ball should be relaunched on mouseup');
 	});
 
 	it('SYS-03: executes rendering pipeline (drawAll, drawOnce, statusView) and cloud effects', () => {
+		const g = window.gameManage;
+
 		// Populate block with exploded > 0
-		const b = window.blockMap[0][0];
+		const b = g.blockMap[0][0];
 		if (b) {
 			b.exploded = 5;
 		}
 
 		// Add balloon
-		const balloon = new Balloon(100, 100, 'Test Balloon');
-		window.balloons.push(balloon);
+		const balloon = new Balloon(100, 100, 'Test Balloon', g);
+		g.balloons.push(balloon);
 
 		// Activate disturbance
-		window.bar.disturbStatusTime = 10;
+		g.bar.disturbStatusTime = 10;
 
 		// Execute drawAll
-		window.drawAll(window.dynamicCtx);
+		g.drawAll(g.dynamicCtx);
 
 		// Execute drawOnce
-		window.drawOnce(window.staticCtx);
+		g.drawOnce(g.staticCtx);
 
 		// Expire balloon
 		balloon.endFlag = 1;
-		window.drawAll(window.dynamicCtx);
+		g.drawAll(g.dynamicCtx);
 
 		// Status view updates DOM element
 		const playInfo = document.getElementById('play_info');
@@ -81,63 +92,68 @@ describe('System Test SYS-02 & SYS-03: Game Play, Launch, and Loop', () => {
 	});
 
 	it('SYS-03: handles keyboard movement updates in game loop', () => {
-		window.ctrl.autoSwitch = 0;
-		window.ctrl.ctrlSwitch = 1; // Keyboard control mode
-		window.keyStr = 'Right';
-		window.keyPressIncr = 5;
-		const initX = window.pointX;
+		const g = window.gameManage;
+		const input = window.inputManage;
+
+		g.ctrl.autoSwitch = 0;
+		g.ctrl.ctrlSwitch = 1; // Keyboard control mode
+		input.keyStr = 'Right';
+		input.keyPressIncr = 5;
 
 		// Simulate key right increment
-		window.getKeyPress({ keyCode: 76 }, 'down'); // L key
-		assert.equal(window.keyStr, 'Right');
+		input.getKeyPress({ keyCode: 76 }, 'down'); // L key
+		assert.equal(input.keyStr, 'Right');
 
 		// Simulate left movement
-		window.getKeyPress({ keyCode: 65 }, 'down'); // A key
-		assert.equal(window.keyStr, 'Left');
+		input.getKeyPress({ keyCode: 65 }, 'down'); // A key
+		assert.equal(input.keyStr, 'Left');
 
-		window.getKeyPress({ keyCode: 65 }, 'up');
-		assert.equal(window.keyStr, '');
+		input.getKeyPress({ keyCode: 65 }, 'up');
+		assert.equal(input.keyStr, '');
 	});
 
 	it('SYS-03: executes game loop step updating positions, status, timers, and form controls', () => {
+		const g = window.gameManage;
+		const input = window.inputManage;
+
 		// When pauseSwitch is 0 and ball is in play
-		window.balls = [new window.Ball(window.BALL_CREATE_MODE.INIT)];
+		g.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
 		window.gameLoopTick();
-		assert.equal(window.ctrl.formSelector['continue'].disabled, true);
-		assert.equal(window.ctrl.formSelector['stage'].disabled, true);
+		assert.equal(g.ctrl.formSelector['continue'].disabled, true);
+		assert.equal(g.ctrl.formSelector['stage'].disabled, true);
 
 		// With keyboard controls
-		window.ctrl.autoSwitch = 0;
-		window.ctrl.ctrlSwitch = 1;
-		window.keyStr = 'Right';
+		g.ctrl.autoSwitch = 0;
+		g.ctrl.ctrlSwitch = 1;
+		input.keyStr = 'Right';
 		window.gameLoopTick();
-		window.keyStr = 'Left';
+		input.keyStr = 'Left';
 		window.gameLoopTick();
 
 		// With autoSwitch = 1
-		window.ctrl.autoSwitch = 1;
+		g.ctrl.autoSwitch = 1;
 		window.gameLoopTick();
 
 		// With weapons and items active
-		window.items = [new window.Item(0, 100, 100, '#000', '#fff')];
-		window.weapons = [new window.Weapon(1, 100, 100, 1)];
+		g.items = [new Item(0, 100, 100, '#000', '#fff', g)];
+		g.weapons = [new Weapon(1, 100, 100, 1, null, g)];
 		window.gameLoopTick();
 
 		// With balls empty
-		window.ctrl.autoSwitch = 0;
-		window.balls = [];
+		g.ctrl.autoSwitch = 0;
+		g.balls = [];
 		window.gameLoopTick();
-		assert.equal(window.ctrl.formSelector['continue'].disabled, false);
-		assert.equal(window.ctrl.formSelector['stage'].disabled, false);
+		assert.equal(g.ctrl.formSelector['continue'].disabled, false);
+		assert.equal(g.ctrl.formSelector['stage'].disabled, false);
 
 		// Event handlers attached on window / canvas
 		window.onclick();
 		window.onmousemove({ clientX: 300, clientY: 400 });
 		window.ontouchmove({ touches: [{ pageX: 300, pageY: 400 }], preventDefault: () => {} });
-		window.dynamicCanvas.ontouchstart({ touches: [{ pageX: 300, pageY: 400 }], preventDefault: () => {} });
-		window.dynamicCanvas.ontouchstart({ touches: [{ pageX: 300 }, { pageX: 320 }], preventDefault: () => {} });
-		window.dynamicCanvas.ontouchstart({ touches: [{ pageX: 300 }, { pageX: 320 }, { pageX: 340 }], preventDefault: () => {} });
-		window.dynamicCanvas.ontouchend({ preventDefault: () => {} });
+		g.dynamicCanvas.ontouchstart({ touches: [{ pageX: 300, pageY: 400 }], preventDefault: () => {} });
+		g.dynamicCanvas.ontouchstart({ touches: [{ pageX: 300 }, { pageX: 320 }], preventDefault: () => {} });
+		g.dynamicCanvas.ontouchstart({ touches: [{ pageX: 300 }, { pageX: 320 }, { pageX: 340 }], preventDefault: () => {} });
+		g.dynamicCanvas.ontouchend({ preventDefault: () => {} });
 		window.onresize();
 		document.onkeydown({ keyCode: 37, preventDefault: () => {} });
 		document.onkeyup({ keyCode: 37, preventDefault: () => {} });

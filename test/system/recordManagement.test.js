@@ -7,7 +7,6 @@ import '../../src/main.js';
 describe('System Test SYS-09: Record Management and Viewing', () => {
 	beforeEach(() => {
 		setupEnvironment();
-		window.onload();
 	});
 
 	afterEach(() => {
@@ -15,13 +14,14 @@ describe('System Test SYS-09: Record Management and Viewing', () => {
 	});
 
 	it('SYS-09: renders record screen for Best, Average, and Worst across stages', () => {
-		const stageName = window.stageTitle[0];
-		window.storage.setItem(`record_${stageName}_playNum`, '10');
-		window.storage.setItem(`record_${stageName}_clearNum`, '8');
-		window.storage.setItem(`record_best_${stageName}_stageScore`, '9999');
+		const g = window.gameManage;
+		const stageName = g.stageTitle[0];
+		g.storage.setItem(`record_${stageName}_playNum`, '10');
+		g.storage.setItem(`record_${stageName}_clearNum`, '8');
+		g.storage.setItem(`record_best_${stageName}_stageScore`, '9999');
 
 		// Render Best for stage 0
-		window.printRecordScreen(0, 0);
+		window.screenManage.printRecordScreen(0, 0);
 
 		const screenRecord = document.getElementById('screen_record');
 		assert.ok(screenRecord.innerHTML.includes('10times'), 'ACTUAL HTML: ' + screenRecord.innerHTML);
@@ -45,8 +45,9 @@ describe('System Test SYS-09: Record Management and Viewing', () => {
 	});
 
 	it('SYS-09: handles record reset confirmation and deletion', () => {
-		const stageName = window.stageTitle[0];
-		window.storage.setItem(`record_${stageName}_playNum`, '5');
+		const g = window.gameManage;
+		const stageName = g.stageTitle[0];
+		g.storage.setItem(`record_${stageName}_playNum`, '5');
 
 		// Click reset record button and cancel first
 		const resetBtn = document.getElementById('reset_record');
@@ -54,13 +55,13 @@ describe('System Test SYS-09: Record Management and Viewing', () => {
 		const cancelBtn = document.getElementById('cancel');
 		assert.ok(cancelBtn, 'Cancel button should exist on confirm dialog');
 		cancelBtn.onclick();
-		assert.equal(window.storage.getItem(`record_${stageName}_playNum`), '5', 'Records should not be deleted on cancel');
+		assert.equal(g.storage.getItem(`record_${stageName}_playNum`), '5', 'Records should not be deleted on cancel');
 
 		// Click reset record button and confirm
 		resetBtn.onclick();
 		const okBtn = document.getElementById('ok');
 		assert.ok(okBtn, 'OK button should exist on confirm dialog');
 		okBtn.onclick();
-		assert.equal(window.storage.getItem(`record_${stageName}_playNum`), null, 'Records should be deleted on OK');
+		assert.equal(g.storage.getItem(`record_${stageName}_playNum`), null, 'Records should be deleted on OK');
 	});
 });

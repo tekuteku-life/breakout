@@ -1,25 +1,71 @@
+// src/Item.js
+// Copyright (C) 2010-2012 kt9, All rights reserved.
+
+import {
+	BALL_COPY_MODE,
+	BALL_STATUS,
+	DEFAULT_CONFIG,
+} from "./const.js";
+
 //--------------------------------------------------
 // アイテム
 //--------------------------------------------------
-class Item
+export default class Item
 {
-	constructor(type, x, y, lcolor, color)
+	constructor(type, x, y, lcolor, color, game = null)
 	{
-		this.width = blockWidth;									// アイテムの横幅
-		this.height = blockHeight;									// アイテムの縦幅
+		this.game = game;
+		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
+		const ctrl = this.getCtrl();
+		const stageIdx = ctrl ? ctrl.stageIndex : 0;
+		const itemTextList = (this.game && this.game.itemText) || [];
+		const imgSource = (this.game && this.game.imgData) || null;
+
+		this.width = blkWidth;										// アイテムの横幅
+		this.height = blkHeight;									// アイテムの縦幅
 		this.type = type;											// アイテムの種類
 		this.x = x;													// アイテムの横方向位置
 		this.y = y;													// アイテムの縦方向位置
 		this.color = color;											// アイテムの色
 		this.lineColor = lcolor;									// アイテムの線色
-		this.text = itemText[ctrl.stageIndex][this.type];			// アイテムの文字
-		this.imgData = imgData.getData("item", this.type);			// 描画イメージ
+		this.text = (itemTextList[stageIdx] && itemTextList[stageIdx][this.type]) || '';	// アイテムの文字
+		this.imgData = (imgSource && typeof imgSource.getData === 'function') ? imgSource.getData("item", this.type) : null;				// 描画イメージ
 	}
 
 	destructor()
 	{
-		// アイテムの消去
-		items.tarRemove(this);
+		const itemList = this.getItems();
+		if (itemList) {
+			const idx = itemList.indexOf(this);
+			if (idx >= 0) itemList.splice(idx, 1);
+		}
+		this.imgData = null;
+		this.game = null;
+	}
+
+	getGame() {
+		return this.game || null;
+	}
+
+	getEventBus() {
+		return (this.game && this.game.eventBus) || null;
+	}
+
+	getBar() {
+		return (this.game && this.game.bar) || null;
+	}
+
+	getItems() {
+		return (this.game && this.game.items) || [];
+	}
+
+	getCtrl() {
+		return (this.game && this.game.ctrl) || null;
+	}
+
+	getCanvasHeight() {
+		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
 	}
 
 
@@ -28,8 +74,9 @@ class Item
 	//--------------------------------------------------
 	draw(ctx)
 	{
-		// アイテムを描画
-		ctx.putImageData(this.imgData, ~~this.x - 0.5, ~~this.y - 0.5);
+		if (this.imgData) {
+			ctx.putImageData(this.imgData, ~~this.x - 0.5, ~~this.y - 0.5);
+		}
 	}
 
 
@@ -62,8 +109,14 @@ class Item
 	//--------------------------------------------------
 	move()
 	{
+		const ctrl = this.getCtrl();
+		const stageIdx = ctrl ? ctrl.stageIndex : 0;
+		const itemSpeedList = (this.game && this.game.itemSpeed) || [4, 4, 4];
+		const speed = itemSpeedList[stageIdx] !== undefined ? itemSpeedList[stageIdx] : 4;
+		const canvasHeight = this.getCanvasHeight();
+
 		// 位置の決定
-		this.y += itemSpeed[ctrl.stageIndex];
+		this.y += speed;
 
 		// 未取得のまま落下
 		if( this.y > canvasHeight ) {
@@ -87,7 +140,8 @@ class Item
 	//--------------------------------------------------
 	checkCollision(target)
 	{
-		var b = target || bar;
+		var b = target || this.getBar();
+		if (!b) return false;
 		return (this.getBottomY() > b.getTopY() && b.getLeftX() <= this.getRightX() && b.getRightX() >= this.getLeftX());
 	}
 
@@ -97,127 +151,30 @@ class Item
 	//--------------------------------------------------
 	applyEffect()
 	{
-		var i;
-		var ballNum = balls.length;
+		const bus = this.getEventBus();
+		if (!bus) return;
 
-		// アイテム取得数の計算
-		scoreMng.awardNum.getItemNum++;
+		// アイテム取得数の計算（EventBus経由で通知）
+		bus.emitEvent('award:add', { key: 'getItemNum', count: 1 });
 
-		// 取得音
-		if( this.type == 4 || this.type == 6 || this.type == 11 || this.type == 12 ) { sounds.play('minusItem'); }
-		else { sounds.play('plusItem'); }
+		// 取得音（EventBus経由で通知）
+		const soundName = (this.type == 4 || this.type == 6 || this.type == 11 || this.type == 12) ? 'minusItem' : 'plusItem';
+		bus.emitEvent('sound:play', soundName);
 
-		// 2倍増殖
-		if( this.type == 0 ) {
-			var diffNum = ballMaxNum - ballNum;
-			var len = ballNum > diffNum ? diffNum : ballNum;
-			for( i = 0; i < len; i++ ) { balls[balls.length] = balls[i].copy(BALL_COPY_MODE.RAND); }
-
-		// 強化状態
-		} else if( this.type == 1 ) {
-			// 状態の設定
-			for( i = 0; i < ballNum; i++ ) {
-				balls[i].status = BALL_STATUS.STRONG;
-				balls[i].statusTime = ballStatusTime * FPS;
-			}
-
-		// 無敵状態
-		} else if( this.type == 2 ) {
-			// 状態の設定
-			for( i = 0; i < ballNum; i++ ) {
-				balls[i].status = BALL_STATUS.ULTIMATE;
-				balls[i].statusTime = ballStatusTime * FPS;
-			}
-
-		// バー幅伸長
-		} else if( this.type == 3 ) {
-			// 状態の設定
-			bar.width = ~~( bar.width * 1.3 );
-			if( bar.width > barMaxWidth ) { bar.width = barMaxWidth; }
-
-			// タイマーのセット
-			bar.widthStatusTime = barStatusDefaultTime * FPS;
-
-		// バー幅縮小
-		} else if( this.type == 4 ) {
-			// 状態の設定
-			bar.width = ~~( bar.width * 0.7 );
-			if( bar.width < barMinWidth ) { bar.width = barMinWidth; }
-
-			// タイマーのセット
-			bar.widthStatusTime = barStatusDefaultTime * FPS;
-
-		// ライフの回復
-		} else if( this.type == 5 ) {
-			statusMng.addLife(1);
-
-		// ライフの減少
-		} else if( this.type == 6 ) {
-			statusMng.addLife(-1);
-
-		// ボール速度の増加
-		} else if( this.type == 7 ) {
-			for( i = 0; i < ballNum; i++ ) {
-				balls[i].vx *= 1 + ~~(Math.random() * 30) / 100;
-				balls[i].vy *= 1 + ~~(Math.random() * 30) / 100;
-			}
-
-		// ボール速度の減少
-		} else if( this.type == 8 ) {
-			for( i = 0; i < ballNum; i++ ) {
-				balls[i].vx *= 1 - ~~(Math.random() * 30) / 100;
-				balls[i].vy *= 1 - ~~(Math.random() * 30) / 100;
-			}
-
-		// バーに銃を設定
-		} else if( this.type == 9 ) {
-			// 状態の設定
-			bar.weapon = 1;
-
-			// タイマーのセット
-			bar.weaponTime = barWeaponDefaultTime * FPS;
-
-		// バーにミサイルを設定
-		} else if( this.type == 10 ) {
-			// 状態の設定
-			bar.weapon = 2;
-
-			// タイマーのセット
-			bar.weaponTime = barWeaponDefaultTime * FPS;
-
-		// バー移動速度の鈍化
-		} else if( this.type == 11 ) {
-			// 状態の設定
-			bar.vxMax -= ~~(Math.abs(bar.vxMax - barMinSpeed) * 0.8);
-			if( bar.vxMax < barMinSpeed ) { bar.vxMax = barMinSpeed; }
-
-			// タイマーのセット
-			bar.speedStatusTime = barStatusDefaultTime * FPS;
-
-		// バーの振動
-		} else if( this.type == 12 ) {
-			bar.vibrationTime = barStatusDefaultTime * FPS;
-
-		// バーの吸着状態化
-		} else if( this.type == 13 ) {
-			// タイマーのセット
-			bar.absorptionStatusTime = barStatusDefaultTime * FPS*1.1;
-
-		// 不死身状態化
-		} else if( this.type == 14 ) {
-
-			// タイマーのセット
-			bar.immortalStatusTime = barStatusDefaultTime * FPS;
-
-			// 色の設定
-			bar.color = barImmortalColor;
-
-		// 画面の難視化
-		} else if( this.type == 15 ) {
-			// タイマーのセット
-			bar.disturbStatusTime = barStatusDefaultTime * FPS;
+		// 各種効果のEventBus通知
+		if (this.type === 0 || this.type === 1 || this.type === 2 || this.type === 7 || this.type === 8) {
+			// ボールに関する効果（増殖、強化、無敵、速度変化）
+			bus.emitEvent('ball:applyItem', this.type);
+		} else if (this.type === 5) {
+			// ライフ回復
+			bus.emitEvent('status:addLife', 1);
+		} else if (this.type === 6) {
+			// ライフ減少
+			bus.emitEvent('status:addLife', -1);
+		} else {
+			// バーに関する効果（幅変更、武器、加振、吸着、不死身、画面難視化など）
+			bus.emitEvent('bar:applyItem', this.type);
 		}
 	}
 }
 
-export default Item;

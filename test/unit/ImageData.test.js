@@ -49,11 +49,22 @@ test('ImageData class unit tests', async (t) => {
 	});
 
 	await t.test('drawBlock handles blocks with and without text', () => {
-		const img = new ImageData(mockCtx);
+		const filledTexts = [];
+		const testCtx = {
+			...mockCtx,
+			fillText: (text, x, y, maxWidth) => {
+				filledTexts.push({ text, x, y, maxWidth });
+			},
+		};
+		const img = new ImageData(testCtx);
 		// block 0 has no text
-		assert.doesNotThrow(() => img.drawBlock(0));
+		img.drawBlock(0);
+		assert.equal(filledTexts.length, 0);
+
 		// block 2 has Bomb text
-		assert.doesNotThrow(() => img.drawBlock(2));
+		img.drawBlock(2);
+		assert.equal(filledTexts.length, 1);
+		assert.equal(filledTexts[0].text, 'Bomb');
 	});
 
 	await t.test('drawItem renders items', () => {

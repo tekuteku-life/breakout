@@ -1,23 +1,41 @@
+// src/Block.js
+// Copyright (C) 2010-2012 kt9, All rights reserved.
+
 import Item from "./Item.js";
 import Weapon from "./Weapon.js";
 import Balloon from "./Balloon.js";
+import {
+	BALL_STATUS,
+	BLOCK_FUNCTION,
+	DEFAULT_CONFIG,
+} from "./const.js";
 
 //--------------------------------------------------
 // ブロック
 //--------------------------------------------------
-class Block
+export default class Block
 {
-	constructor(x, y, type, func, life, infinit, through)
+	constructor(x, y, type, func, life, infinit, through, game = null)
 	{
-		this.width = blockWidth;								// ブロックの横幅
-		this.height = blockHeight;								// ブロックの縦幅
+		this.game = game;
+		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
+		const sBarHeight = this.getStatusBarHeight();
+		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const bMoveInter = (this.game && this.game.blockMoveInter) || 5;
+		const bBlinkInter = (this.game && this.game.blockBlinkInter) || 5;
+		const bAttackInter = (this.game && this.game.blockAttackInter) || 5;
+		const imgSource = (this.game && this.game.imgData) ? this.game.imgData : null;
+
+		this.width = blkWidth;									// ブロックの横幅
+		this.height = blkHeight;								// ブロックの縦幅
 		this.x = x * this.width;								// ブロックの横軸座標
-		this.y = y * this.height + statusBarHeight;				// ブロックの縦軸座標
+		this.y = y * this.height + sBarHeight;					// ブロックの縦軸座標
 		this.type = type;										// ブロックの種類
-		this.func = func;										// ブロックの機能
+		this.func = (func !== undefined && func !== null) ? Number(func) : 0; // ブロックの機能
 		this.text = null;										// ブロックの文字
-		this.infinit = infinit;									// 破壊の可否
-		this.life = life;										// 残り衝突可能回数
+		this.infinit = (infinit !== undefined && infinit !== null) ? Number(infinit) : 0; // 破壊の可否
+		this.life = (life !== undefined && life !== null) ? Number(life) : 0; // 残り衝突可能回数
 		this.item = null;										// アイテム
 		this.simulate = 0;										// シミュレート用
 		this.breakLimit = 0;									// 破壊制限時間
@@ -26,33 +44,76 @@ class Block
 		this.blinkInter = 0;									// 点滅用カウント
 		this.blinkSwitch = 0;									// 点灯・消灯の判別（-1:消灯、1:点灯、0:停止）
 		this.blinkType = 0;										// 種類保持用変数
-		this.throughVect = through;								// 透過方向（0：なし、1～4：上、右、下、左）
+		this.throughVect = (through !== undefined && through !== null) ? Number(through) : 0; // 透過方向（0：なし、1～4：上、右、下、左）
 		this.attackInter = 0;									// 攻撃間隔
-		this.imgData = imgData.getData("block", type);			// 描画イメージ
+		this.imgData = (imgSource && typeof imgSource.getData === 'function') ? imgSource.getData("block", type) : null;	// 描画イメージ
 
 		// 移動ブロックの設定
 		if( this.func == BLOCK_FUNCTION.VERTICAL_MOVE )
 		{
-			this.moveInter = Math.random() * blockMoveInter * FPS;
+			this.moveInter = Math.random() * bMoveInter * fps;
 			this.moveVect = (~~(Math.random() * 2) * 2 - 1);
 		}
 		// 点滅ブロックの設定
 		else if( this.func == BLOCK_FUNCTION.BLINK )
 		{
-			this.blinkInter = Math.random() * blockBlinkInter * FPS;
+			this.blinkInter = Math.random() * bBlinkInter * fps;
 			this.blinkSwitch = (~~(Math.random() * 2) * 2 - 1);
 			this.blinkType = this.type;
 		}
 		// 攻撃ブロックの設定
 		else if( this.func == BLOCK_FUNCTION.ATTACK )
 		{
-			this.attackInter = Math.random() * blockAttackInter * FPS;
+			this.attackInter = Math.random() * bAttackInter * fps;
 		}
 	}
 
 	destructor()
 	{
-		this.clear(staticCtx);
+		const ctx = this.getStaticCtx();
+		if (ctx) this.clear(ctx);
+		if (this.item && typeof this.item.destructor === 'function') {
+			this.item.destructor();
+		}
+		this.item = null;
+		this.imgData = null;
+		this.game = null;
+	}
+
+	getGame() {
+		return this.game || null;
+	}
+
+	getEventBus() {
+		return (this.game && this.game.eventBus) || null;
+	}
+
+	getStaticCtx() {
+		return (this.game && this.game.staticCtx) || null;
+	}
+
+	getBlockMap() {
+		return (this.game && this.game.blockMap) || [];
+	}
+
+	getBalls() {
+		return (this.game && this.game.balls) || [];
+	}
+
+	getCtrl() {
+		return (this.game && this.game.ctrl) || null;
+	}
+
+	getCanvasWidth() {
+		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+	}
+
+	getCanvasHeight() {
+		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+	}
+
+	getStatusBarHeight() {
+		return (this.game && this.game.statusBarHeight) || DEFAULT_CONFIG.statusBarHeight;
 	}
 
 
@@ -61,7 +122,8 @@ class Block
 	//--------------------------------------------------
 	copy()
 	{
-		var obj = new Block(this.x / this.width, (this.y - statusBarHeight) / this.height, this.type, this.func, this.life, this.infinit, this.throughVect);
+		const sBarHeight = this.getStatusBarHeight();
+		var obj = new Block(this.x / this.width, (this.y - sBarHeight) / this.height, this.type, this.func, this.life, this.infinit, this.throughVect, this.game);
 		obj.item = this.item;
 		obj.simulate = this.simulate;
 		obj.breakLimit = this.breakLimit;
@@ -101,22 +163,27 @@ class Block
 	//--------------------------------------------------
 	draw(ctx)
 	{
-		// ブロックを描画
-		ctx.putImageData(this.imgData, this.x - 0.5, this.y - 0.5);
+		const blockLife = (this.game && this.game.blockLife) || [];
 
-		// ブロックの文字を描画
-		var text = this.text;
-		if( text != null )
-		{
-			ctx.textBaseline = 'middle';
-			ctx.textAlign = 'center';
-			ctx.font = blockFontSize + "px 'ＭＳ Ｐゴシック'";
-			ctx.fillStyle = blockTextColor[this.type];
-			ctx.fillText(text, this.getCenterX() - 0.5, this.getCenterY() - 0.5, this.width);
+		// 削除
+		this.clear(ctx);
+
+		// 画像の描画
+		if (this.imgData) {
+			ctx.putImageData(this.imgData, this.x, this.y);
 		}
 
-		// 耐久性を透過率で表現
-		if( this.life < blockLife[this.type] )
+		// 文字の描画
+		if( this.text != null )
+		{
+			ctx.fillStyle = '#ffffff';
+			ctx.font = '10px bolder sans-serif';
+			ctx.textAlign = 'center';
+			ctx.fillText(this.text, this.getCenterX(), this.getCenterY() + 4);
+		}
+
+		// 耐久性を透過率で表現（ダメージを受けた場合に白オーバーレイを描画）
+		if( blockLife[this.type] !== undefined && this.life < blockLife[this.type] )
 		{
 			ctx.globalAlpha = ( this.life + 1 ) / ( blockLife[this.type] + 1 );
 			ctx.beginPath();
@@ -135,7 +202,7 @@ class Block
 	//--------------------------------------------------
 	clear(ctx)
 	{
-		ctx.clearRect(this.x - 0.5, this.y - 0.5, this.width, this.height);
+		if (ctx) ctx.clearRect(this.x - 0.5, this.y - 0.5, this.width, this.height);
 	}
 
 
@@ -144,6 +211,20 @@ class Block
 	//--------------------------------------------------
 	move()
 	{
+		const staticCtx = this.getStaticCtx();
+		const balls = this.getBalls();
+		const blockMap = this.getBlockMap();
+		const canvasWidth = this.getCanvasWidth();
+		const statusBarHeight = this.getStatusBarHeight();
+
+		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const blockLife = (this.game && this.game.blockLife) || [];
+		const blockMoveInter = (this.game && this.game.blockMoveInter) || 5;
+		const blockDrawingDistance = (this.game && this.game.blockDrawingDistance) || 80;
+		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		const blockAttackInter = (this.game && this.game.blockAttackInter) || 8;
+		const blockBlinkInter = (this.game && this.game.blockBlinkInter) || 5;
+
 		// 爆発モーションのカウントダウン
 		if( this.exploded > 0 ) { this.exploded--; }
 
@@ -154,7 +235,7 @@ class Block
 			if( balls.length == 0 ) { this.breakLimit = 1; }
 
 			// 残り時間の計算
-			var countDownTime = ~~(this.breakLimit / FPS * 10) / 10;
+			var countDownTime = ~~(this.breakLimit / fps * 10) / 10;
 
 			// 出力文字の作成
 			if( countDownTime * 10 % 10 == 0 ) { this.text = String(~~countDownTime + ".0"); }
@@ -172,7 +253,7 @@ class Block
 			}
 
 			// 描画
-			this.draw(staticCtx);
+			if (staticCtx) this.draw(staticCtx);
 		}
 
 		if( this.type != 0 )
@@ -184,24 +265,24 @@ class Block
 
 				if( this.moveInter <= 0 )
 				{
-					var i = (this.getTopY() - statusBarHeight) / this.height;
-					var j = this.getLeftX() / this.width;
-					var forBlock = blockMap[i][j + this.moveVect];
+					var i = Math.round((this.getTopY() - statusBarHeight) / this.height);
+					var j = Math.round(this.getLeftX() / this.width);
+					var forBlock = (blockMap && blockMap[i]) ? blockMap[i][j + this.moveVect] : null;
 
 					// 移動
-					if( (!forBlock || forBlock.type == 0) && (j + this.moveVect) < canvasWidth / this.width && j + this.moveVect >= 0 )
+					if( blockMap && blockMap[i] && (!forBlock || forBlock.type == 0) && (j + this.moveVect) < canvasWidth / this.width && j + this.moveVect >= 0 )
 					{
 						// 描画を消去
-						this.clear(staticCtx);
+						if (staticCtx) this.clear(staticCtx);
 
 						// 移動
 						blockMap[i][j + this.moveVect] = this.copy();
 						forBlock = blockMap[i][j + this.moveVect];
 						forBlock.x += this.width * this.moveVect;
-						forBlock.moveInter = blockMoveInter * FPS + (this.moveVect == 1 ? 1 : 0);
+						forBlock.moveInter = blockMoveInter * fps + (this.moveVect == 1 ? 1 : 0);
 
 						// 再描画
-						forBlock.draw(staticCtx);
+						if (staticCtx) forBlock.draw(staticCtx);
 
 						// 無効化
 						this.type = 0;
@@ -257,10 +338,15 @@ class Block
 				if( this.attackInter <= 0 )
 				{
 					// タイマーのリセット
-					this.attackInter = blockAttackInter * FPS * (Math.random()*0.2 + 0.8);
+					this.attackInter = blockAttackInter * fps * (Math.random()*0.2 + 0.8);
 
-					// 武器の発射
-					weapons[weapons.length] = new Weapon(1, this.getCenterX(), this.getBottomY() + 1, -1);
+					// 武器の発射（EventBus経由で通知）
+					this.getEventBus()?.emitEvent('weapon:spawn', {
+						type: 1,
+						x: this.getCenterX(),
+						y: this.getBottomY() + 1,
+						vect: -1
+					});
 				}
 			}
 		}
@@ -272,7 +358,7 @@ class Block
 
 			if( this.blinkInter <= 0 ) {
 				// カウントの初期化
-				this.blinkInter = blockBlinkInter * FPS * (0.7 + Math.random()*0.3);
+				this.blinkInter = blockBlinkInter * fps * (0.7 + Math.random()*0.3);
 
 				// スイッチの反転
 				this.blinkSwitch *= -1;
@@ -281,12 +367,12 @@ class Block
 				if( this.blinkSwitch == -1 )
 				{
 					this.type = 0;
-					this.clear(staticCtx);
+					if (staticCtx) this.clear(staticCtx);
 
 				} else
 				{
 					this.type = this.blinkType;
-					this.draw(staticCtx);
+					if (staticCtx) this.draw(staticCtx);
 				}
 			}
 		}
@@ -300,18 +386,38 @@ class Block
 	action(ball, isChangedVY)
 	{
 		var addSpeed = 0;
+		const blockMap = this.getBlockMap();
+		const canvasWidth = this.getCanvasWidth();
+		const canvasHeight = this.getCanvasHeight();
+		const statusBarHeight = this.getStatusBarHeight();
 
-		// 接触音
+		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const blockMotionTime = (this.game && this.game.blockMotionTime) || 1;
+		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint) || 10;
+		const ballStatusTime = (this.game && this.game.ballStatusTime) || 8;
+		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		const ballMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
+		const ballSize = (this.game && this.game.ballSize) || DEFAULT_CONFIG.ballSize;
+		const blockIncrPoint = (this.game && this.game.blockIncrPoint) || 10;
+		const popBalloonBackColor = (this.game && this.game.popBalloonBackColor) || '#B5F002';
+		const popBalloonFontColor = (this.game && this.game.popBalloonFontColor) || '#000000';
+		const blockBreakLimit = (this.game && this.game.blockBreakLimit) || [];
+		const ballInfBoundCancel = (this.game && this.game.ballInfBoundCancel !== undefined) ? this.game.ballInfBoundCancel : 1;
+
+		// 接触音（EventBus経由で通知）
 		if( ball != null && ball.simulate == 0 )
 		{
 			// ワープブロック
 			if( this.func == BLOCK_FUNCTION.WARP_ENTER ) {
-				sounds.play('warp');
+				this.getEventBus()?.emitEvent('sound:play', 'warp');
 
 			// 通常ブロック
 			} else if( this.func != BLOCK_FUNCTION.NORMAL && this.func != BLOCK_FUNCTION.EXPLODE_STRENGTH ) {
-				if( ball.status == BALL_STATUS.NORMAL ) { sounds.play('block'); }
-				else { sounds.play('spBlock'); }
+				if( ball.status == BALL_STATUS.NORMAL ) {
+					this.getEventBus()?.emitEvent('sound:play', 'block');
+				} else {
+					this.getEventBus()?.emitEvent('sound:play', 'spBlock');
+				}
 			}
 		}
 
@@ -322,13 +428,13 @@ class Block
 			if( this.func != BLOCK_FUNCTION.WARP_ENTER && this.func != BLOCK_FUNCTION.WARP_EXIT )
 			{
 				// 爆発モーションのセット
-				this.exploded = blockMotionTime * FPS;
+				this.exploded = blockMotionTime * fps;
 
 				// ブロックの削除
 				this.break(null);
 
-				// ポイントの付与
-				scoreMng.score = Number(scoreMng.score) + blockDefaultPoint;
+				// ポイントの付与（EventBus経由で通知）
+				this.getEventBus()?.emitEvent('score:add', blockDefaultPoint);
 			}
 
 			return;
@@ -340,14 +446,14 @@ class Block
 			// シミュレートの確認
 			if( !ball || !ball.simulate ) {
 				// 爆発モーションのセット
-				this.exploded = blockMotionTime * FPS;
+				this.exploded = blockMotionTime * fps;
 			}
 
 			// 短期間の貫通弾化
 			if( this.func == BLOCK_FUNCTION.EXPLODE_STRENGTH ) {
 				if( ball ) {
 					ball.status = BALL_STATUS.ULTIMATE;
-					ball.statusTime = ~~(ballStatusTime * 0.3 * FPS);
+					ball.statusTime = ~~(ballStatusTime * 0.3 * fps);
 				}
 			}
 
@@ -449,24 +555,23 @@ class Block
 					this.decreaseLife();
 				}
 
-				// ポイント計算
+				// ポイント計算（EventBus経由で通知）
 				if( ball ) {
-					scoreMng.score = Number(scoreMng.score) + ball.pointIncr;
+					this.getEventBus()?.emitEvent('score:add', ball.pointIncr);
 					ball.pointIncr = Number(ball.pointIncr) + blockIncrPoint;
 
-					// 連続破壊数の表示
-					if( ball.breakNum > scoreMng.awardNum.continuousBreakNum )
-					{
-						// 最大数の更新
-						scoreMng.awardNum.continuousBreakNum = ball.breakNum;
-
-						// バルーンの追加
-						var bx = ball.getCenterX();
-						var by = ball.getCenterY();
-						if( bx > canvasWidth - 30 ) { bx = canvasWidth - 30; }
-						if( by > canvasHeight - 15 ) { by = canvasHeight - 15; }
-						balloons[balloons.length] = new Balloon(scoreMng.awardNum.continuousBreakNum, bx, by, 25, 10, 0.13, popBalloonBackColor, popBalloonFontColor, 12);
-					}
+					// 連続破壊数の通知（EventBus経由で通知）
+					let bx = ball.getCenterX();
+					let by = ball.getCenterY();
+					if( bx > canvasWidth - 30 ) { bx = canvasWidth - 30; }
+					if( by > canvasHeight - 15 ) { by = canvasHeight - 15; }
+					this.getEventBus()?.emitEvent('award:continuousBreak', {
+						breakNum: ball.breakNum,
+						x: bx,
+						y: by,
+						backColor: popBalloonBackColor,
+						fontColor: popBalloonFontColor,
+					});
 				}
 
 			// シミュレートの場合
@@ -483,12 +588,12 @@ class Block
 
 		// 破壊不可ブロック
 		} else if( this.infinit == 1 && ball.simulate == 0 ) {
-			scoreMng.score = Number(scoreMng.score) + ball.pointIncr;
+			this.getEventBus()?.emitEvent('score:add', ball.pointIncr);
 			ball.pointIncr = Number(ball.pointIncr) + ~~(blockIncrPoint / 2);
 		}
 
 		// 無限ループ回避
-		if( this.infinit == 1 || blockBreakLimit[this.type] > 0 )
+		if( this.infinit == 1 || (blockBreakLimit[this.type] && blockBreakLimit[this.type] > 0) )
 		{
 			// 固定ブロック衝突回数の増加
 			ball.duaration++;
@@ -516,7 +621,6 @@ class Block
 	}
 
 
-
 	//--------------------------------------------------
 	// 破壊処理
 	//--------------------------------------------------
@@ -530,21 +634,39 @@ class Block
 		// シミュレートでない場合
 		else
 		{
+			const staticCtx = this.getStaticCtx();
+			const ctrl = this.getCtrl();
+			const stageIdx = ctrl ? ctrl.stageIndex : 0;
+			const itemLineColor = (this.game && this.game.itemLineColor) || [];
+			const itemColor = (this.game && this.game.itemColor) || [];
+
 			// 破壊処理
 			this.type = 0;
 			this.breakLimit = 0;
 
 			// 描画の削除
-			this.clear(staticCtx);
+			if (staticCtx) this.clear(staticCtx);
 
 			// 点滅の停止
 			this.blinkSwitch = 0;
 
-			// ブロック数の減少
-			if( this.infinit == 0 ) { statusMng.blockNum--; }
+			// ブロック数の減少（EventBus経由で通知）
+			if( this.infinit == 0 ) {
+				this.getEventBus()?.emitEvent('status:blockBreak');
+			}
 
-			// アイテム出現
-			if( this.item != null ) { items[items.length] = new Item(this.item, this.getLeftX(), this.getTopY(), itemLineColor[ctrl.stageIndex][this.item], itemColor[ctrl.stageIndex][this.item]); }
+			// アイテム出現（EventBus経由で通知）
+			if( this.item != null ) {
+				const lColor = (itemLineColor[stageIdx] && itemLineColor[stageIdx][this.item]) || '#ffffff';
+				const color = (itemColor[stageIdx] && itemColor[stageIdx][this.item]) || '#000000';
+				this.getEventBus()?.emitEvent('item:spawn', {
+					type: this.item,
+					x: this.getLeftX(),
+					y: this.getTopY(),
+					lineColor: lColor,
+					color: color,
+				});
+			}
 		}
 
 		// 破壊回数の計算
@@ -557,14 +679,18 @@ class Block
 	//--------------------------------------------------
 	decreaseLife()
 	{
+		const staticCtx = this.getStaticCtx();
+		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const blockBreakLimit = (this.game && this.game.blockBreakLimit) || [];
+
 		// 耐久性の減少
 		this.life--;
 
 		// 描画
-		this.draw(staticCtx);
+		if (staticCtx) this.draw(staticCtx);
 
 		// 制限時間のセット
-		if( blockBreakLimit[this.type] > 0 ) { this.breakLimit = blockBreakLimit[this.type] * FPS; }
+		if( blockBreakLimit[this.type] > 0 ) { this.breakLimit = blockBreakLimit[this.type] * fps; }
 	}
 
 
@@ -573,6 +699,10 @@ class Block
 	//--------------------------------------------------
 	explode(x, y, area, ball)
 	{
+		const blockMap = this.getBlockMap();
+		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint) || 10;
+		const blockIncrPoint = (this.game && this.game.blockIncrPoint) || 10;
+
 		for(var i = -area + y; i <= area + y; i++)
 		{
 			if( blockMap[i] != null ) {
@@ -605,11 +735,11 @@ class Block
 
 						// シミュレートでない場合
 						if( !ball || ball.simulate == 0 ) {
-							// 爆発音
-							sounds.play('bomb');
+							// 爆発音（EventBus経由で通知）
+							this.getEventBus()?.emitEvent('sound:play', 'bomb');
 
-							// ポイント計算
-							scoreMng.score += ~~(blockDefaultPoint * 1.5);
+							// ポイント計算（EventBus経由で通知）
+							this.getEventBus()?.emitEvent('score:add', ~~(blockDefaultPoint * 1.5));
 							if( ball ) { ball.pointIncr += ~~(blockIncrPoint / 2); }
 						}
 					}
@@ -617,7 +747,6 @@ class Block
 			}
 		}
 	}
-
 
 
 	//--------------------------------------------------
@@ -630,4 +759,3 @@ class Block
 	}
 }
 
-export default Block;

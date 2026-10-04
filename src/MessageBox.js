@@ -1,4 +1,4 @@
-class MessageBox
+export default class MessageBox
 {
 	constructor(text, confirm, backto)
 	{
@@ -23,7 +23,6 @@ class MessageBox
 		this.messageBox.innerHTML = text + "<div style='margin-top: 1em; height: 1px;'>&nbsp;</div>";
 
 		// OKボタンの作成
-		var form = document.createElement("form");
 		var okButton = document.createElement("input");
 		okButton.type = "button";
 		okButton.id = "ok";
@@ -96,4 +95,3 @@ class MessageBox
 	}
 }
 
-export default MessageBox;

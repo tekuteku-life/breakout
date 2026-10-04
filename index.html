@@ -11,7 +11,6 @@
 		<link rel="shortcut icon" href="./icon/128icon.ico" />
 		<link rel="stylesheet" href="./style.css" type="text/css" />
 		<script type="text/javascript" src="./setup/default.js" id="setup"></script>
-		<script type="module" src="./src/screen.js"></script>
 		<script type="module" src="./src/main.js"></script>
 	</head>
 
@@ -28,18 +27,18 @@
 			<div id="screen_start">
 				<h2>ブロック崩し</h2>
 				<div style="margin-top: 10em;">&nbsp;</div>
-				<a href="javascript:allClose();" class="barButton">Start</a>
-				<a href="javascript:openScreen('screen_help');" class="barButton">Help</a>
-				<a href="javascript:openScreen('screen_setting');" class="barButton">Setting</a>
+				<a href="javascript:screenManage.allClose();" class="barButton">Start</a>
+				<a href="javascript:screenManage.openScreen('screen_help');" class="barButton">Help</a>
+				<a href="javascript:screenManage.openScreen('screen_setting');" class="barButton">Setting</a>
 			</div>
 
 			<div id="screen_pause" style="opacity: 0.9;">
 				<h2 class="little_title">Pause...</h2>
 				<div style="margin-top: 6em;">&nbsp;</div>
-				<a href="javascript:ctrl.pauseSwitchOff();" class="barButton">Continue</a>
-				<a href="javascript:openScreen('screen_help');" class="barButton">Help</a>
-				<a href="javascript:openScreen('screen_setting');" class="barButton">Setting</a>
-				<a href="javascript:init(0); closeScreen('screen_pause'); openScreen('screen_start');" class="barButton">End</a>
+				<a href="javascript:gameManage.ctrl.pauseSwitchOff();" class="barButton">Continue</a>
+				<a href="javascript:screenManage.openScreen('screen_help');" class="barButton">Help</a>
+				<a href="javascript:screenManage.openScreen('screen_setting');" class="barButton">Setting</a>
+				<a href="javascript:gameManage.init(0); screenManage.closeScreen('screen_pause'); screenManage.openScreen('screen_start');" class="barButton">End</a>
 			</div>
 
 			<div id="screen_loading">
@@ -60,21 +59,21 @@
 					<label for="ctrl_select">Control</label><select id="ctrl_select"></select><br />
 				</form>
 				<div style="margin-top: 1.51em;">&nbsp;</div>
-				<a href="javascript:closeScreen('screen_setting');" class="barButton">Back</a>
+				<a href="javascript:screenManage.closeScreen('screen_setting');" class="barButton">Back</a>
 			</div>
 
 			<div id="screen_help">
 				<h2 class="little_title">Help</h2>
 				<ul>
-					<li><a href="javascript:openScreen('screen_control');">操作の仕方</a></li>
-					<li><a href="javascript:openScreen('screen_block');">ブロックの種類</a></li>
-					<li><a href="javascript:openScreen('screen_item');">アイテムの種類</a></li>
-					<li><a href="javascript:openScreen('screen_award');">アワードの種類</a></li>
-					<li><a href="javascript:openScreen('screen_record');">レコードの閲覧</a></li>
-					<li><a href="javascript:openScreen('screen_about');">このゲームについて</a></li>
+					<li><a href="javascript:screenManage.openScreen('screen_control');">操作の仕方</a></li>
+					<li><a href="javascript:screenManage.openScreen('screen_block');">ブロックの種類</a></li>
+					<li><a href="javascript:screenManage.openScreen('screen_item');">アイテムの種類</a></li>
+					<li><a href="javascript:screenManage.openScreen('screen_award');">アワードの種類</a></li>
+					<li><a href="javascript:screenManage.openScreen('screen_record');">レコードの閲覧</a></li>
+					<li><a href="javascript:screenManage.openScreen('screen_about');">このゲームについて</a></li>
 				</ul>
 				<div style="margin-top: 8em;">&nbsp;</div>
-				<a href="javascript:closeScreen('screen_help');" class="barButton">Back</a>
+				<a href="javascript:screenManage.closeScreen('screen_help');" class="barButton">Back</a>
 			</div>
 
 			<div id="screen_control">
@@ -99,7 +98,7 @@
 						※すべて半角入力のみ操作可能
 					</li>
 				</ul>
-				<a href="javascript:closeScreen('screen_control');" class="barButton">Back</a>
+				<a href="javascript:screenManage.closeScreen('screen_control');" class="barButton">Back</a>
 			</div>
 
 			<div id="screen_record">
@@ -126,7 +125,7 @@
 				<form class="record_form">
 					<input type="button" value="Reset all" id="reset_record">
 				</form>
-				<a href="javascript:closeScreen('screen_record');" class="barButton">Back</a>
+				<a href="javascript:screenManage.closeScreen('screen_record');" class="barButton">Back</a>
 			</div>
 
 			<div id="screen_item">
@@ -174,7 +173,7 @@
 				</ul>
 				※[t]…制限時間を過ぎると状態が解除されるアイテム
 				<div style="margin-top: 1em;">&nbsp;</div>
-				<a href="javascript:closeScreen('screen_item');" class="barButton">Back</a>
+				<a href="javascript:screenManage.closeScreen('screen_item');" class="barButton">Back</a>
 			</div>
 
 			<div id="screen_block">
@@ -227,7 +226,7 @@
 					</li>
 				</ul>
 				<div style="margin-top: 1em;">&nbsp;</div>
-				<a href="javascript:closeScreen('screen_block');" class="barButton">Back</a>
+				<a href="javascript:screenManage.closeScreen('screen_block');" class="barButton">Back</a>
 			</div>
 			
 			<div id="screen_award">
@@ -259,7 +258,7 @@
 					</li>
 				</ul>
 				<div style="margin-top: 4.55em;">&nbsp;</div>
-				<a href="javascript:closeScreen('screen_award');" class="barButton">Back</a>
+				<a href="javascript:screenManage.closeScreen('screen_award');" class="barButton">Back</a>
 			</div>
 
 			<div id="screen_stageClear">
@@ -281,7 +280,7 @@
 					<li>得点：<!--point-->pt</li>
 				</ul>
 				<div style="margin-top: 1.51em;">&nbsp;</div>
-				<a href="javascript:allClose();" class="barButton">Next</a>
+				<a href="javascript:screenManage.allClose();" class="barButton">Next</a>
 			</div>
 
 			<div id="screen_allClear">
@@ -301,7 +300,7 @@
 					<li>得点：<!--point-->pt</li>
 				</ul>
 				<div style="margin-top: 1.51em;">&nbsp;</div>
-				<a href="javascript:allClose();openScreen('screen_start');" class="barButton">Top</a>
+				<a href="javascript:screenManage.allClose();screenManage.openScreen('screen_start');" class="barButton">Top</a>
 			</div>
 
 			<div id="screen_gameOver">
@@ -323,7 +322,7 @@
 					<li>得点：<!--point-->pt</li>
 				</ul>
 				<div style="margin-top: 1.51em;">&nbsp;</div>
-				<a href="javascript:init(0);allClose();openScreen('screen_start');" class="barButton">Top</a>
+				<a href="javascript:gameManage.init(0);screenManage.allClose();screenManage.openScreen('screen_start');" class="barButton">Top</a>
 			</div>
 
 			<div id="screen_about">
@@ -333,10 +332,10 @@
 					<li>開発環境：Windows 10 64bit, Chrome 60</li>
 					<li>現行バージョン：<!--version--></li>
 					<li>最新バージョン：<!--last_version--></li>
-					<li><a href="javascript:openScreen('screen_improvementGoals');" style="color: #000000;">改善目標</a></li>
+					<li><a href="javascript:screenManage.openScreen('screen_improvementGoals');" style="color: #000000;">改善目標</a></li>
 				</ul>
 				<div style="margin-top: 12.1em;">&nbsp;</div>
-				<a href="javascript:closeScreen('screen_about');" class="barButton">Back</a>
+				<a href="javascript:screenManage.closeScreen('screen_about');" class="barButton">Back</a>
 			</div>
 
 			<div id="screen_improvementGoals" style="font-size: 0.9em;">
@@ -390,7 +389,7 @@
 						</ul>
 					</li>
 				</ul>
-				<a href="javascript:closeScreen('screen_improvementGoals');" style="display: block; font-size:14px; margin: 10px;">Back</a>
+				<a href="javascript:screenManage.closeScreen('screen_improvementGoals');" style="display: block; font-size:14px; margin: 10px;">Back</a>
 			</div>
 		</div>
 	</body>

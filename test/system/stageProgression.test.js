@@ -7,7 +7,6 @@ import '../../src/main.js';
 describe('System Test SYS-04 & SYS-05: Stage Progression and Clear Scenarios', () => {
 	beforeEach(() => {
 		setupEnvironment();
-		window.onload();
 	});
 
 	afterEach(() => {
@@ -15,27 +14,28 @@ describe('System Test SYS-04 & SYS-05: Stage Progression and Clear Scenarios', (
 	});
 
 	it('SYS-05: handles stage clear, life recovery, award calculation, and transition to next stage', () => {
+		const g = window.gameManage;
 		// Set to stage 1 where stageLifeUp[1] == 1
-		window.ctrl.setStageIndex(1);
-		window.statusMng.life = 2;
-		window.statusMng.blockNum = 0; // Trigger stage clear
+		g.ctrl.setStageIndex(1);
+		g.statusMng.life = 2;
+		g.statusMng.blockNum = 0; // Trigger stage clear
 
 		// Add dummy active entities
-		window.balls = [{ radius: 4 }];
-		window.items = [{ type: 1 }];
+		g.balls = [{ radius: 4 }];
+		g.items = [{ type: 1 }];
 
 		// Trigger game over routine (with statusMng.isAlive() === true => clear branch)
-		window.gameOver();
+		g.gameOver();
 
 		// Entities cleared
-		assert.equal(window.balls.length, 0, 'Balls should be cleared upon clear');
-		assert.equal(window.items.length, 0, 'Items should be cleared upon clear');
+		assert.equal(g.balls.length, 0, 'Balls should be cleared upon clear');
+		assert.equal(g.items.length, 0, 'Items should be cleared upon clear');
 
 		// Life increased by stageLifeUp[1] (= 1) -> life becomes 3
-		assert.equal(window.statusMng.life, 3, 'Life should be restored according to stageLifeUp');
+		assert.equal(g.statusMng.life, 3, 'Life should be restored according to stageLifeUp');
 
 		// Stage advanced to 2
-		assert.equal(window.ctrl.stageIndex, 2, 'Stage index should be advanced');
+		assert.equal(g.ctrl.stageIndex, 2, 'Stage index should be advanced');
 
 		// Stage clear screen opened
 		const stageClearScreen = document.getElementById('screen_stageClear');
@@ -43,13 +43,14 @@ describe('System Test SYS-04 & SYS-05: Stage Progression and Clear Scenarios', (
 	});
 
 	it('SYS-05: handles final stage clear (all clear), sets stageEnded, and displays allClear screen', () => {
+		const g = window.gameManage;
 		// Set to final stage
-		const finalStageIndex = window.blockMapSet.length - 1;
-		window.ctrl.setStageIndex(finalStageIndex);
-		window.statusMng.life = 3;
-		window.statusMng.blockNum = 0;
+		const finalStageIndex = g.blockMapSet.length - 1;
+		g.ctrl.setStageIndex(finalStageIndex);
+		g.statusMng.life = 3;
+		g.statusMng.blockNum = 0;
 
-		window.gameOver();
+		g.gameOver();
 
 		// All clear screen opened
 		const allClearScreen = document.getElementById('screen_allClear');

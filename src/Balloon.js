@@ -1,7 +1,7 @@
 //--------------------------------------------------
 // ポップアップバルーン
 //--------------------------------------------------
-class Balloon
+export default class Balloon
 {
 	constructor(text, x, y, width, height, step, bcolor, fcolor, fsize)
 	{
@@ -72,4 +72,3 @@ class Balloon
 	}
 }
 
-export default Balloon;

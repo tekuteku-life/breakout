@@ -1,15 +1,22 @@
+// src/StatusManage.js
+// Copyright (C) 2010-2012 kt9, All rights reserved.
+
 import Heart from "./Heart.js";
 import MessageBox from "./MessageBox.js";
+import { DEFAULT_CONFIG } from "./const.js";
 
 //--------------------------------------------------
 // ステータス計測
 //--------------------------------------------------
-class StatusManage
+export default class StatusManage
 {
-	constructor()
+	constructor(game = null)
 	{
+		this.game = game;
+		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+
 		this.prevFPSTime = 0;													// 前回FPS計測時刻
-		this.realFPS = FPS;														// 実際のFPS
+		this.realFPS = fps;														// 実際のFPS
 		this.FPSCount = 0;														// FPS測定用表示回数カウンタ
 		this.lowFPSCount = 0;													// 低FPS回数カウンタ
 		this.startTime = 0;														// 測定開始時刻
@@ -24,7 +31,41 @@ class StatusManage
 
 	destructor()
 	{
+		for (let i = 0; i < this.hearts.length; i++) {
+			if (this.hearts[i] && typeof this.hearts[i].destructor === 'function') {
+				this.hearts[i].destructor();
+			}
+		}
 		this.hearts = new Array();
+		this.game = null;
+	}
+
+	getGame() {
+		return this.game || null;
+	}
+
+	getEventBus() {
+		return (this.game && this.game.eventBus) || null;
+	}
+
+	getBalls() {
+		return (this.game && this.game.balls) || [];
+	}
+
+	getCtrl() {
+		return (this.game && this.game.ctrl) || null;
+	}
+
+	getScoreMng() {
+		return (this.game && this.game.scoreMng) || null;
+	}
+
+	getBlockMap() {
+		return (this.game && this.game.blockMap) || [];
+	}
+
+	getStaticCtx() {
+		return (this.game && this.game.staticCtx) || null;
 	}
 
 
@@ -33,10 +74,12 @@ class StatusManage
 	//--------------------------------------------------
 	init()
 	{
+		const maxLife = (this.game && this.game.maxLife) || DEFAULT_CONFIG.maxLife;
+		this.hearts = new Array();
 		// ハートインスタンスの生成
 		for( var i = 0; i < maxLife; i++ )
 		{
-			this.hearts[i] = new Heart((i * 17 + 36), 9, ( i < this.life ? 1 : 0 ));
+			this.hearts[i] = new Heart((i * 17 + 36), 9, ( i < this.life ? 1 : 0 ), this.game);
 		}
 	}
 
@@ -46,11 +89,16 @@ class StatusManage
 	//--------------------------------------------------
 	countFPS()
 	{
+		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const lowFPSAlartRatio = (this.game && this.game.lowFPSAlartRatio !== undefined) ? this.game.lowFPSAlartRatio : 0.8;
+		const balls = this.getBalls();
+		const ctrl = this.getCtrl();
+
 		// 計算
 		this.FPSCount++;
 
 		// 一定間隔で計測
-		if( Date.now() - this.prevFPSTime >= 40000 / FPS ) {
+		if( Date.now() - this.prevFPSTime >= 40000 / fps ) {
 			// 計算
 			this.realFPS = ~~(this.FPSCount * 10000 / (Date.now() - this.prevFPSTime)) / 10;
 
@@ -59,15 +107,18 @@ class StatusManage
 			this.FPSCount = 0;
 
 			// 低FPS警告
-			if( lowFPSAlartRatio > 0 && this.realFPS < FPS*lowFPSAlartRatio && balls.length > 0 && ctrl.pauseSwitch == 0 && ctrl.autoSwitch == 0 )
+			if( lowFPSAlartRatio > 0 && this.realFPS < fps * lowFPSAlartRatio && balls.length > 0 && ctrl && ctrl.pauseSwitch == 0 && ctrl.autoSwitch == 0 )
 			{
 				// 低FPSのカウント
 				this.lowFPSCount++;
 
 				if( this.lowFPSCount > 5 )
 				{
-					// 一時停止
-					ctrl.pauseSwitchOn();
+					// 一時停止（EventBus経由で通知）
+					const bus = this.getEventBus();
+					if (bus && ctrl && ctrl.pauseSwitch == 0) {
+						bus.emitEvent('control:togglePause');
+					}
 
 					// 警告文の表示
 					new MessageBox("FPSが低すぎます。<br>FPS: " + String(this.realFPS), false, null);
@@ -99,8 +150,10 @@ class StatusManage
 	//--------------------------------------------------
 	countPlayTime()
 	{
+		const balls = this.getBalls();
+		const ctrl = this.getCtrl();
 		var ballNum = balls.length;
-		if( (this.startTime == 0 && ballNum != 0) || ballNum == 0 || ctrl.pauseSwitch == 1 ) { this.startTime = Date.now() - this.playTime; }
+		if( (this.startTime == 0 && ballNum != 0) || ballNum == 0 || (ctrl && ctrl.pauseSwitch == 1) ) { this.startTime = Date.now() - this.playTime; }
 		if( ballNum > 0 ) { this.playTime = Date.now() - this.startTime; }
 	}
 
@@ -138,14 +191,17 @@ class StatusManage
 	//--------------------------------------------------
 	getDisplayPoint()
 	{
+		const scoreMng = this.getScoreMng();
+		const targetScore = scoreMng ? scoreMng.score : 0;
+
 		// 滑らかに増加
-		if( this.displayPoint + this.displayPointStep < scoreMng.score ) {
+		if( this.displayPoint + this.displayPointStep < targetScore ) {
 			this.displayPoint += this.displayPointStep;
-			this.displayPointStep = Math.ceil((scoreMng.score - this.displayPoint) * 0.3);
+			this.displayPointStep = Math.ceil((targetScore - this.displayPoint) * 0.3);
 
 		// 真値で停止
 		} else {
-			this.displayPoint = scoreMng.score;
+			this.displayPoint = targetScore;
 			this.displayPointStep = 1;
 		}
 
@@ -158,6 +214,8 @@ class StatusManage
 	//--------------------------------------------------
 	countBlockNum()
 	{
+		this.blockNum = 0;
+		const blockMap = this.getBlockMap();
 		for( var i = 0, len = blockMap.length; i < len; i++ )
 		{
 			if( blockMap[i] != null )
@@ -180,6 +238,9 @@ class StatusManage
 	//--------------------------------------------------
 	addLife(_incr)
 	{
+		const maxLife = (this.game && this.game.maxLife) || DEFAULT_CONFIG.maxLife;
+		const staticCtx = this.getStaticCtx();
+
 		// ライフの加算
 		this.life = Number(this.life) + Number(_incr);
 
@@ -187,13 +248,14 @@ class StatusManage
 		if( this.life > maxLife ) { this.life = maxLife; }
 
 		// ハートインスタンスの生成
+		this.hearts = new Array();
 		for( var i = 0; i < maxLife; i++ )
 		{
-			this.hearts[i] = new Heart((i * 17 + 36), 9, ( i < this.life ? 1 : 0 ));
+			this.hearts[i] = new Heart((i * 17 + 36), 9, ( i < this.life ? 1 : 0 ), this.game);
 		}
 
 		// 再描画
-		this.drawLife(staticCtx);
+		if (staticCtx) this.drawLife(staticCtx);
 	}
 
 
@@ -212,11 +274,13 @@ class StatusManage
 	//--------------------------------------------------
 	drawLife(ctx)
 	{
+		const maxLife = (this.game && this.game.maxLife) || DEFAULT_CONFIG.maxLife;
 		for(var i = 0; i < maxLife; i++)
 		{
-			this.hearts[i].draw(ctx);
+			if (this.hearts[i] && typeof this.hearts[i].draw === 'function') {
+				this.hearts[i].draw(ctx);
+			}
 		}
 	}
 }
 
-export default StatusManage;

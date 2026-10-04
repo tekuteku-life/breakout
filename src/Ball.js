@@ -1,20 +1,36 @@
+// src/Ball.js
+// Copyright (C) 2010-2012 kt9, All rights reserved.
+
 import Bar from "./Bar.js";
+import {
+	SYSTEM_PARAM,
+	BALL_CREATE_MODE,
+	BALL_COPY_MODE,
+	BALL_STATUS,
+	BLOCK_FUNCTION,
+	DEFAULT_CONFIG,
+} from "./const.js";
 
 //--------------------------------------------------
 // ボール
 //--------------------------------------------------
-class Ball
+export default class Ball
 {
-	constructor(launch)
+	constructor(launch, game = null, initialMouseDownTime = 0)
 	{
-		this.radius = ballSize;									// ボールの半径
+		this.game = game;
+		const bSize = DEFAULT_CONFIG.ballSize;
+		const defPoint = 10;
+		const imgSource = (this.game && this.game.imgData) ? this.game.imgData : null;
+
+		this.radius = bSize;									// ボールの半径
 		this.x;													// ボール横方向位置
 		this.y;													// ボール縦方向位置
 		this.vx;												// ボール横方向速度
 		this.vy;												// ボール縦方向速度
 		this.histX = new Array();								// ボール横方向位置履歴
 		this.histY = new Array();								// ボール縦方向位置履歴
-		this.pointIncr = blockDefaultPoint;						// ポイント増分
+		this.pointIncr = defPoint;								// ポイント増分
 		this.simulate = 0;										// シミュレートフラグ
 		this.breakNum = 0;										// ブロック破壊回数
 		this.collisionNum = 0;									// ブロック衝突回数
@@ -23,36 +39,110 @@ class Ball
 		this.duaration = 0;										// 滞空時間
 		this.isAbsorption = 0;									// 吸着状態フラグ
 		this.absorptionPoint = new Array(0, 0);					// 吸着座標（バーからの相対位置）
-		this.imgData = imgData.getDataArr("ball");				// 画像データ
+		this.imgData = (imgSource && typeof imgSource.getDataArr === 'function') ? imgSource.getDataArr("ball") : null;	// 画像データ
+		this.inputMouseDownTime = initialMouseDownTime || 0;
+
+		// EventBus経由でマウスダウン時刻の変更を監視
+		this.onMouseDownHandler = (time) => {
+			this.inputMouseDownTime = time;
+		};
+		const bus = this.getEventBus();
+		if (bus && typeof bus.addOnEvent === 'function') {
+			bus.addOnEvent('input:mouseDownTime', this.onMouseDownHandler);
+		}
+
 
 		//--------------------------------------------------
 		// 発射
 		//--------------------------------------------------
 		if( launch == BALL_CREATE_MODE.LAUNCH ) {
+			const mdTime = this.inputMouseDownTime || 0;
+			const bar = this.getBar();
+			const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+			const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
+
+
 			// ため打ち時間の計算
 			var diffTime = 0;
-			if( mouseDownTime != 0 )
+			if( mdTime != 0 )
 			{
-				diffTime = ( Date.now() - mouseDownTime ) / 1000;
+				diffTime = ( Date.now() - mdTime ) / 1000;
 				if( diffTime > 1 ) { diffTime = 1; }
 			}
 
+			const barVx = (bar && bar.vx !== undefined) ? bar.vx : 0;
 			// 初速度の決定
-			this.vx = ((Math.random() + 1) * ballDefaultSpeed * 0.5 / Math.abs(bar.vx) + 1) + bar.vx;
-			this.vy = -1 * (ballDefaultSpeed + ( ballMaxSpeed - ballDefaultSpeed ) * diffTime);
-			if( Math.abs(this.vy) > ballMaxSpeed ) { this.vy = ballMaxSpeed * ( this.vy < 0 ? -1 : 1 ); }
-			if( Math.abs(this.vx) > ballMaxSpeed ) { this.vx = ballMaxSpeed * ( this.vx < 0 ? -1 : 1 ); }
+			this.vx = ((Math.random() + 1) * bDefaultSpeed * 0.5 / (Math.abs(barVx) || 1) + 1) + barVx;
+			this.vy = -1 * (bDefaultSpeed + ( bMaxSpeed - bDefaultSpeed ) * diffTime);
+			if( Math.abs(this.vy) > bMaxSpeed ) { this.vy = bMaxSpeed * ( this.vy < 0 ? -1 : 1 ); }
+			if( Math.abs(this.vx) > bMaxSpeed ) { this.vx = bMaxSpeed * ( this.vx < 0 ? -1 : 1 ); }
 
 			// 初期位置の決定
-			this.x = bar.getCenterX();
-			this.y = bar.getTopY() - this.radius;
+			if (bar) {
+				this.x = bar.getCenterX();
+				this.y = bar.getTopY() - this.radius;
+			}
 		}
 	}
 
 	destructor()
 	{
-		// ボール消去
-		balls.tarRemove(this);
+		const bus = this.getEventBus();
+		if (bus && this.onMouseDownHandler && typeof bus.removeOnEvent === 'function') {
+			bus.removeOnEvent('input:mouseDownTime', this.onMouseDownHandler);
+			this.onMouseDownHandler = null;
+		}
+
+		const ballList = this.getBalls();
+		if (ballList) {
+			const idx = ballList.indexOf(this);
+			if (idx >= 0) ballList.splice(idx, 1);
+		}
+		this.histX = null;
+		this.histY = null;
+		this.absorptionPoint = null;
+		this.imgData = null;
+		this.game = null;
+	}
+
+	getGame() {
+		return this.game || null;
+	}
+
+	getEventBus() {
+		return (this.game && this.game.eventBus) || null;
+	}
+
+	getBar() {
+		return (this.game && this.game.bar) || null;
+	}
+
+	getBlockMap() {
+		return (this.game && this.game.blockMap) || [];
+	}
+
+	getBalls() {
+		return (this.game && this.game.balls) || [];
+	}
+
+	getItems() {
+		return (this.game && this.game.items) || [];
+	}
+
+	getWeapons() {
+		return (this.game && this.game.weapons) || [];
+	}
+
+	getCanvasWidth() {
+		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+	}
+
+	getCanvasHeight() {
+		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+	}
+
+	getStatusBarHeight() {
+		return (this.game && this.game.statusBarHeight) || DEFAULT_CONFIG.statusBarHeight;
 	}
 
 
@@ -61,7 +151,8 @@ class Ball
 	//--------------------------------------------------
 	copy(mode)
 	{
-		var obj = new Ball(BALL_CREATE_MODE.OTHER);
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		var obj = new Ball(BALL_CREATE_MODE.OTHER, this.game);
 		obj.x = this.x;
 		obj.y = this.y;
 		obj.vx = this.vx;
@@ -77,15 +168,15 @@ class Ball
 		obj.duaration = this.duaration;
 
 		// 誤作動防止用データの追加
-		obj.histX = this.histX.copy();
-		obj.histY = this.histY.copy();
+		if (this.histX) obj.histX = this.histX.copy ? this.histX.copy() : [...this.histX];
+		if (this.histY) obj.histY = this.histY.copy ? this.histY.copy() : [...this.histY];
 
 		// 速度変更
 		if( mode == BALL_COPY_MODE.RAND )
 		{
 			if( obj.vy > 0 && Math.random() < 0.6 ) { obj.vy *= -1; }
-			else { obj.vy = (Math.random() * 0.15 + 0.85) * ballDefaultSpeed; }
-			obj.vx = (~~(Math.random() * 2) * 2 - 1) * (Math.random() * 0.7 + 0.3) * ballDefaultSpeed;
+			else { obj.vy = (Math.random() * 0.15 + 0.85) * bDefaultSpeed; }
+			obj.vx = (~~(Math.random() * 2) * 2 - 1) * (Math.random() * 0.7 + 0.3) * bDefaultSpeed;
 
 		// シミュレート用
 		} else if( mode == BALL_COPY_MODE.SIMULATE )
@@ -126,29 +217,22 @@ class Ball
 	//--------------------------------------------------
 	fall()
 	{
-		// 落下音
-		sounds.play('fall');
+		const bus = this.getEventBus();
+		const bar = this.getBar();
 
-		// ボール消去
+		// 落下音（EventBus経由で通知）
+		bus?.emitEvent('sound:play', 'fall');
+
+		// ボール消去（ballListから自身を削除）
 		this.destructor();
 
-		// 落下数の計算
-		scoreMng.awardNum.fallBallNum++;
+		// 落下数の計算（EventBus経由で通知）
+		bus?.emitEvent('award:add', { key: 'fallBallNum', count: 1 });
 
-		// ボール無し
-		if( bar.immortalStatusTime <= 0 && balls.length == 0 )
-		{
-			// 全アイテムの消去
-			items = new Array();
-
-			// 全武器の消去
-			weapons = new Array();
-
-			// バー状態の解除
-			bar = new Bar();
-
-			// ライフ減少
-			statusMng.addLife(-1);
+		const ballList = this.getBalls();
+		// 全てのボールが落ちた場合、EventBus経由でラウンドリセットを通知
+		if ((!bar || bar.immortalStatusTime <= 0) && ballList.length === 0) {
+			bus?.emitEvent('ball:allLost');
 		}
 	}
 
@@ -159,19 +243,25 @@ class Ball
 	//--------------------------------------------------
 	draw(ctx)
 	{
+		const bColor = '#1F3145';
+		const bStrongColor = '#0CA366';
+		const bUltimateColor = '#DC210C';
+		const bStatusTime = 8;
+		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+
 		// 色の選択
-		if( this.status == BALL_STATUS.NORMAL ) { ctx.fillStyle = ballColor; }
-		else if( this.status == BALL_STATUS.STRONG ) { ctx.fillStyle = ballStrongColor; }
-		else if( this.status == BALL_STATUS.ULTIMATE ) { ctx.fillStyle = ballUltimateColor; }
+		if( this.status == BALL_STATUS.NORMAL ) { ctx.fillStyle = bColor; }
+		else if( this.status == BALL_STATUS.STRONG ) { ctx.fillStyle = bStrongColor; }
+		else if( this.status == BALL_STATUS.ULTIMATE ) { ctx.fillStyle = bUltimateColor; }
 
 		// 強化・無敵球の残像
-		if( this.status != BALL_STATUS.NORMAL )
+		if( this.status != BALL_STATUS.NORMAL && this.histX )
 		{
 			// 球の描画
 			ctx.beginPath();
 
 			// 残像の描画
-			var scale = this.statusTime / ballStatusTime / FPS + 0.25;
+			var scale = this.statusTime / bStatusTime / fps + 0.25;
 			var len = (this.histX.length < 4 ? this.histX.length : 4) * (scale > 1 ? 1 : scale);
 			for( var i = 0; i < len; i++ )
 			{
@@ -196,10 +286,22 @@ class Ball
 	//--------------------------------------------------
 	move()
 	{
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
+		const bSpin = 0.2;
+		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
+
+		const bar = this.getBar();
+		const blockMap = this.getBlockMap();
+		const cWidth = this.getCanvasWidth();
+		const cHeight = this.getCanvasHeight();
+		const sBarHeight = this.getStatusBarHeight();
+
 		// ボールの速度制限
-		if( Math.abs( this.vx ) > ballMaxSpeed ) { this.vx = ballMaxSpeed * (this.vx < 0 ? -1 : 1); }
-		if( Math.abs( this.vy ) > ballMaxSpeed ) { this.vy = ballMaxSpeed * (this.vy < 0 ? -1 : 1); }
-		else if( Math.abs( this.vy ) < ballDefaultSpeed * 0.8 ) { this.vy = ballMaxSpeed * 0.8 * (this.vy < 0 ? -1 : 1); }
+		if( Math.abs( this.vx ) > bMaxSpeed ) { this.vx = bMaxSpeed * (this.vx < 0 ? -1 : 1); }
+		if( Math.abs( this.vy ) > bMaxSpeed ) { this.vy = bMaxSpeed * (this.vy < 0 ? -1 : 1); }
+		else if( Math.abs( this.vy ) < bDefaultSpeed * 0.8 ) { this.vy = bMaxSpeed * 0.8 * (this.vy < 0 ? -1 : 1); }
 
 		// 状態時間の減少
 		if( this.statusTime > 0 ) {
@@ -210,7 +312,7 @@ class Ball
 		}
 
 		// 吸着状態の場合，ここで処理終了
-		if( this.isAbsorption == 1 )
+		if( this.isAbsorption == 1 && bar )
 		{
 			// 吸着位置を保持
 			this.x = this.absorptionPoint[0] + bar.getCenterX();
@@ -237,32 +339,32 @@ class Ball
 			this.x = this.radius;
 			this.vx *= -1;
 
-			// 接触音
-			if( simulate == 0 ) { sounds.play('wall'); }
+			// 接触音（EventBus経由で通知）
+			if( simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'wall'); }
 
 		// 右端
-		} else if( this.getRightX() > canvasWidth )
+		} else if( this.getRightX() > cWidth )
 		{
 			// 跳ね返り計算
-			this.x = canvasWidth - this.radius - 1;
+			this.x = cWidth - this.radius - 1;
 			this.vx *= -1;
 
-			// 接触音
-			if( simulate == 0 ) { sounds.play('wall'); }
+			// 接触音（EventBus経由で通知）
+			if( simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'wall'); }
 		}
 
 		// 上端
-		if( this.getTopY() < statusBarHeight )
+		if( this.getTopY() < sBarHeight )
 		{
 			// 跳ね返り計算
-			this.y = this.radius + statusBarHeight + 1;
+			this.y = this.radius + sBarHeight + 1;
 			this.vy *= -1;
 
-			// 接触音
-			if( simulate == 0 ) { sounds.play('wall'); }
+			// 接触音（EventBus経由で通知）
+			if( simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'wall'); }
 
 		// バー接触
-		} else if( simulate == 0 && this.getBottomY() >= bar.getTopY() && Math.abs(x - bar.getCenterX()) <= bar.width / 2 )
+		} else if( bar && simulate == 0 && this.getBottomY() >= bar.getTopY() && Math.abs(x - bar.getCenterX()) <= bar.width / 2 )
 		{
 			// 跳ね返り計算
 			this.y = bar.getTopY() - this.radius;
@@ -286,20 +388,20 @@ class Ball
 			}
 
 			// バーによるスピン
-			this.vx += bar.vx * barSpin;
+			this.vx += bar.vx * bSpin;
 
 			// 両端の傾斜による速度変化
 			var barEdgeWidth = bar.width * ( 0.5 - bar.edge * ~~(bar.height / 2) );
-			if( x < bar.getCenterX() - barEdgeWidth && vx > 0 ) { this.vx -= Math.abs( ballDefaultSpeed - vx ) * 0.4; }
-			else if( x > bar.getCenterX() + barEdgeWidth && vx < 0 ) { this.vx += Math.abs( ballDefaultSpeed + vx ) * 0.4; }
+			if( x < bar.getCenterX() - barEdgeWidth && vx > 0 ) { this.vx -= Math.abs( bDefaultSpeed - vx ) * 0.4; }
+			else if( x > bar.getCenterX() + barEdgeWidth && vx < 0 ) { this.vx += Math.abs( bDefaultSpeed + vx ) * 0.4; }
 
 			// ボールの縦方向速度の制御（速度が上方向が前提）
-			if( vy < -ballDefaultSpeed ) { this.vy += 0.05; }
-			else if( vy > -ballDefaultSpeed ) { this.vy -= 0.4; }
+			if( vy < -bDefaultSpeed ) { this.vy += 0.05; }
+			else if( vy > -bDefaultSpeed ) { this.vy -= 0.4; }
 
 			// ボールの横方向速度の制御
-			if( Math.abs(this.vx) > ballMaxSpeed ) { this.vx = ballMaxSpeed * ( this.vx < 0 ? -1 : 1 ); }
-			if( Math.abs(this.vx) < ballDefaultSpeed * 0.01 ) { this.vx = ballDefaultSpeed * 0.01; }
+			if( Math.abs(this.vx) > bMaxSpeed ) { this.vx = bMaxSpeed * ( this.vx < 0 ? -1 : 1 ); }
+			if( Math.abs(this.vx) < bDefaultSpeed * 0.01 ) { this.vx = bDefaultSpeed * 0.01; }
 
 			// ポイント増分のリセット
 			this.pointIncr = 10;
@@ -311,13 +413,13 @@ class Ball
 			this.breakNum = 0;
 			this.collisionNum = 0;
 
-			// 接触音
-			if( simulate == 0 ) { sounds.play('bar'); }
+			// 接触音（EventBus経由で通知）
+			if( simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'bar'); }
 
 		// 下端
-		} else if( this.getBottomY() > canvasHeight )
+		} else if( this.getBottomY() > cHeight )
 		{
-			this.y = canvasHeight + this.radius + 1;
+			this.y = cHeight + this.radius + 1;
 
 			// ボール落下
 			this.fall();
@@ -339,12 +441,12 @@ class Ball
 		var stepY = vy < 0 ? -1 : 1;
 
 		// 横方向
-		var colDetStartX = ~~( (x - this.radius * stepX) / blockWidth );
-		var colDetEndX = ~~( (x + this.radius * stepX) / blockWidth );
+		var colDetStartX = ~~( (x - this.radius * stepX) / blkWidth );
+		var colDetEndX = ~~( (x + this.radius * stepX) / blkWidth );
 
 		// 縦方向
-		var colDetStartY = ~~( (y - this.radius * stepY - statusBarHeight) / blockHeight );
-		var colDetEndY = ~~( (y + this.radius * stepY - statusBarHeight) / blockHeight );
+		var colDetStartY = ~~( (y - this.radius * stepY - sBarHeight) / blkHeight );
+		var colDetEndY = ~~( (y + this.radius * stepY - sBarHeight) / blkHeight );
 
 		// ボールが存在するエリア内を検査
 		var throughFlag = 0;
@@ -365,20 +467,20 @@ class Ball
 						var directVectX = 0, directVectY = 0;
 
 						// 左から衝突
-						if( this.histX[0] + this.radius <= block.getLeftX() && ( blockMap[i][j - 1] == null || (( simulate == 0 && blockMap[i][j - 1].type == 0 ) || ( simulate == 1 && blockMap[i][j - 1].simulate == 0 )) ) ) {
+						if( this.histX && this.histX[0] + this.radius <= block.getLeftX() && ( blockMap[i][j - 1] == null || (( simulate == 0 && blockMap[i][j - 1].type == 0 ) || ( simulate == 1 && blockMap[i][j - 1].simulate == 0 )) ) ) {
 							directVectX = -1;
 						}
 						// 右から衝突
-						else if( this.histX[0] - this.radius > block.getRightX() && ( blockMap[i][j + 1] == null || (( simulate == 0 && blockMap[i][j + 1].type == 0 ) || ( simulate == 1 && blockMap[i][j + 1].simulate == 0 )) ) ) {
+						else if( this.histX && this.histX[0] - this.radius > block.getRightX() && ( blockMap[i][j + 1] == null || (( simulate == 0 && blockMap[i][j + 1].type == 0 ) || ( simulate == 1 && blockMap[i][j + 1].simulate == 0 )) ) ) {
 							directVectX = 1;
 						}
 
 						// 上から衝突
-						if( this.histY[0] + this.radius <= block.getTopY() && ( blockMap[i - 1] == null || blockMap[i - 1][j] == null || (( simulate == 0 && blockMap[i - 1][j].type == 0 ) || ( simulate == 1 && blockMap[i - 1][j].simulate == 0 )) ) ) {
+						if( this.histY && this.histY[0] + this.radius <= block.getTopY() && ( blockMap[i - 1] == null || blockMap[i - 1][j] == null || (( simulate == 0 && blockMap[i - 1][j].type == 0 ) || ( simulate == 1 && blockMap[i - 1][j].simulate == 0 )) ) ) {
 							directVectY = -1;
 						}
 						// 下から衝突
-						else if( this.histY[0] - this.radius > block.getBottomY() && ( blockMap[i + 1] == null || blockMap[i + 1][j] == null || (( simulate == 0 && blockMap[i + 1][j].type == 0 ) || ( simulate == 1 && blockMap[i + 1][j].simulate == 0 )) ) ) {
+						else if( this.histY && this.histY[0] - this.radius > block.getBottomY() && ( blockMap[i + 1] == null || blockMap[i + 1][j] == null || (( simulate == 0 && blockMap[i + 1][j].type == 0 ) || ( simulate == 1 && blockMap[i + 1][j].simulate == 0 )) ) ) {
 							directVectY = 1;
 						}
 
@@ -388,12 +490,12 @@ class Ball
 							else { directVectX = 0; }
 						}
 						// 塞ぐブロックありで、斜めからの衝突（移動履歴から判定）
-						else if( directVectX == 0 && directVectY == 0 )
+						else if( directVectX == 0 && directVectY == 0 && this.histX )
 						{
 							for( var k = 0, len = this.histX.length; k < len; k++ )
 							{
-								directVectX = ~~( this.histX[k] / blockWidth ) - j;
-								directVectY = ~~( (this.histY[k] - statusBarHeight) / blockHeight ) - i;
+								directVectX = ~~( this.histX[k] / blkWidth ) - j;
+								directVectY = ~~( (this.histY[k] - sBarHeight) / blkHeight ) - i;
 
 								if( Math.abs(directVectX) >= 1 ) { directVectX = 1 * (directVectX < 0 ? -1 : 1); }
 								if( Math.abs(directVectY) >= 1 ) { directVectY = 1 * (directVectY < 0 ? -1 : 1); }
@@ -442,8 +544,8 @@ class Ball
 							// 横方向
 							if( horBlock && horBlock.type != 0 && horBlock.func != BLOCK_FUNCTION.THROUGH ) {
 								// 座標の修正
-								if( directVectY < 0 ) { this.y = horBlock.getTopY() - ballSize - 1; }
-								else { this.y = horBlock.getBottomY() + ballSize + 1; }
+								if( directVectY < 0 ) { this.y = horBlock.getTopY() - this.radius - 1; }
+								else { this.y = horBlock.getBottomY() + this.radius + 1; }
 
 								// 進行方向の反転及び，加減速
 								this.vy = -1 * (vy + horBlock.action(this, 1) * (vy < 0 ? -1 : 1));
@@ -454,8 +556,8 @@ class Ball
 								var verBlock = verBlock1[j];
 
 								// 座標の修正
-								if( directVectX < 0 ) { this.x = verBlock.getLeftX() - ballSize - 1; }
-								else { this.x = verBlock.getRightX() + ballSize + 1; }
+								if( directVectX < 0 ) { this.x = verBlock.getLeftX() - this.radius - 1; }
+								else { this.x = verBlock.getRightX() + this.radius + 1; }
 
 								// 進行方向の反転及び，加減速
 								this.vx = -1 * (vx + verBlock.action(this, 0) * (vx < 0 ? -1 : 1));
@@ -465,16 +567,16 @@ class Ball
 						} else {
 							if( directVectX != 0 ) {
 								// 座標の修正
-								if( directVectX < 0 ) { this.x = block.getLeftX() - ballSize - 1; }
-								else { this.x = block.getRightX() + ballSize + 1; }
+								if( directVectX < 0 ) { this.x = block.getLeftX() - this.radius - 1; }
+								else { this.x = block.getRightX() + this.radius + 1; }
 
 								// 進行方向の反転及び，加減速
 								 this.vx = -1 * (vx + block.action(this, 0) * (vx < 0 ? -1 : 1));
 
 							} else {
 								// 座標の修正
-								if( directVectY < 0 ) { this.y = block.getTopY() - ballSize - 1; }
-								else { this.y = block.getBottomY() + ballSize + 1; }
+								if( directVectY < 0 ) { this.y = block.getTopY() - this.radius - 1; }
+								else { this.y = block.getBottomY() + this.radius + 1; }
 
 								// 進行方向の反転及び，加減速
 								this.vy = -1 * (vy + block.action(this, 1) * (vy < 0 ? -1 : 1));
@@ -490,11 +592,11 @@ class Ball
 		//-------ブロック衝突判定-------
 
 		// ボールの速度制限
-		if( Math.abs( this.vx ) > ballMaxSpeed ) { this.vx = ballMaxSpeed * (this.vx < 0 ? -1 : 1); }
-		if( Math.abs( this.vy ) > ballMaxSpeed ) { this.vy = ballMaxSpeed * (this.vy < 0 ? -1 : 1); }
+		if( Math.abs( this.vx ) > bMaxSpeed ) { this.vx = bMaxSpeed * (this.vx < 0 ? -1 : 1); }
+		if( Math.abs( this.vy ) > bMaxSpeed ) { this.vy = bMaxSpeed * (this.vy < 0 ? -1 : 1); }
 
 		// 位置履歴の管理
-		if( throughFlag == 0 && this.isAbsorption == 0 ) {
+		if( throughFlag == 0 && this.isAbsorption == 0 && this.histX && this.histY ) {
 			this.histX.unshift(this.x);
 			this.histY.unshift(this.y);
 			if( this.histX.length > SYSTEM_PARAM.BALL_HIST_MAX ) {
@@ -505,4 +607,3 @@ class Ball
 	}
 }
 
-export default Ball;

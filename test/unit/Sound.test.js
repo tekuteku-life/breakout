@@ -11,12 +11,12 @@ test('Sound class unit tests', async (t) => {
 		assert.ok(sound.soundKeys.length > 0);
 		assert.ok(sound.soundObj['bomb']);
 		assert.ok(sound.soundObj['bomb'].length > 0);
-		assert.equal(sound.bufSize, Math.min(10, globalThis.ballMaxNum * 4));
+		assert.equal(sound.bufSize, 10);
 	});
 
 	await t.test('play executes audio play and advances turn when soundSwitch is 1', () => {
-		const sound = new Sound();
-		globalThis.ctrl.soundSwitch = 1;
+		const mockGame = { ctrl: { soundSwitch: 1 } };
+		const sound = new Sound(mockGame);
 
 		const firstAudio = sound.soundObj['bomb'][0];
 		assert.equal(firstAudio.played, false);
@@ -33,8 +33,8 @@ test('Sound class unit tests', async (t) => {
 	});
 
 	await t.test('play does not execute when soundSwitch is 0 or key is invalid', () => {
-		const sound = new Sound();
-		globalThis.ctrl.soundSwitch = 0;
+		const mockGame = { ctrl: { soundSwitch: 0 } };
+		const sound = new Sound(mockGame);
 
 		const audio = sound.soundObj['bomb'][0];
 		audio.played = false;
@@ -42,13 +42,13 @@ test('Sound class unit tests', async (t) => {
 		assert.equal(audio.played, false);
 
 		// Invalid key
-		globalThis.ctrl.soundSwitch = 1;
+		mockGame.ctrl.soundSwitch = 1;
 		assert.doesNotThrow(() => sound.play('non_existent_key'));
 	});
 
 	await t.test('destructor pauses all audio objects', () => {
-		const sound = new Sound();
-		globalThis.ctrl.soundSwitch = 1;
+		const mockGame = { ctrl: { soundSwitch: 1 } };
+		const sound = new Sound(mockGame);
 		sound.play('bomb');
 
 		sound.destructor();

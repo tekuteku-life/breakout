@@ -1,12 +1,20 @@
+// src/ScoreManage.js
+// Copyright (C) 2010-2012 kt9, All rights reserved.
+
 import MessageBox from "./MessageBox.js";
+import {
+	BALL_STATUS,
+	AWARD_KEY_LIST,
+} from "./const.js";
 
 //--------------------------------------------------
 // 得点管理
 //--------------------------------------------------
-class ScoreManage
+export default class ScoreManage
 {
-	constructor()
+	constructor(game = null)
 	{
+		this.game = game;
 		this.awardNum = new Array();						// アワードポイント
 		this.awardPt = new Array();							// アワードカウント
 
@@ -17,6 +25,7 @@ class ScoreManage
 		this.score = 0;										// 総合スコア
 
 		// ハイスコアの取得
+		const storage = this.getStorage();
 		if( storage != null && storage.getItem("record_hiScore") != null ) {
 			this.hiScore = storage.getItem("record_hiScore");
 		}
@@ -24,6 +33,33 @@ class ScoreManage
 
 	destructor()
 	{
+		this.awardNum = new Array();
+		this.awardPt = new Array();
+		this.game = null;
+	}
+
+	getGame() {
+		return this.game || null;
+	}
+
+	getEventBus() {
+		return (this.game && this.game.eventBus) || null;
+	}
+
+	getStorage() {
+		return (this.game && this.game.storage) || null;
+	}
+
+	getStatusMng() {
+		return (this.game && this.game.statusMng) || null;
+	}
+
+	getCtrl() {
+		return (this.game && this.game.ctrl) || null;
+	}
+
+	getBalls() {
+		return (this.game && this.game.balls) || [];
 	}
 
 
@@ -32,11 +68,26 @@ class ScoreManage
 	//--------------------------------------------------
 	calculateAwardPoint()
 	{
+		const statusMng = this.getStatusMng();
+		const ctrl = this.getCtrl();
+		const balls = this.getBalls();
+		const stageIdx = ctrl ? ctrl.stageIndex : 0;
+
+		const pointPerLife = (this.game && this.game.pointPerLife) || [];
+		const pointPerBall = (this.game && this.game.pointPerBall) || [];
+		const strongBallClear = (this.game && this.game.strongBallClear) || [];
+		const pointPerContBreak = (this.game && this.game.pointPerContBreak) || [];
+		const clearTimeThreashould = (this.game && this.game.clearTimeThreashould) || [];
+		const pointPerClearTime = (this.game && this.game.pointPerClearTime) || [];
+		const pointPerGetItem = (this.game && this.game.pointPerGetItem) || [];
+		const pointPerFallBall = (this.game && this.game.pointPerFallBall) || [];
+
 		// 残りライフ数
-		if( statusMng.life > 1 )
+		if( statusMng && statusMng.life > 1 )
 		{
+			const ptLife = pointPerLife[stageIdx] !== undefined ? pointPerLife[stageIdx] : 50;
 			this.awardNum.remainderLife = statusMng.life;
-			this.awardPt.remainderLife = pointPerLife[ctrl.stageIndex] * statusMng.life;
+			this.awardPt.remainderLife = ptLife * statusMng.life;
 			this.score += this.awardPt.remainderLife;
 		}
 
@@ -44,8 +95,9 @@ class ScoreManage
 		var ballNum = balls.length;
 		if( ballNum > 1 )
 		{
+			const ptBall = pointPerBall[stageIdx] !== undefined ? pointPerBall[stageIdx] : 100;
 			this.awardNum.ballNum = ballNum;
-			this.awardPt.ballNum = (ballNum - 1) * pointPerBall[ctrl.stageIndex];
+			this.awardPt.ballNum = (ballNum - 1) * ptBall;
 			this.score += this.awardPt.ballNum;
 		}
 
@@ -54,31 +106,34 @@ class ScoreManage
 		{
 			if( balls[i].status != BALL_STATUS.NORMAL )
 			{
+				const ptStrong = strongBallClear[stageIdx] !== undefined ? strongBallClear[stageIdx] : 100;
 				this.awardNum.strengClear++;
-				this.awardPt.strengClear = strongBallClear[ctrl.stageIndex];
+				this.awardPt.strengClear = ptStrong;
 				this.score += this.awardPt.strengClear;
 				break;
 			}
 		}
 
 		// 連続破壊数
-		this.awardPt.continuousBreakNum = this.awardNum.continuousBreakNum * pointPerContBreak[ctrl.stageIndex];
+		const ptContBreak = pointPerContBreak[stageIdx] !== undefined ? pointPerContBreak[stageIdx] : 10;
+		this.awardPt.continuousBreakNum = (this.awardNum.continuousBreakNum || 0) * ptContBreak;
 		this.score += this.awardPt.continuousBreakNum;
 
 		// 連続破壊クリア
 		for( var i = 0; i < ballNum; i++ )
 		{
 			var ball = balls[i];
-			if( ball.breakNum > this.awardNum.continuousBreakClear )
+			if( ball.breakNum > (this.awardNum.continuousBreakClear || 0) )
 			{
 				this.awardNum.continuousBreakClear = ball.breakNum;
 			}
 		}
-		this.awardPt.continuousBreakClear = this.awardNum.continuousBreakClear * pointPerContBreak[ctrl.stageIndex] * 3;
+		this.awardPt.continuousBreakClear = (this.awardNum.continuousBreakClear || 0) * ptContBreak * 3;
 		this.score += this.awardPt.continuousBreakClear;
 
 		// クリア時間
-		if( statusMng.isAlive() == true )
+		const isAlive = statusMng ? (typeof statusMng.isAlive === 'function' ? statusMng.isAlive() : statusMng.life > 0) : false;
+		if( isAlive )
 		{
 			var playTime = statusMng.getPlaySecTime();
 			var playTime_min = statusMng.getPlayMinTime();
@@ -91,7 +146,9 @@ class ScoreManage
 			this.awardNum.clearTime = ~~(this.awardNum.clearTime * 100) / 100;
 
 			// ポイントの算出
-			this.awardPt.clearTime = ~~((clearTimeThreashould[ctrl.stageIndex] - this.awardNum.clearTime) * pointPerClearTime[ctrl.stageIndex]);
+			const thresh = clearTimeThreashould[stageIdx] !== undefined ? clearTimeThreashould[stageIdx] : 90;
+			const ptTime = pointPerClearTime[stageIdx] !== undefined ? pointPerClearTime[stageIdx] : 8;
+			this.awardPt.clearTime = ~~((thresh - this.awardNum.clearTime) * ptTime);
 			if( this.awardPt.clearTime > 0 ) {
 				this.score += this.awardPt.clearTime;
 			} else {
@@ -102,11 +159,13 @@ class ScoreManage
 		}
 
 		// アイテム取得数
-		this.awardPt.getItemNum = this.awardNum.getItemNum * pointPerGetItem[ctrl.stageIndex];
+		const ptGetItem = pointPerGetItem[stageIdx] !== undefined ? pointPerGetItem[stageIdx] : 5;
+		this.awardPt.getItemNum = (this.awardNum.getItemNum || 0) * ptGetItem;
 		this.score += this.awardPt.getItemNum;
 
 		// 球の落下回数
-		this.awardPt.fallBallNum = this.awardNum.fallBallNum * -pointPerFallBall[ctrl.stageIndex];
+		const ptFallBall = pointPerFallBall[stageIdx] !== undefined ? pointPerFallBall[stageIdx] : 30;
+		this.awardPt.fallBallNum = (this.awardNum.fallBallNum || 0) * -ptFallBall;
 		this.score += this.awardPt.fallBallNum;
 
 		// ステージスコアを正数に制限
@@ -133,9 +192,10 @@ class ScoreManage
 	//--------------------------------------------------
 	init()
 	{
+		const storage = this.getStorage();
 		// 変数の初期化
-		for( var i = 0, len = awardKeyList.length; i < len; i++ ) {
-			var key = awardKeyList[i];
+		for( var i = 0, len = AWARD_KEY_LIST.length; i < len; i++ ) {
+			var key = AWARD_KEY_LIST[i];
 			this.awardNum[key] = 0;
 			this.awardPt[key] = 0;
 		}
@@ -152,11 +212,14 @@ class ScoreManage
 	//--------------------------------------------------
 	recordScore(_clearNum)
 	{
-		if( storage == null ) { return; }
+		const storage = this.getStorage();
+		const ctrl = this.getCtrl();
+		if( storage == null || !ctrl ) { return; }
 
+		const stageTitles = (this.game && this.game.stageTitle) || [];
 		// 記録用のステージ名を作成
-		var stageName = String(stageTitle[ctrl.stageIndex]);
-		stageName.replace(/_/g, '__');
+		var stageName = String(stageTitles[ctrl.stageIndex] || ('Stage_' + ctrl.stageIndex));
+		stageName = stageName.replace(/_/g, '__');
 
 		//----------アワード以外の記録を保存----------
 		// プレイ回数
@@ -194,8 +257,8 @@ class ScoreManage
 
 
 		// アワードの種類ごとに保存
-		for( var i = 0, len = awardKeyList.length; i < len; i++ ) {
-			var recordName = awardKeyList[i];
+		for( var i = 0, len = AWARD_KEY_LIST.length; i < len; i++ ) {
+			var recordName = AWARD_KEY_LIST[i];
 			var awardKey = recordName;
 
 			// アワード名から記録用keyの作成
@@ -237,6 +300,9 @@ class ScoreManage
 	//--------------------------------------------------
 	deleteRecord()
 	{
+		const storage = this.getStorage();
+		if (!storage) return 0;
+
 		for( var i = 0; i < storage.length; i++ ) {
 			var key = storage.key(i);
 
@@ -250,10 +316,12 @@ class ScoreManage
 		// 完了メッセージの表示
 		new MessageBox("プレイ成績を全消去しました。", false, null);
 
-		// 画面の更新
-		printRecordScreen(null, null);
+		// 画面の更新（EventBus経由で通知）
+		const bus = this.getEventBus();
+		if (bus) {
+			bus.emitEvent('screen:printRecord', { stageIdx: null, mode: null });
+		}
 		return 0;
 	}
 }
 
-export default ScoreManage;

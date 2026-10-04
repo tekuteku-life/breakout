@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import '../../src/screen.js';
+import GameManage from '../../src/GameManage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -209,15 +209,33 @@ export class MockXHR {
 
 const sharedStorage = new MockStorage();
 
+let animFrameCallbacks = [];
+let nextFrameId = 1;
+
+globalThis.requestAnimationFrame = function (cb) {
+	const id = nextFrameId++;
+	animFrameCallbacks.push({ id, cb });
+	return id;
+};
+
+globalThis.cancelAnimationFrame = function (id) {
+	animFrameCallbacks = animFrameCallbacks.filter(item => item.id !== id);
+};
+
 const origSetInterval = globalThis.setInterval;
 globalThis.setInterval = function (fn, ms, ...args) {
 	globalThis._lastIntervalFn = fn;
 	return origSetInterval(fn, ms, ...args);
 };
 
-globalThis.gameLoopTick = function () {
+globalThis.gameLoopTick = function (timestamp = Date.now()) {
 	if (typeof globalThis._lastIntervalFn === 'function') {
 		globalThis._lastIntervalFn();
+	}
+	const current = [...animFrameCallbacks];
+	animFrameCallbacks = [];
+	for (const item of current) {
+		item.cb(timestamp);
 	}
 };
 
@@ -350,16 +368,6 @@ export function setupEnvironment() {
 	eval.call(globalThis, defaultJs);
 
 	// Ensure Array prototype extensions exist
-	if (!Array.prototype.tarRemove) {
-		Array.prototype.tarRemove = function (tar) {
-			for (let i = 0; i < this.length; i++) {
-				if (this[i] === tar) {
-					this.splice(i, 1);
-					i--;
-				}
-			}
-		};
-	}
 	if (!Array.prototype.copy) {
 		Array.prototype.copy = function () {
 			const obj = [];
@@ -373,31 +381,6 @@ export function setupEnvironment() {
 			return obj;
 		};
 	}
-
-	// Constants in window
-	globalThis.SYSTEM_PARAM = { BALL_HIST_MAX: 4 };
-	globalThis.BALL_CREATE_MODE = { LAUNCH: 1, OTHER: 0 };
-	globalThis.BALL_COPY_MODE = { RAND: 0, SIMULATE: 1 };
-	globalThis.SIMULATE_PARAM = { RESOLUTION: 400, TIMES_PER_STEP: 10, MAX_PREDICT: 50 };
-	globalThis.BLOCK_FUNCTION = {
-		NORMAL: 0,
-		EXPLODE: 1,
-		FUEL: 2,
-		THROUGH: 3,
-		ACCELERATION: 4,
-		DECELERATION: 5,
-		EXPLODE_STRENGTH: 6,
-		VERTICAL_MOVE: 7,
-		WARP_ENTER: 8,
-		WARP_EXIT: 9,
-		MAGNET: 10,
-		REPULL: 11,
-		BLINK: 12,
-		ATTACK: 13,
-	};
-	globalThis.BALL_STATUS = { NORMAL: 0, STRONG: 1, ULTIMATE: 2 };
-	globalThis.appVer = 'v1.7.6';
-	globalThis.appId = 'breakout';
 
 	globalThis.dynamicCanvas = getOrCreate('dynamic', 'canvas');
 	globalThis.staticCanvas = getOrCreate('static', 'canvas');
@@ -441,9 +424,19 @@ export function setupEnvironment() {
 		pauseSwitchToggle: function () {
 			this.pauseSwitch = this.pauseSwitch === 0 ? 1 : 0;
 		},
+		stageEnded: 0,
 		setStageIndex: function (idx) {
 			this.stageIndex = idx;
 		},
+		forwardStageIndex: function () {
+			this.stageIndex++;
+			const blockMapSet = (globalThis.gameManage && globalThis.gameManage.blockMapSet) || globalThis.blockMapSet || [];
+			if (blockMapSet.length > 0 && this.stageIndex >= blockMapSet.length) {
+				this.stageIndex = 0;
+				this.stageEnded = 1;
+			}
+		},
+		recordStageIndex: function (idx = this.stageIndex) {},
 		fixSize: () => {},
 	};
 
@@ -470,6 +463,7 @@ export function setupEnvironment() {
 		isAlive: () => globalThis.statusMng.life > 0,
 		getPlaySecTime: () => '10.0',
 		getPlayMinTime: () => '1',
+		countBlockNum: () => {},
 		blockNum: 10,
 	};
 
@@ -483,6 +477,18 @@ export function setupEnvironment() {
 			continuousBreakClear: 0,
 		},
 		awardPt: {},
+		calculateAwardPoint: () => {},
+		recordScore: () => {},
+		deleteRecord: () => {
+			for (let i = 0; i < sharedStorage.length; i++) {
+				const key = sharedStorage.key(i);
+				if (String(key).indexOf('record_') >= 0) {
+					sharedStorage.removeItem(key);
+					i--;
+				}
+			}
+		},
+		init: () => {},
 	};
 
 	globalThis.bar = {
@@ -523,10 +529,36 @@ export function setupEnvironment() {
 		endamage: (d) => {},
 	};
 
+	// テスト環境用のGameManageインスタンス生成（ブラウザのwindow.onloadに相当）
+	const gm = new GameManage();
+	globalThis.eventBus = gm.eventBus;
+	globalThis.gameManage = gm;
+	globalThis.window.gameManage = gm;
+	globalThis.window.screenManage = gm.screenManage;
+	globalThis.window.inputManage = gm.inputManage;
+	globalThis.window.eventBus = gm.eventBus;
+
+	gm.storage = sharedStorage;
+	gm.ctrl = globalThis.ctrl;
+	gm.statusMng = globalThis.statusMng;
+	gm.scoreMng = globalThis.scoreMng;
+	gm.sounds = globalThis.sounds;
+	gm.bar = globalThis.bar;
+	gm.weapons = globalThis.weapons;
+	gm.items = globalThis.items;
+	gm.balls = globalThis.balls;
+	gm.balloons = globalThis.balloons;
+	gm.blockMap = globalThis.blockMap;
+	gm.loadSetupVariables(globalThis);
+	if (gm.screenManage && typeof gm.screenManage.printRecordScreen === 'function') {
+		gm.screenManage.printRecordScreen(0, 0);
+	}
+
 	return {
 		document: mockDocument,
 		storage: sharedStorage,
 		elementsById,
+		gameManage: gm,
 	};
 }
 
