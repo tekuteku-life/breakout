@@ -54,4 +54,22 @@ test('Sound class unit tests', async (t) => {
 		sound.destructor();
 		assert.equal(sound.soundObj['bomb'][0].paused, true);
 	});
+
+	await t.test('subscribes to sound:play on EventBus and unbinds on destructor', async () => {
+		const { default: EventBus } = await import('../../src/EventBus.js');
+		const bus = new EventBus();
+		const mockGame = { ctrl: { soundSwitch: 1 }, eventBus: bus };
+		const sound = new Sound(mockGame);
+
+		let playedKey = null;
+		sound.play = (key) => { playedKey = key; };
+
+		bus.emitEvent('sound:play', 'bomb');
+		assert.equal(playedKey, 'bomb');
+
+		sound.destructor();
+		playedKey = null;
+		bus.emitEvent('sound:play', 'bomb');
+		assert.equal(playedKey, null);
+	});
 });

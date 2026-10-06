@@ -103,7 +103,7 @@ test('GameManage class unit tests', async (t) => {
 
 		// sound:play
 		let soundPlayed = null;
-		gm.sounds = { play: (k) => { soundPlayed = k; } };
+		gm.sounds.play = (k) => { soundPlayed = k; };
 		gm.eventBus.emitEvent('sound:play', 'touchButton');
 		assert.equal(soundPlayed, 'touchButton');
 
@@ -151,12 +151,10 @@ test('GameManage class unit tests', async (t) => {
 
 		// screen:open, close, allClose, printRecord
 		let screenAction = '';
-		gm.screenManage = {
-			openScreen: (s) => { screenAction = 'open:' + s; },
-			closeScreen: (s) => { screenAction = 'close:' + s; },
-			allClose: () => { screenAction = 'allClose'; },
-			printRecordScreen: (t, s) => { screenAction = `printRecord:${t},${s}`; },
-		};
+		gm.screenManage.openScreen = (s) => { screenAction = 'open:' + s; };
+		gm.screenManage.closeScreen = (s) => { screenAction = 'close:' + s; };
+		gm.screenManage.allClose = () => { screenAction = 'allClose'; };
+		gm.screenManage.printRecordScreen = (t, s) => { screenAction = `printRecord:${t},${s}`; };
 		gm.eventBus.emitEvent('screen:open', 'start');
 		assert.equal(screenAction, 'open:start');
 		gm.eventBus.emitEvent('screen:close', 'start');

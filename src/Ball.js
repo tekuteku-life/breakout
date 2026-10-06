@@ -48,13 +48,19 @@ export default class Ball
 		Ball.nextBallId = (Ball.nextBallId || 0) + 1;
 		this.ballId = Ball.nextBallId;
 
-		// EventBus経由でマウスダウン時刻の変更を監視
+		// EventBus経由でマウスダウン時刻の変更を監視、および状態リセット要求を購読
 		this.onMouseDownHandler = (time) => {
 			this.inputMouseDownTime = time;
+		};
+		this.onResetStatusHandler = (ball) => {
+			if (!ball || ball === this) {
+				this.resetStatus();
+			}
 		};
 		const bus = this.getEventBus();
 		if (bus && typeof bus.addOnEvent === 'function') {
 			bus.addOnEvent('input:mouseDownTime', this.onMouseDownHandler);
+			bus.addOnEvent('ball:resetStatus', this.onResetStatusHandler);
 		}
 
 
@@ -95,10 +101,12 @@ export default class Ball
 	destructor()
 	{
 		const bus = this.getEventBus();
-		if (bus && this.onMouseDownHandler && typeof bus.removeOnEvent === 'function') {
-			bus.removeOnEvent('input:mouseDownTime', this.onMouseDownHandler);
-			this.onMouseDownHandler = null;
+		if (bus && typeof bus.removeOnEvent === 'function') {
+			if (this.onMouseDownHandler) { bus.removeOnEvent('input:mouseDownTime', this.onMouseDownHandler); }
+			if (this.onResetStatusHandler) { bus.removeOnEvent('ball:resetStatus', this.onResetStatusHandler); }
 		}
+		this.onMouseDownHandler = null;
+		this.onResetStatusHandler = null;
 		if (bus && typeof bus.removeTimer === 'function') {
 			bus.removeTimer(`ball:${this.ballId}:status`);
 		}

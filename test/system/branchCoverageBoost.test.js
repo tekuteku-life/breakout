@@ -268,13 +268,12 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 
 		// Special block hit sound (spBlock) with strong ball
 		let spBlockSoundPlayed = false;
-		const spSoundSpy = {
-			play: (sound) => {
+		const origSoundPlay = window.gameManage?.sounds?.play;
+		if (window.gameManage?.sounds) {
+			window.gameManage.sounds.play = (sound) => {
 				if (sound === 'spBlock') spBlockSoundPlayed = true;
-			}
-		};
-		window.sounds = spSoundSpy;
-		if (window.gameManage) window.gameManage.sounds = spSoundSpy;
+			};
+		}
 		const bSpecial = new Block(2, 2, 1, BLOCK_FUNCTION.ACCELERATION, 0, 0, 0, window.gameManage);
 		const strongBall = {
 			status: BALL_STATUS.STRONG,
@@ -287,6 +286,9 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		};
 		bSpecial.action(strongBall, 0);
 		assert.equal(spBlockSoundPlayed, true, 'Should play spBlock sound when strong ball hits special block');
+		if (window.gameManage?.sounds && origSoundPlay) {
+			window.gameManage.sounds.play = origSoundPlay;
+		}
 		window.gameManage.balls = [];
 		globalThis.balls = [];
 

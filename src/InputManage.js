@@ -19,19 +19,28 @@ export default class InputManage {
 		this.boundHandlers = {};
 
 		// EventBusへの入力制御リスナーの登録
+		this.onSetPointXHandler = (x) => {
+			this.pointX = x;
+		};
+		this.onSetMouseDownTimeHandler = (time) => {
+			this.mouseDownTime = time;
+		};
 		const bus = this.getEventBus();
-		if (bus) {
-			bus.addOnEvent('input:setPointX', (x) => {
-				this.pointX = x;
-			});
-			bus.addOnEvent('input:setMouseDownTime', (time) => {
-				this.mouseDownTime = time;
-			});
+		if (bus && typeof bus.addOnEvent === 'function') {
+			bus.addOnEvent('input:setPointX', this.onSetPointXHandler);
+			bus.addOnEvent('input:setMouseDownTime', this.onSetMouseDownTimeHandler);
 		}
 	}
 
 	destructor() {
 		this.unbind();
+		const bus = this.getEventBus();
+		if (bus && typeof bus.removeOnEvent === 'function') {
+			if (this.onSetPointXHandler) bus.removeOnEvent('input:setPointX', this.onSetPointXHandler);
+			if (this.onSetMouseDownTimeHandler) bus.removeOnEvent('input:setMouseDownTime', this.onSetMouseDownTimeHandler);
+		}
+		this.onSetPointXHandler = null;
+		this.onSetMouseDownTimeHandler = null;
 		this.game = null;
 		this.boundHandlers = {};
 	}

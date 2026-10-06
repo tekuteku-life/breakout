@@ -29,10 +29,58 @@ export default class ScoreManage
 		if( storage != null && storage.getItem("record_hiScore") != null ) {
 			this.hiScore = storage.getItem("record_hiScore");
 		}
+
+		// EventBus経由でスコア・アワード追加要求を購読
+		this.onScoreAddHandler = (point) => {
+			this.score = (this.score || 0) + Number(point || 0);
+		};
+		this.onAwardAddHandler = (data) => {
+			if (!this.awardNum || !data) return;
+			const key = typeof data === 'string' ? data : data.key;
+			const count = (typeof data === 'object' && data.count != null) ? data.count : 1;
+			if (this.awardNum[key] !== undefined) {
+				this.awardNum[key] += count;
+			}
+		};
+		this.onContinuousBreakHandler = (data) => {
+			if (!this.awardNum || !data) return;
+			const currentMax = this.awardNum.continuousBreakNum || 0;
+			if (data.breakNum > currentMax) {
+				this.awardNum.continuousBreakNum = data.breakNum;
+				this.getEventBus()?.emitEvent('balloon:spawn', {
+					text: data.breakNum,
+					x: data.x,
+					y: data.y,
+					width: 25,
+					height: 10,
+					alpha: 0.13,
+					backColor: data.backColor,
+					fontColor: data.fontColor,
+					fontSize: 12,
+				});
+			}
+		};
+
+		const bus = this.getEventBus();
+		if (bus && typeof bus.addOnEvent === 'function') {
+			bus.addOnEvent('score:add', this.onScoreAddHandler);
+			bus.addOnEvent('award:add', this.onAwardAddHandler);
+			bus.addOnEvent('award:continuousBreak', this.onContinuousBreakHandler);
+		}
 	}
 
 	destructor()
 	{
+		const bus = this.getEventBus();
+		if (bus && typeof bus.removeOnEvent === 'function') {
+			if (this.onScoreAddHandler) bus.removeOnEvent('score:add', this.onScoreAddHandler);
+			if (this.onAwardAddHandler) bus.removeOnEvent('award:add', this.onAwardAddHandler);
+			if (this.onContinuousBreakHandler) bus.removeOnEvent('award:continuousBreak', this.onContinuousBreakHandler);
+		}
+		this.onScoreAddHandler = null;
+		this.onAwardAddHandler = null;
+		this.onContinuousBreakHandler = null;
+
 		this.awardNum = new Array();
 		this.awardPt = new Array();
 		this.game = null;

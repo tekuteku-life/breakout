@@ -27,10 +27,34 @@ export default class StatusManage
 		this.blockNum = 0;														// 破壊可能ブロック数
 		this.life = 0;															// ライフ
 		this.hearts = new Array();												// ライフ表示用ハート
+
+		// EventBus経由でライフ・ブロック数変更要求を購読
+		this.onAddLifeHandler = (amount = 1) => {
+			this.addLife(amount);
+		};
+		this.onBlockBreakHandler = (count = 1) => {
+			if (this.blockNum !== undefined) {
+				this.blockNum -= count;
+			}
+		};
+
+		const bus = this.getEventBus();
+		if (bus && typeof bus.addOnEvent === 'function') {
+			bus.addOnEvent('status:addLife', this.onAddLifeHandler);
+			bus.addOnEvent('status:blockBreak', this.onBlockBreakHandler);
+		}
 	}
 
 	destructor()
 	{
+		const bus = this.getEventBus();
+		if (bus && typeof bus.removeOnEvent === 'function') {
+			if (this.onAddLifeHandler) bus.removeOnEvent('status:addLife', this.onAddLifeHandler);
+			if (this.onBlockBreakHandler) bus.removeOnEvent('status:blockBreak', this.onBlockBreakHandler);
+		}
+		this.onAddLifeHandler = null;
+		this.onBlockBreakHandler = null;
+
 		for (let i = 0; i < this.hearts.length; i++) {
 			if (this.hearts[i] && typeof this.hearts[i].destructor === 'function') {
 				this.hearts[i].destructor();

@@ -31,10 +31,70 @@ export default class Control
 			this.formSelector["sizefit"] = document.getElementById('sizefit_select');
 			this.formSelector["ctrl"] = document.getElementById('ctrl_select');
 		}
+
+		// EventBus経由で制御・トグル要求を購読
+		this.onTogglePauseHandler = () => {
+			if (typeof this.pauseSwitchToggle === 'function') this.pauseSwitchToggle();
+		};
+		this.onToggleSoundHandler = () => {
+			if (typeof this.soundSwitchToggle === 'function') this.soundSwitchToggle();
+		};
+		this.onToggleAutoHandler = () => {
+			if (typeof this.autoSwitchToggle === 'function') this.autoSwitchToggle();
+		};
+		this.onToggleCtrlHandler = () => {
+			if (typeof this.ctrlSwitchToggle === 'function') this.ctrlSwitchToggle();
+		};
+		this.onToggleSizeFitHandler = () => {
+			if (typeof this.sizefitSwitchToggle === 'function') this.sizefitSwitchToggle();
+		};
+		this.onForwardStageHandler = () => {
+			if (typeof this.forwardStageIndex === 'function') {
+				this.forwardStageIndex();
+				if (typeof this.recordStageIndex === 'function') this.recordStageIndex();
+			}
+			this.getEventBus()?.emitEvent('game:init', this.stageIndex);
+		};
+		this.onBackwardStageHandler = () => {
+			if (typeof this.backwardStageIndex === 'function') {
+				this.backwardStageIndex();
+				if (typeof this.recordStageIndex === 'function') this.recordStageIndex();
+			}
+			this.getEventBus()?.emitEvent('game:init', this.stageIndex);
+		};
+
+		const bus = this.getEventBus();
+		if (bus && typeof bus.addOnEvent === 'function') {
+			bus.addOnEvent('control:togglePause', this.onTogglePauseHandler);
+			bus.addOnEvent('control:toggleSound', this.onToggleSoundHandler);
+			bus.addOnEvent('control:toggleAuto', this.onToggleAutoHandler);
+			bus.addOnEvent('control:toggleCtrl', this.onToggleCtrlHandler);
+			bus.addOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
+			bus.addOnEvent('control:forwardStage', this.onForwardStageHandler);
+			bus.addOnEvent('control:backwardStage', this.onBackwardStageHandler);
+		}
 	}
 
 	destructor()
 	{
+		const bus = this.getEventBus();
+		if (bus && typeof bus.removeOnEvent === 'function') {
+			if (this.onTogglePauseHandler) bus.removeOnEvent('control:togglePause', this.onTogglePauseHandler);
+			if (this.onToggleSoundHandler) bus.removeOnEvent('control:toggleSound', this.onToggleSoundHandler);
+			if (this.onToggleAutoHandler) bus.removeOnEvent('control:toggleAuto', this.onToggleAutoHandler);
+			if (this.onToggleCtrlHandler) bus.removeOnEvent('control:toggleCtrl', this.onToggleCtrlHandler);
+			if (this.onToggleSizeFitHandler) bus.removeOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
+			if (this.onForwardStageHandler) bus.removeOnEvent('control:forwardStage', this.onForwardStageHandler);
+			if (this.onBackwardStageHandler) bus.removeOnEvent('control:backwardStage', this.onBackwardStageHandler);
+		}
+		this.onTogglePauseHandler = null;
+		this.onToggleSoundHandler = null;
+		this.onToggleAutoHandler = null;
+		this.onToggleCtrlHandler = null;
+		this.onToggleSizeFitHandler = null;
+		this.onForwardStageHandler = null;
+		this.onBackwardStageHandler = null;
+
 		if (this.formSelector) {
 			for (const key of Object.keys(this.formSelector)) {
 				this.formSelector[key] = null;

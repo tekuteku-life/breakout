@@ -24,9 +24,43 @@ export default class ScreenManage {
 		this.registerController('screen_allClear', new AllClearScreenControl(this, 'screen_allClear'));
 		this.registerController('screen_gameOver', new GameOverScreenControl(this, 'screen_gameOver'));
 		this.registerController('screen_about', new AboutScreenControl(this, 'screen_about'));
+
+		// EventBus経由で画面操作要求を購読
+		this.onOpenHandler = (screenName) => this.openScreen(screenName);
+		this.onCloseHandler = (screenName) => this.closeScreen(screenName);
+		this.onAllCloseHandler = () => this.allClose();
+		this.onPrintRecordHandler = (data) => {
+			const type = data ? data.type : null;
+			const stage = data ? data.stage : null;
+			this.printRecordScreen(type, stage);
+		};
+
+		const bus = this.getEventBus();
+		if (bus && typeof bus.addOnEvent === 'function') {
+			bus.addOnEvent('screen:open', this.onOpenHandler);
+			bus.addOnEvent('screen:close', this.onCloseHandler);
+			bus.addOnEvent('screen:allClose', this.onAllCloseHandler);
+			bus.addOnEvent('screen:printRecord', this.onPrintRecordHandler);
+		}
+	}
+
+	getEventBus() {
+		return (this.game && this.game.eventBus) || null;
 	}
 
 	destructor() {
+		const bus = this.getEventBus();
+		if (bus && typeof bus.removeOnEvent === 'function') {
+			if (this.onOpenHandler) { bus.removeOnEvent('screen:open', this.onOpenHandler); }
+			if (this.onCloseHandler) { bus.removeOnEvent('screen:close', this.onCloseHandler); }
+			if (this.onAllCloseHandler) { bus.removeOnEvent('screen:allClose', this.onAllCloseHandler); }
+			if (this.onPrintRecordHandler) { bus.removeOnEvent('screen:printRecord', this.onPrintRecordHandler); }
+		}
+		this.onOpenHandler = null;
+		this.onCloseHandler = null;
+		this.onAllCloseHandler = null;
+		this.onPrintRecordHandler = null;
+
 		for (const ctrl of this.controllers.values()) {
 			if (ctrl && typeof ctrl.destructor === 'function') {
 				ctrl.destructor();

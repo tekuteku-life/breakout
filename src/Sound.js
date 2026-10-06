@@ -39,10 +39,27 @@ export default class Sound
 				}
 			}
 		}
+
+		// EventBus経由で再生要求を購読
+		this.onPlayHandler = (key) => this.play(key);
+		const bus = this.getEventBus();
+		if (bus && typeof bus.addOnEvent === 'function') {
+			bus.addOnEvent('sound:play', this.onPlayHandler);
+		}
+	}
+
+	getEventBus() {
+		return (this.game && this.game.eventBus) || null;
 	}
 
 	destructor()
 	{
+		const bus = this.getEventBus();
+		if (bus && this.onPlayHandler && typeof bus.removeOnEvent === 'function') {
+			bus.removeOnEvent('sound:play', this.onPlayHandler);
+			this.onPlayHandler = null;
+		}
+
 		for( var key in this.soundObj ) {
 			if( this.soundObj[key] ) {
 				for( var j = 0; j < this.soundObj[key].length; j++ ) {

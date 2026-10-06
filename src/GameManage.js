@@ -169,55 +169,7 @@ export default class GameManage {
 	}
 
 	setupEventBus() {
-		// --- Event Listeners (Receiving actions from other instances) ---
-		this.eventBus.addOnEvent('sound:play', (key) => {
-			if (this.sounds && typeof this.sounds.play === 'function') {
-				this.sounds.play(key);
-			}
-		});
-
-		this.eventBus.addOnEvent('score:add', (point) => {
-			if (this.scoreMng) {
-				this.scoreMng.score = (this.scoreMng.score || 0) + point;
-			}
-		});
-
-		this.eventBus.addOnEvent('award:add', (data) => {
-			if (this.scoreMng && this.scoreMng.awardNum && data) {
-				const key = typeof data === 'string' ? data : data.key;
-				const count = (typeof data === 'object' && data.count != null) ? data.count : 1;
-				if (this.scoreMng.awardNum[key] !== undefined) {
-					this.scoreMng.awardNum[key] += count;
-				}
-			}
-		});
-
-		this.eventBus.addOnEvent('award:continuousBreak', (data) => {
-			if (this.scoreMng && this.scoreMng.awardNum && data) {
-				const currentMax = this.scoreMng.awardNum.continuousBreakNum || 0;
-				if (data.breakNum > currentMax) {
-					this.scoreMng.awardNum.continuousBreakNum = data.breakNum;
-					this.eventBus.emitEvent('balloon:spawn', {
-						text: data.breakNum,
-						x: data.x,
-						y: data.y,
-						width: 25,
-						height: 10,
-						alpha: 0.13,
-						backColor: data.backColor,
-						fontColor: data.fontColor,
-						fontSize: 12,
-					});
-				}
-			}
-		});
-
-		this.eventBus.addOnEvent('status:addLife', (amount = 1) => {
-			if (this.statusMng && typeof this.statusMng.addLife === 'function') {
-				this.statusMng.addLife(amount);
-			}
-		});
-
+		// --- Event Listeners (GameManage固有のライフサイクル・エンティティ統括管理) ---
 		this.eventBus.addOnEvent('game:over', () => {
 			this.gameOver();
 		});
@@ -232,50 +184,6 @@ export default class GameManage {
 
 		this.eventBus.addOnEvent('setting:change', (settingPath) => {
 			this.changeSetting(settingPath);
-		});
-
-		this.eventBus.addOnEvent('screen:open', (screenName) => {
-			if (this.screenManage && typeof this.screenManage.openScreen === 'function') {
-				this.screenManage.openScreen(screenName);
-			}
-		});
-
-		this.eventBus.addOnEvent('screen:close', (screenName) => {
-			if (this.screenManage && typeof this.screenManage.closeScreen === 'function') {
-				this.screenManage.closeScreen(screenName);
-			}
-		});
-
-		this.eventBus.addOnEvent('screen:allClose', () => {
-			if (this.screenManage && typeof this.screenManage.allClose === 'function') {
-				this.screenManage.allClose();
-			}
-		});
-
-		this.eventBus.addOnEvent('screen:printRecord', (data) => {
-			const type = data ? data.type : null;
-			const stage = data ? data.stage : null;
-			if (this.screenManage && typeof this.screenManage.printRecordScreen === 'function') {
-				this.screenManage.printRecordScreen(type, stage);
-			}
-		});
-
-		this.eventBus.addOnEvent('input:setMouseDownTime', (time) => {
-			if (this.inputManage) {
-				this.inputManage.mouseDownTime = time;
-			}
-		});
-
-		this.eventBus.addOnEvent('input:setPointX', (x) => {
-			if (this.inputManage) {
-				this.inputManage.pointX = x;
-			}
-		});
-
-		this.eventBus.addOnEvent('status:blockBreak', (count = 1) => {
-			if (this.statusMng && this.statusMng.blockNum !== undefined) {
-				this.statusMng.blockNum -= count;
-			}
 		});
 
 		this.eventBus.addOnEvent('item:spawn', (data) => {
@@ -296,12 +204,6 @@ export default class GameManage {
 
 		this.eventBus.addOnEvent('ball:applyItem', (type) => {
 			this.applyBallItem(type);
-		});
-
-		this.eventBus.addOnEvent('ball:resetStatus', (ball) => {
-			if (ball && typeof ball.resetStatus === 'function') {
-				ball.resetStatus();
-			}
 		});
 
 		this.eventBus.addOnEvent('ball:allLost', () => {
@@ -328,61 +230,8 @@ export default class GameManage {
 			this.bar = new Bar(this);
 
 			// ライフ減少
-			if (this.statusMng && typeof this.statusMng.addLife === 'function') {
-				this.statusMng.addLife(-1);
-			}
+			this.eventBus.emitEvent('status:addLife', -1);
 		});
-
-		this.eventBus.addOnEvent('control:togglePause', () => {
-			if (this.ctrl && typeof this.ctrl.pauseSwitchToggle === 'function') {
-				this.ctrl.pauseSwitchToggle();
-			}
-		});
-
-		this.eventBus.addOnEvent('control:toggleSound', () => {
-			if (this.ctrl && typeof this.ctrl.soundSwitchToggle === 'function') {
-				this.ctrl.soundSwitchToggle();
-			}
-		});
-
-		this.eventBus.addOnEvent('control:toggleAuto', () => {
-			if (this.ctrl && typeof this.ctrl.autoSwitchToggle === 'function') {
-				this.ctrl.autoSwitchToggle();
-			}
-		});
-
-		this.eventBus.addOnEvent('control:toggleCtrl', () => {
-			if (this.ctrl && typeof this.ctrl.ctrlSwitchToggle === 'function') {
-				this.ctrl.ctrlSwitchToggle();
-			}
-		});
-
-		this.eventBus.addOnEvent('control:toggleSizeFit', () => {
-			if (this.ctrl && typeof this.ctrl.sizefitSwitchToggle === 'function') {
-				this.ctrl.sizefitSwitchToggle();
-			}
-		});
-
-		this.eventBus.addOnEvent('control:forwardStage', () => {
-			if (this.ctrl) {
-				if (typeof this.ctrl.forwardStageIndex === 'function') {
-					this.ctrl.forwardStageIndex();
-					if (typeof this.ctrl.recordStageIndex === 'function') this.ctrl.recordStageIndex();
-				}
-				this.init(this.ctrl.stageIndex);
-			}
-		});
-
-		this.eventBus.addOnEvent('control:backwardStage', () => {
-			if (this.ctrl) {
-				if (typeof this.ctrl.backwardStageIndex === 'function') {
-					this.ctrl.backwardStageIndex();
-					if (typeof this.ctrl.recordStageIndex === 'function') this.ctrl.recordStageIndex();
-				}
-				this.init(this.ctrl.stageIndex);
-			}
-		});
-
 	}
 
 	//--------------------------------------------------
@@ -426,6 +275,25 @@ export default class GameManage {
 	// 初期化
 	//--------------------------------------------------
 	init(offsetStage = 0) {
+		if (this.ctrl && typeof this.ctrl.destructor === 'function') {
+			this.ctrl.destructor();
+		}
+		if (this.statusMng && typeof this.statusMng.destructor === 'function') {
+			this.statusMng.destructor();
+		}
+		if (this.scoreMng && typeof this.scoreMng.destructor === 'function') {
+			this.scoreMng.destructor();
+		}
+		if (this.sounds && typeof this.sounds.destructor === 'function') {
+			this.sounds.destructor();
+		}
+		if (this.autoPlay && typeof this.autoPlay.destructor === 'function') {
+			this.autoPlay.destructor();
+		}
+		if (this.imgData && typeof this.imgData.destructor === 'function') {
+			this.imgData.destructor();
+		}
+
 		if (!this.eventBus) {
 			this.eventBus = new EventBus();
 			this.setupEventBus();
@@ -825,7 +693,7 @@ export default class GameManage {
 
 			// バーとの衝突・吸着（画面下端より手前にあるバーとの接触を先に判定）
 			let hitBar = false;
-			if (this.bar) {
+			if (this.bar && typeof ball.checkCollisionWithBar === 'function') {
 				hitBar = ball.checkCollisionWithBar(this.bar);
 			}
 
@@ -835,7 +703,7 @@ export default class GameManage {
 			}
 
 			// バーと衝突しなかった場合のみ、壁・天井・画面下端（落下）との衝突を判定
-			if (!hitBar) {
+			if (!hitBar && typeof ball.checkCollisionWithWall === 'function') {
 				ball.checkCollisionWithWall(this.canvasWidth, this.canvasHeight, this.statusBarHeight);
 			}
 
@@ -845,16 +713,18 @@ export default class GameManage {
 			}
 
 			// ブロックとの衝突
-			const nearBlocks = this.getNearbyBlocks(ball.x, ball.y, ball.radius, ball.vx, ball.vy);
-			for (let k = 0; k < nearBlocks.length; k++) {
-				const blk = nearBlocks[k];
-				if (ball.checkCollision(blk) === true) {
-					const isChangedVY = (ball.lastHitAxis === 'y') ? 1 : 0;
-					const addSpeed = blk.action(ball, isChangedVY);
-					if (addSpeed && typeof ball.applySpeedDelta === 'function') {
-						ball.applySpeedDelta(addSpeed);
+			if (typeof ball.checkCollision === 'function') {
+				const nearBlocks = this.getNearbyBlocks(ball.x, ball.y, ball.radius, ball.vx, ball.vy);
+				for (let k = 0; k < nearBlocks.length; k++) {
+					const blk = nearBlocks[k];
+					if (ball.checkCollision(blk) === true) {
+						const isChangedVY = (ball.lastHitAxis === 'y') ? 1 : 0;
+						const addSpeed = blk.action(ball, isChangedVY);
+						if (addSpeed && typeof ball.applySpeedDelta === 'function') {
+							ball.applySpeedDelta(addSpeed);
+						}
+						break;
 					}
-					break;
 				}
 			}
 
