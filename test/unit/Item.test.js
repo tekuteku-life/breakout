@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { setupEnvironment, createMock2DContext } from '../helpers/setupEnv.js';
 import Item from '../../src/Item.js';
 import ImageData from '../../src/ImageData.js';
-import { BALL_STATUS } from '../../src/const.js';
 
 test('Item class unit tests', async (t) => {
 	setupEnvironment();

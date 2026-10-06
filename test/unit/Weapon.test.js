@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setupEnvironment, createMock2DContext } from '../helpers/setupEnv.js';
 import Weapon from '../../src/Weapon.js';
-import { DEFAULT_CONFIG } from '../../src/const.js';
 
 test('Weapon class unit tests', async (t) => {
 	setupEnvironment();

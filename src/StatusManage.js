@@ -297,7 +297,7 @@ export default class StatusManage
 		const displayPoint = this.getDisplayPoint();
 		const playTime = this.getPlaySecTime();
 		const playTime_min = this.getPlayMinTime();
-		const stageTitles = this.stageTitle || [];
+		const stageTitles = (this.game && this.game.stageTitle) || [];
 		const stageTitleStr = stageTitles[ctrl.stageIndex] || '';
 
 		let text = '/ Score:' + displayPoint + ' / Hi-Score:' + String(scoreMng.hiScore);

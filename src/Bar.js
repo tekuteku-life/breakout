@@ -57,6 +57,13 @@ export default class Bar
 		this.onApplyItemHandler = (itemType) => {
 			this.applyItemEffect(itemType);
 		};
+		this.onResetWidthHandler = () => this.resetWidth();
+		this.onResetSpeedHandler = () => this.resetSpeed();
+		this.onResetWeaponHandler = () => this.resetWeapon();
+		this.onResetAbsorptionHandler = () => this.resetAbsorption();
+		this.onResetImmortalHandler = () => this.resetImmortal();
+		this.onResetDisturbHandler = () => this.resetDisturb();
+		this.onResetVibrationHandler = () => this.resetVibration();
 
 		const bus = this.getEventBus();
 		if (bus && typeof bus.addOnEvent === 'function') {
@@ -64,6 +71,13 @@ export default class Bar
 			bus.addOnEvent('bar:damage', this.onDamageHandler);
 			bus.addOnEvent('bar:relaunch', this.onRelaunchHandler);
 			bus.addOnEvent('bar:applyItem', this.onApplyItemHandler);
+			bus.addOnEvent('bar:resetWidth', this.onResetWidthHandler);
+			bus.addOnEvent('bar:resetSpeed', this.onResetSpeedHandler);
+			bus.addOnEvent('bar:resetWeapon', this.onResetWeaponHandler);
+			bus.addOnEvent('bar:resetAbsorption', this.onResetAbsorptionHandler);
+			bus.addOnEvent('bar:resetImmortal', this.onResetImmortalHandler);
+			bus.addOnEvent('bar:resetDisturb', this.onResetDisturbHandler);
+			bus.addOnEvent('bar:resetVibration', this.onResetVibrationHandler);
 		}
 	}
 
@@ -72,16 +86,37 @@ export default class Bar
 		const bus = this.getEventBus();
 		if (bus && typeof bus.removeOnEvent === 'function') {
 			if (this.onPointXHandler) bus.removeOnEvent('input:pointX', this.onPointXHandler);
-			if (this.onDamageHandler) {
-				bus.removeOnEvent('bar:damage', this.onDamageHandler);
-			}
+			if (this.onDamageHandler) bus.removeOnEvent('bar:damage', this.onDamageHandler);
 			if (this.onRelaunchHandler) bus.removeOnEvent('bar:relaunch', this.onRelaunchHandler);
 			if (this.onApplyItemHandler) bus.removeOnEvent('bar:applyItem', this.onApplyItemHandler);
+			if (this.onResetWidthHandler) bus.removeOnEvent('bar:resetWidth', this.onResetWidthHandler);
+			if (this.onResetSpeedHandler) bus.removeOnEvent('bar:resetSpeed', this.onResetSpeedHandler);
+			if (this.onResetWeaponHandler) bus.removeOnEvent('bar:resetWeapon', this.onResetWeaponHandler);
+			if (this.onResetAbsorptionHandler) bus.removeOnEvent('bar:resetAbsorption', this.onResetAbsorptionHandler);
+			if (this.onResetImmortalHandler) bus.removeOnEvent('bar:resetImmortal', this.onResetImmortalHandler);
+			if (this.onResetDisturbHandler) bus.removeOnEvent('bar:resetDisturb', this.onResetDisturbHandler);
+			if (this.onResetVibrationHandler) bus.removeOnEvent('bar:resetVibration', this.onResetVibrationHandler);
+		}
+		if (bus && typeof bus.removeTimer === 'function') {
+			bus.removeTimer('bar:width');
+			bus.removeTimer('bar:speed');
+			bus.removeTimer('bar:weapon');
+			bus.removeTimer('bar:absorption');
+			bus.removeTimer('bar:immortal');
+			bus.removeTimer('bar:disturb');
+			bus.removeTimer('bar:vibration');
 		}
 		this.onPointXHandler = null;
 		this.onDamageHandler = null;
 		this.onRelaunchHandler = null;
 		this.onApplyItemHandler = null;
+		this.onResetWidthHandler = null;
+		this.onResetSpeedHandler = null;
+		this.onResetWeaponHandler = null;
+		this.onResetAbsorptionHandler = null;
+		this.onResetImmortalHandler = null;
+		this.onResetDisturbHandler = null;
+		this.onResetVibrationHandler = null;
 		this.game = null;
 	}
 
@@ -134,7 +169,7 @@ export default class Bar
 
 		// バー状態解除前の点滅制御
 		if( (this.widthStatusTime != 0 && this.widthStatusTime <= bStatusDefaultTime * fps * BAR_PARAM.BLINK_TIME_RATIO) ||
-			(this.magnetStatusTime != 0 && this.magnetStatusTime <= bStatusDefaultTime * fps * BAR_PARAM.BLINK_TIME_RATIO)
+			(this.absorptionStatusTime != 0 && this.absorptionStatusTime <= bStatusDefaultTime * fps * BAR_PARAM.BLINK_TIME_RATIO)
 		) {
 			this.alpha -= BAR_PARAM.BLINK_ALPHA_STEP;
 			if( this.alpha < BAR_PARAM.BLINK_ALPHA_MIN ) { this.alpha = 1; }
@@ -290,7 +325,6 @@ export default class Bar
 	{
 		if( this.vibrationTime <= 0 ) { return; }
 
-		this.vibrationTime--;
 		const pointX = this.getPointX();
 		const canvasWidth = this.getCanvasWidth();
 		const vibrationWidth = this.width;
@@ -309,88 +343,68 @@ export default class Bar
 	}
 
 	//--------------------------------------------------
-	// 武器状態・タイマー制御
+	// 武器発射間隔制御
 	//--------------------------------------------------
 	updateWeapon()
 	{
 		// 武器発射間隔の制御
 		if( this.weaponInter > 0 ) { this.weaponInter--; }
-
-		// 武器状態時間の制御
-		if( this.weaponTime > 0 )
-		{
-			this.weaponTime--;
-			if( this.weaponTime <= 0 ) { this.weapon = 0; }
-		}
 	}
 
 	//--------------------------------------------------
-	// ステータスタイマーの制御（幅・速度・吸着・不死身・難視化）
+	// 各状態のリセットメソッド
 	//--------------------------------------------------
-	updateStatusTimers()
+	resetWidth()
 	{
 		const bDefaultWidth = (this.game && this.game.barDefaultWidth !== undefined) ? this.game.barDefaultWidth : DEFAULT_CONFIG.barDefaultWidth;
+		this.width = bDefaultWidth;
+		this.widthStatusTime = 0;
+	}
+
+	resetSpeed()
+	{
 		const bDefaultSpeed = (this.game && this.game.barDefaultSpeed !== undefined) ? this.game.barDefaultSpeed : DEFAULT_CONFIG.barDefaultSpeed;
 		const bDefaultHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : DEFAULT_CONFIG.barDefaultHeight;
+		this.vxMax = bDefaultSpeed;
+		this.height = bDefaultHeight;
+		this.speedStatusTime = 0;
+	}
+
+	resetWeapon()
+	{
+		this.weapon = 0;
+		this.weaponTime = 0;
+	}
+
+	resetAbsorption()
+	{
+		this.absorptionStatusTime = 0;
+		while( this.absorptionNum > 0 )
+		{
+			const prevNum = this.absorptionNum;
+			this.relaunch();
+			if (this.absorptionNum >= prevNum) {
+				this.absorptionNum = 0;
+				break;
+			}
+		}
+	}
+
+	resetImmortal()
+	{
 		const bColor = (this.game && this.game.barColor !== undefined) ? this.game.barColor : DEFAULT_CONFIG.barColor;
+		this.immortalStatusTime = 0;
+		this.color = bColor;
+	}
 
-		// バー長状態の制御
-		if( this.widthStatusTime > 0 ) {
-			this.widthStatusTime--;
-			if( this.widthStatusTime <= 0 ) { this.width = bDefaultWidth; }
-		}
+	resetDisturb()
+	{
+		this.disturbStatusTime = 0;
+	}
 
-		// バー速度状態の制御
-		if( this.speedStatusTime > 0 )
-		{
-			this.speedStatusTime--;
-			if( this.vxMax > bDefaultSpeed ) { this.height = bDefaultHeight * BAR_PARAM.SPEED_UP_HEIGHT_RATIO; }
-			else { this.height = bDefaultHeight * BAR_PARAM.SPEED_DOWN_HEIGHT_RATIO; }
-
-			if( this.speedStatusTime <= 0 ) {
-				this.vxMax = bDefaultSpeed;
-				this.height = bDefaultHeight;
-			}
-		}
-
-		// 吸着状態の制御
-		if( this.absorptionStatusTime > 0 )
-		{
-			this.absorptionStatusTime--;
-			if( this.absorptionStatusTime <= 0 )
-			{
-				while( this.absorptionNum > 0 )
-				{
-					const prevNum = this.absorptionNum;
-					this.relaunch();
-					if (this.absorptionNum >= prevNum) {
-						this.absorptionNum = 0;
-						break;
-					}
-				}
-			}
-		}
-
-		// 不死身状態の制御
-		if( this.immortalStatusTime > 0 )
-		{
-			this.immortalStatusTime--;
-			if( this.immortalStatusTime <= 0 )
-			{
-				this.immortalStatusTime = 0;
-				this.color = bColor;
-			}
-		}
-
-		// 画面の難視化状態の制御
-		if( this.disturbStatusTime > 0 )
-		{
-			this.disturbStatusTime--;
-			if( this.disturbStatusTime <= 0 )
-			{
-				this.disturbStatusTime = 0;
-			}
-		}
+	resetVibration()
+	{
+		this.vibrationTime = 0;
 	}
 
 	//--------------------------------------------------
@@ -401,7 +415,6 @@ export default class Bar
 		this.movePosition();
 		this.updateVibration();
 		this.updateWeapon();
-		this.updateStatusTimers();
 	}
 
 
@@ -440,46 +453,121 @@ export default class Bar
 		const barMinSpeed = (this.game && this.game.barMinSpeed !== undefined) ? this.game.barMinSpeed : DEFAULT_CONFIG.barMinSpeed;
 		const barImmortalColor = (this.game && this.game.barImmortalColor !== undefined) ? this.game.barImmortalColor : DEFAULT_CONFIG.barImmortalColor;
 
+		const bus = this.getEventBus();
+		const canUseTimer = bus && typeof bus.addTimer === 'function';
+		const statusDurationMs = barStatusDefaultTime * 1000;
+		const weaponDurationMs = barWeaponDefaultTime * 1000;
+
 		// バー幅伸長
 		if (type === ITEM_TYPE.LONG) {
 			this.width = ~~(this.width * BAR_PARAM.LONG_WIDTH_RATIO);
 			if (this.width > barMaxWidth) { this.width = barMaxWidth; }
 			this.widthStatusTime = barStatusDefaultTime * fps;
+			if (canUseTimer) {
+				bus.addTimer('bar:width', statusDurationMs, () => this.resetWidth(), {
+					event: 'bar:resetWidth',
+					onTick: (timer) => {
+						this.widthStatusTime = Math.ceil(timer.remaining / (1000 / fps));
+					}
+				});
+			}
 		// バー幅縮小
 		} else if (type === ITEM_TYPE.SHORT) {
 			this.width = ~~(this.width * BAR_PARAM.SHORT_WIDTH_RATIO);
 			if (this.width < barMinWidth) { this.width = barMinWidth; }
 			this.widthStatusTime = barStatusDefaultTime * fps;
+			if (canUseTimer) {
+				bus.addTimer('bar:width', statusDurationMs, () => this.resetWidth(), {
+					event: 'bar:resetWidth',
+					onTick: (timer) => {
+						this.widthStatusTime = Math.ceil(timer.remaining / (1000 / fps));
+					}
+				});
+			}
 		// 銃
 		} else if (type === ITEM_TYPE.GUN) {
 			this.weapon = 1;
 			this.weaponTime = barWeaponDefaultTime * fps;
+			if (canUseTimer) {
+				bus.addTimer('bar:weapon', weaponDurationMs, () => this.resetWeapon(), {
+					event: 'bar:resetWeapon',
+					onTick: (timer) => {
+						this.weaponTime = Math.ceil(timer.remaining / (1000 / fps));
+					}
+				});
+			}
 		// ミサイル
 		} else if (type === ITEM_TYPE.MISSILE) {
 			this.weapon = 2;
 			this.weaponTime = barWeaponDefaultTime * fps;
+			if (canUseTimer) {
+				bus.addTimer('bar:weapon', weaponDurationMs, () => this.resetWeapon(), {
+					event: 'bar:resetWeapon',
+					onTick: (timer) => {
+						this.weaponTime = Math.ceil(timer.remaining / (1000 / fps));
+					}
+				});
+			}
 		// 速度鈍化
 		} else if (type === ITEM_TYPE.SLOW) {
 			this.vxMax -= ~~(Math.abs(this.vxMax - barMinSpeed) * 0.8);
 			if (this.vxMax < barMinSpeed) { this.vxMax = barMinSpeed; }
+			const bDefaultHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : DEFAULT_CONFIG.barDefaultHeight;
+			this.height = bDefaultHeight * BAR_PARAM.SPEED_DOWN_HEIGHT_RATIO;
 			this.speedStatusTime = barStatusDefaultTime * fps;
+			if (canUseTimer) {
+				bus.addTimer('bar:speed', statusDurationMs, () => this.resetSpeed(), {
+					event: 'bar:resetSpeed',
+					onTick: (timer) => {
+						this.speedStatusTime = Math.ceil(timer.remaining / (1000 / fps));
+					}
+				});
+			}
 		// 加振
 		} else if (type === ITEM_TYPE.VIBRATE) {
 			this.vibrationTime = barStatusDefaultTime * fps;
+			if (canUseTimer) {
+				bus.addTimer('bar:vibration', statusDurationMs, () => this.resetVibration(), {
+					event: 'bar:resetVibration',
+					onTick: (timer) => {
+						this.vibrationTime = Math.ceil(timer.remaining / (1000 / fps));
+					}
+				});
+			}
 		// 吸着
 		} else if (type === ITEM_TYPE.ABSORB) {
 			this.absorptionStatusTime = barStatusDefaultTime * fps;
+			if (canUseTimer) {
+				bus.addTimer('bar:absorption', statusDurationMs, () => this.resetAbsorption(), {
+					event: 'bar:resetAbsorption',
+					onTick: (timer) => {
+						this.absorptionStatusTime = Math.ceil(timer.remaining / (1000 / fps));
+					}
+				});
+			}
 		// 不死身
 		} else if (type === ITEM_TYPE.IMMORTAL) {
 			this.color = barImmortalColor;
 			this.immortalStatusTime = barStatusDefaultTime * fps;
+			if (canUseTimer) {
+				bus.addTimer('bar:immortal', statusDurationMs, () => this.resetImmortal(), {
+					event: 'bar:resetImmortal',
+					onTick: (timer) => {
+						this.immortalStatusTime = Math.ceil(timer.remaining / (1000 / fps));
+					}
+				});
+			}
 		// 画面難視化
 		} else if (type === ITEM_TYPE.DISTURB) {
 			this.disturbStatusTime = barStatusDefaultTime * fps;
+			if (canUseTimer) {
+				bus.addTimer('bar:disturb', statusDurationMs, () => this.resetDisturb(), {
+					event: 'bar:resetDisturb',
+					onTick: (timer) => {
+						this.disturbStatusTime = Math.ceil(timer.remaining / (1000 / fps));
+					}
+				});
+			}
 		}
 	}
-
-
 }
-
-

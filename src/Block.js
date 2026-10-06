@@ -477,8 +477,12 @@ export default class Block
 			// 短期間の貫通弾化
 			if( this.func == BLOCK_FUNCTION.EXPLODE_STRENGTH ) {
 				if( ball ) {
-					ball.status = BALL_STATUS.ULTIMATE;
-					ball.statusTime = ~~(ballStatusTime * 0.3 * fps);
+					if (typeof ball.setStatus === 'function') {
+						ball.setStatus(BALL_STATUS.ULTIMATE, ballStatusTime * 0.3);
+					} else {
+						ball.status = BALL_STATUS.ULTIMATE;
+						ball.statusTime = ~~(ballStatusTime * 0.3 * fps);
+					}
 				}
 			}
 

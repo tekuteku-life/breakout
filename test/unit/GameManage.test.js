@@ -83,12 +83,12 @@ test('GameManage class unit tests', async (t) => {
 		assert.ok(true);
 	});
 
-	await t.test('executes gameOver flow and statusView rendering', () => {
+	await t.test('executes gameOver flow and status rendering', () => {
 		const gm = new GameManage();
 		gm.init(0);
 		gm.stop();
 
-		gm.statusView(gm.dynamicCtx);
+		gm.statusMng.printStatus(gm.dynamicCtx);
 
 		// Trigger game over
 		gm.statusMng.life = 0;

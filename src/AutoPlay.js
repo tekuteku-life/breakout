@@ -260,6 +260,7 @@ export default class AutoPlay
 			var fallBallX = fallBall.getCenterX();
 			var fallBallVX = fallBall.vx;
 			var sim = this.simuData;
+			var fb = (sim && sim["self"]) || (fallBall && typeof fallBall.copy === 'function' ? fallBall : null);
 
 			// シミュレート情報の更新
 			if( sim == null || sim["x"] != fallBallX || sim["vx"] != fallBallVX || sim["status"] != fallBall.status || sim["statusTime"] != fallBall.statusTime )
@@ -291,6 +292,7 @@ export default class AutoPlay
 				sim["status"] = fallBall.status;
 				sim["statusTime"] = fallBall.statusTime;
 				sim["self"] = fallBall.copy(BALL_COPY_MODE.SIMULATE);
+				fb = sim["self"];
 				sim["breakMaxNum"] = 0;
 				sim["collisionMaxNum"] = 0;
 				sim["returnTime"] = MAX_PREDICT;
@@ -311,7 +313,7 @@ export default class AutoPlay
 				var maxBreakNum = sim["breakMaxNum"];
 				var maxCollisionNum = sim["collisionMaxNum"];
 				var returnTime = sim["returnTime"];
-				var fb = sim["self"];
+				fb = sim["self"] || fb;
 
 				// 速度の準備
 				var dvx;
@@ -364,7 +366,7 @@ export default class AutoPlay
 			}
 
 			// 衝突見込みなしの場合の探索
-			if( fallBallTime <= 2 && sim["breakMaxNum"] == 0 && (sim["collisionMaxNum"] || 0) == 0 && Math.random() > 0.3 )
+			if( fallBallTime <= 2 && sim["breakMaxNum"] == 0 && (sim["collisionMaxNum"] || 0) == 0 && Math.random() > 0.3 && fb && typeof fb.copy === 'function' )
 			{
 				var dx = canvasWidth;
 				plusSpeed = bDefaultSpeed * ( 0.8 + Math.random() * 0.4 ) * ( ~~(Math.random() * 2) * 2 - 1 ) - fallBallVX;

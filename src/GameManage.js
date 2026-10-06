@@ -298,6 +298,12 @@ export default class GameManage {
 			this.applyBallItem(type);
 		});
 
+		this.eventBus.addOnEvent('ball:resetStatus', (ball) => {
+			if (ball && typeof ball.resetStatus === 'function') {
+				ball.resetStatus();
+			}
+		});
+
 		this.eventBus.addOnEvent('ball:allLost', () => {
 			// 全アイテムの消去
 			for (let i = 0; i < this.items.length; i++) {
@@ -682,7 +688,8 @@ export default class GameManage {
 
 		// 周期イベントの実行
 		if (this.eventBus) {
-			this.eventBus.tickCycleEvents(currentTime, deltaTime);
+			const isPaused = Boolean(this.ctrl && this.ctrl.pauseSwitch !== 0);
+			this.eventBus.tickCycleEvents(currentTime, deltaTime, isPaused);
 		}
 
 		// 設定フォームの制御
@@ -1202,7 +1209,6 @@ export default class GameManage {
 	applyBallItem(type) {
 		const ballMaxNum = this.ballMaxNum || DEFAULT_CONFIG.ballMaxNum;
 		const ballStatusTime = this.ballStatusTime || BALL_PARAM.STATUS_TIME_SEC;
-		const fps = this.FPS || DEFAULT_CONFIG.FPS;
 		const ballNum = this.balls.length;
 
 		// 2倍増殖
@@ -1218,16 +1224,14 @@ export default class GameManage {
 		} else if (type === ITEM_TYPE.HARD) {
 			for (let i = 0; i < ballNum; i++) {
 				if (this.balls[i]) {
-					this.balls[i].status = BALL_STATUS.STRONG;
-					this.balls[i].statusTime = ballStatusTime * fps;
+					this.balls[i].setStatus(BALL_STATUS.STRONG, ballStatusTime);
 				}
 			}
 		// 無敵状態
 		} else if (type === ITEM_TYPE.FIRE) {
 			for (let i = 0; i < ballNum; i++) {
 				if (this.balls[i]) {
-					this.balls[i].status = BALL_STATUS.ULTIMATE;
-					this.balls[i].statusTime = ballStatusTime * fps;
+					this.balls[i].setStatus(BALL_STATUS.ULTIMATE, ballStatusTime);
 				}
 			}
 		// ボール速度増加

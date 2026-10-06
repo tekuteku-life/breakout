@@ -219,7 +219,7 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		assert.ok(bar.disturbStatusTime > 0);
 	});
 
-	it('resets bar status when status effect timers expire during bar.move()', () => {
+	it('resets bar status when status effect timers expire via EventBus or reset methods', () => {
 		const g = window.gameManage;
 		const bar = g.bar;
 		const barDefaultWidth = g.barDefaultWidth || 80;
@@ -228,44 +228,44 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		const barImmortalColor = g.barImmortalColor || '#ffff00';
 		const barColor = g.barColor || '#114400';
 
-		// Width timer expiration
-		bar.width = 150;
-		bar.widthStatusTime = 1;
-		bar.move();
+		// Width timer expiration via EventBus
+		bar.applyItemEffect(3); // LONG
+		assert.ok(bar.width > barDefaultWidth);
+		g.eventBus.tickTimers(15000);
 		assert.equal(bar.width, barDefaultWidth, 'Width should reset to default');
 
-		// Speed timer expiration
-		bar.vxMax = 3;
-		bar.speedStatusTime = 1;
-		bar.move();
+		// Speed timer expiration via EventBus
+		bar.applyItemEffect(11); // SLOW
+		assert.ok(bar.vxMax < barDefaultSpeed);
+		g.eventBus.tickTimers(15000);
 		assert.equal(bar.vxMax, barDefaultSpeed, 'Speed should reset to default');
 		assert.equal(bar.height, barDefaultHeight, 'Height should reset to default');
 
-		// Weapon timer expiration
-		bar.weapon = 1;
-		bar.weaponTime = 1;
-		bar.move();
+		// Weapon timer expiration via EventBus
+		bar.applyItemEffect(9); // GUN
+		assert.equal(bar.weapon, 1);
+		g.eventBus.tickTimers(15000);
 		assert.equal(bar.weapon, 0, 'Weapon should reset to 0');
 
-		// Immortal timer expiration
-		bar.color = barImmortalColor;
-		bar.immortalStatusTime = 1;
-		bar.move();
+		// Immortal timer expiration via EventBus
+		bar.applyItemEffect(14); // IMMORTAL
+		assert.equal(bar.color, barImmortalColor);
+		g.eventBus.tickTimers(15000);
 		assert.equal(bar.color, barColor, 'Bar color should reset to default');
-		assert.equal(bar.immortalStatusTime, 0);
 
-		// Disturb timer expiration
-		bar.disturbStatusTime = 1;
-		bar.move();
+		// Disturb timer expiration via EventBus
+		bar.applyItemEffect(15); // DISTURB
+		assert.ok(bar.disturbStatusTime > 0);
+		g.eventBus.tickTimers(15000);
 		assert.equal(bar.disturbStatusTime, 0);
 
 		// Absorption timer expiration relaunches absorbed balls
+		bar.applyItemEffect(13); // ABSORB
 		const ball = new Ball(BALL_CREATE_MODE.INIT, g);
 		ball.isAbsorption = 1;
 		g.balls = [ball];
 		bar.absorptionNum = 1;
-		bar.absorptionStatusTime = 1;
-		bar.move();
+		g.eventBus.tickTimers(15000);
 		assert.equal(bar.absorptionNum, 0, 'Absorbed balls should be relaunched');
 		assert.equal(ball.isAbsorption, 0);
 	});

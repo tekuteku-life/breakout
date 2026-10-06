@@ -6,6 +6,8 @@ import Block from '../../src/Block.js';
 import Weapon from '../../src/Weapon.js';
 import Item from '../../src/Item.js';
 import ImageData from '../../src/ImageData.js';
+import EventBus from '../../src/EventBus.js';
+import { ITEM_TYPE } from '../../src/const.js';
 
 test('Bar class unit tests', async (t) => {
 	setupEnvironment();
@@ -62,41 +64,50 @@ test('Bar class unit tests', async (t) => {
 		assert.equal(bar.absorptionNum, 0);
 	});
 
-	await t.test('move calculates speed towards pointX and decrements status timers', () => {
+	await t.test('move calculates speed towards pointX and handles state transitions with EventBus timers', () => {
+		const bus = new EventBus();
 		const mockGame = {
 			inputManage: { pointX: 400 },
 			FPS: 50,
 			barDefaultWidth: 80,
 			canvasWidth: 750,
 			barDefaultSpeed: 75,
+			barDefaultHeight: 7,
+			barColor: '#114400',
+			eventBus: bus,
 		};
 		const bar = new Bar(mockGame);
 		bar.pointX = bar.getCenterX() + 20;
-
-		bar.widthStatusTime = 1;
-		bar.speedStatusTime = 1;
-		bar.weaponTime = 1;
 		bar.weaponInter = 2;
-		bar.vibrationTime = 1;
-		bar.absorptionStatusTime = 1;
-		bar.immortalStatusTime = 1;
-		bar.disturbStatusTime = 1;
 
 		bar.move();
 		assert.ok(bar.vx > 0);
-
-		// Timers should have expired to 0
-		assert.equal(bar.widthStatusTime, 0);
-		assert.equal(bar.width, globalThis.barDefaultWidth);
-		assert.equal(bar.speedStatusTime, 0);
-		assert.equal(bar.weaponTime, 0);
-		assert.equal(bar.weapon, 0);
 		assert.equal(bar.weaponInter, 1);
-		assert.equal(bar.vibrationTime, 0);
-		assert.equal(bar.absorptionStatusTime, 0);
-		assert.equal(bar.immortalStatusTime, 0);
-		assert.equal(bar.color, globalThis.barColor);
-		assert.equal(bar.disturbStatusTime, 0);
+
+		// Apply item effects that register timers
+		bar.applyItemEffect(ITEM_TYPE.LONG);
+		bar.applyItemEffect(ITEM_TYPE.GUN);
+		bar.applyItemEffect(ITEM_TYPE.SLOW);
+		assert.ok(bar.width > mockGame.barDefaultWidth);
+		assert.equal(bar.weapon, 1);
+		assert.ok(bar.height > mockGame.barDefaultHeight);
+
+		// Advance timers past duration
+		bus.tickTimers(20000);
+
+		// States should have reset via EventBus timers
+		assert.equal(bar.width, mockGame.barDefaultWidth);
+		assert.equal(bar.weapon, 0);
+		assert.equal(bar.height, mockGame.barDefaultHeight);
+
+		// Direct reset methods
+		bar.width = 150;
+		bar.resetWidth();
+		assert.equal(bar.width, mockGame.barDefaultWidth);
+
+		bar.color = '#ff0000';
+		bar.resetImmortal();
+		assert.equal(bar.color, mockGame.barColor);
 	});
 
 	await t.test('endamage reduces HP and consumes life when HP reaches 0', () => {

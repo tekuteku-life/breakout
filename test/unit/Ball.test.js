@@ -4,6 +4,7 @@ import { setupEnvironment, createMock2DContext } from '../helpers/setupEnv.js';
 import Ball from '../../src/Ball.js';
 import ImageData from '../../src/ImageData.js';
 import Block from '../../src/Block.js';
+import EventBus from '../../src/EventBus.js';
 import { BLOCK_FUNCTION, BALL_STATUS, BALL_CREATE_MODE, BALL_COPY_MODE, SYSTEM_PARAM } from '../../src/const.js';
 
 test('Ball class unit tests', async (t) => {
@@ -147,16 +148,25 @@ test('Ball class unit tests', async (t) => {
 	});
 
 	await t.test('move handles speed limits, state timeouts, and absorption lock', () => {
-		const game = createMockGame();
+		const bus = new EventBus();
+		const game = createMockGame({ eventBus: bus, FPS: 50 });
 		const ball = new Ball(BALL_CREATE_MODE.OTHER, game);
 		ball.vx = 999;
 		ball.vy = -999;
-		ball.status = BALL_STATUS.STRONG;
-		ball.statusTime = 1;
+		ball.setStatus(BALL_STATUS.STRONG, 0.1);
 
 		ball.move();
 		assert.ok(Math.abs(ball.vx) <= globalThis.ballMaxSpeed);
 		assert.ok(Math.abs(ball.vy) <= globalThis.ballMaxSpeed);
+		assert.equal(ball.status, BALL_STATUS.STRONG);
+
+		// Advance timer to expire status
+		bus.tickTimers(200);
+		assert.equal(ball.status, BALL_STATUS.NORMAL);
+
+		// Direct resetStatus
+		ball.setStatus(BALL_STATUS.ULTIMATE, 10);
+		ball.resetStatus();
 		assert.equal(ball.status, BALL_STATUS.NORMAL);
 
 		// Absorption lock

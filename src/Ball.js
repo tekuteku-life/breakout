@@ -45,6 +45,8 @@ export default class Ball
 		this.absorptionPoint = new Array(0, 0);					// 吸着座標（バーからの相対位置）
 		this.imgData = (imgSource && typeof imgSource.getDataArr === 'function') ? imgSource.getDataArr("ball") : null;	// 画像データ
 		this.inputMouseDownTime = initialMouseDownTime || 0;
+		Ball.nextBallId = (Ball.nextBallId || 0) + 1;
+		this.ballId = Ball.nextBallId;
 
 		// EventBus経由でマウスダウン時刻の変更を監視
 		this.onMouseDownHandler = (time) => {
@@ -97,6 +99,9 @@ export default class Ball
 			bus.removeOnEvent('input:mouseDownTime', this.onMouseDownHandler);
 			this.onMouseDownHandler = null;
 		}
+		if (bus && typeof bus.removeTimer === 'function') {
+			bus.removeTimer(`ball:${this.ballId}:status`);
+		}
 
 		const ballList = this.getBalls();
 		if (ballList) {
@@ -108,6 +113,41 @@ export default class Ball
 		this.absorptionPoint = null;
 		this.imgData = null;
 		this.game = null;
+	}
+
+	//--------------------------------------------------
+	// ボール状態の設定（EventBusタイマーと連携）
+	//--------------------------------------------------
+	setStatus(status, durationSec = null) {
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const bStatusTime = durationSec !== null
+			? durationSec
+			: ((this.game && this.game.ballStatusTime !== undefined) ? this.game.ballStatusTime : DEFAULT_CONFIG.ballStatusTime);
+
+		this.status = status;
+		this.statusTime = Math.round(bStatusTime * fps);
+
+		const bus = this.getEventBus();
+		if (bus && typeof bus.addTimer === 'function') {
+			const durationMs = bStatusTime * 1000;
+			bus.addTimer(`ball:${this.ballId}:status`, durationMs, () => {
+				this.resetStatus();
+			}, {
+				event: 'ball:resetStatus',
+				args: [this],
+				onTick: (timer) => {
+					this.statusTime = Math.ceil(timer.remaining / (1000 / fps));
+				}
+			});
+		}
+	}
+
+	//--------------------------------------------------
+	// ボール状態のリセット
+	//--------------------------------------------------
+	resetStatus() {
+		this.status = BALL_STATUS.NORMAL;
+		this.statusTime = 0;
 	}
 
 	getGame() {
@@ -287,12 +327,6 @@ export default class Ball
 		if( Math.abs( this.vx ) > bMaxSpeed ) { this.vx = bMaxSpeed * (this.vx < 0 ? -1 : 1); }
 		if( Math.abs( this.vy ) > bMaxSpeed ) { this.vy = bMaxSpeed * (this.vy < 0 ? -1 : 1); }
 		else if( Math.abs( this.vy ) < bDefaultSpeed * BALL_PARAM.MIN_VY_RATIO ) { this.vy = bMaxSpeed * BALL_PARAM.MIN_VY_RATIO * (this.vy < 0 ? -1 : 1); }
-
-		// 状態時間の減少
-		if( this.statusTime > 0 ) {
-			this.statusTime--;
-			if( this.statusTime == 0 ) { this.status = BALL_STATUS.NORMAL; }
-		}
 
 		// 吸着状態の場合，ここで処理終了
 		if( this.isAbsorption == 1 && bar )
@@ -590,4 +624,3 @@ export default class Ball
 		return true;
 	}
 }
-

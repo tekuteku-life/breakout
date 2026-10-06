@@ -9,7 +9,7 @@ import Item from '../../src/Item.js';
 import Weapon from '../../src/Weapon.js';
 import EventBus from '../../src/EventBus.js';
 import GameManage from '../../src/GameManage.js';
-import { BALL_CREATE_MODE } from '../../src/const.js';
+import { BALL_CREATE_MODE, BALL_COPY_MODE } from '../../src/const.js';
 
 test('AutoPlay class unit tests', async (t) => {
 	setupEnvironment();
@@ -322,5 +322,62 @@ test('AutoPlay class unit tests', async (t) => {
 		assert.ok(sim, 'simuData should be created');
 		assert.ok(typeof sim.dvx === 'number');
 		assert.ok(typeof gm.bar.pointX === 'number');
+	});
+
+	await t.test('auto does not throw TypeError when stDvx exceeds enDvx and no-collision search triggers', () => {
+		const bus = new EventBus();
+		const bar = new Bar();
+		bar.x = 200;
+		bar.y = 500;
+		const ball = new Ball(BALL_CREATE_MODE.OTHER);
+		ball.x = 200;
+		ball.y = 495; // very close to bar, fallBallTime <= 2
+		ball.vx = 0;
+		ball.vy = 4;
+
+		const game = {
+			eventBus: bus,
+			bar,
+			balls: [ball],
+			items: [],
+			weapons: [],
+			blockMap: [],
+			ctrl: { autoSwitch: 1, stageIndex: 0 },
+			canvasWidth: 750,
+			canvasHeight: 530,
+			ballDefaultSpeed: 4,
+			barDefaultSpeed: 8,
+			ballMaxSpeed: 10,
+		};
+
+		const ap = new AutoPlay(game);
+
+		// Simulate state where stDvx > enDvx (search already completed), and no blocks were broken
+		ap.simuData = {
+			x: 200,
+			vx: 0,
+			status: 0,
+			statusTime: 0,
+			stDvx: 10, // > enDvx
+			enDvx: 5,
+			breakMaxNum: 0,
+			collisionMaxNum: 0,
+			returnTime: 10,
+			dvx: 0,
+			step: 1,
+			self: ball.copy(BALL_COPY_MODE.SIMULATE),
+		};
+
+		// Mock Math.random to guarantee the no-collision search branch executes (Math.random() > 0.3)
+		const originalRandom = Math.random;
+		Math.random = () => 0.5;
+
+		try {
+			assert.doesNotThrow(() => {
+				ap.step();
+			});
+		} finally {
+			Math.random = originalRandom;
+		}
 	});
 });
