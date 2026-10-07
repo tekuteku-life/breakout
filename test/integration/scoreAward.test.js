@@ -32,7 +32,7 @@ describe('Integration Test: Score Calculation, Award Bonuses, and Stage Completi
 		const ball2 = new Ball(BALL_CREATE_MODE.INIT, g);
 		ball2.status = BALL_STATUS.STRONG;
 		ball2.breakNum = 5;
-		g.balls = [ball1, ball2];
+		g.objectManage.balls = [ball1, ball2];
 
 		scoreMng.awardNum.continuousBreakNum = 4;
 		scoreMng.awardNum.getItemNum = 3;
@@ -61,7 +61,7 @@ describe('Integration Test: Score Calculation, Award Bonuses, and Stage Completi
 		scoreMng.score = 500;
 		scoreMng.sumPrevScore = 500;
 		statusMng.life = 1;
-		g.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
+		g.objectManage.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
 
 		// Heavy penalty
 		scoreMng.awardNum.fallBallNum = 1000;
@@ -74,27 +74,27 @@ describe('Integration Test: Score Calculation, Award Bonuses, and Stage Completi
 	it('triggers combo pop balloons on continuous block breaks', () => {
 		const g = window.gameManage;
 		const ball = new Ball(BALL_CREATE_MODE.INIT, g);
-		g.balls = [ball];
-		g.balloons = [];
+		g.objectManage.balls = [ball];
+		g.objectManage.balloons = [];
 
 		const block1 = new Block(5, 4, 1, BLOCK_FUNCTION.NORMAL, 0, 0, 0, g);
 		const block2 = new Block(6, 4, 1, BLOCK_FUNCTION.NORMAL, 0, 0, 0, g);
-		g.blockMap = [[], [], [], [], [null, null, null, null, null, block1, block2]];
+		g.objectManage.blockMap = [[], [], [], [], [null, null, null, null, null, block1, block2]];
 
 		// First break
 		block1.action(ball, 0);
 		assert.equal(ball.breakNum, 1);
 		assert.equal(g.scoreMng.awardNum.continuousBreakNum, 1);
-		assert.equal(g.balloons.length, 1, 'Should create combo balloon for first break');
+		assert.equal(g.objectManage.balloons.length, 1, 'Should create combo balloon for first break');
 
 		// Second consecutive break
 		block2.action(ball, 0);
 		assert.equal(ball.breakNum, 2);
 		assert.equal(g.scoreMng.awardNum.continuousBreakNum, 2);
-		assert.equal(g.balloons.length, 2, 'Should create combo balloon for second break');
+		assert.equal(g.objectManage.balloons.length, 2, 'Should create combo balloon for second break');
 
 		// Step balloons
-		g.balloons[0].draw(g.dynamicCtx);
+		g.objectManage.balloons[0].draw(g.dynamicCtx);
 	});
 
 	it('records play statistics and award rankings to persistent storage', () => {

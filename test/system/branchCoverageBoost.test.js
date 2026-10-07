@@ -175,10 +175,10 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		bar.y = 500;
 		const badItem = new Item(6, 220, 485, '#000', '#fff'); // Life -1 item
 		window.items = [badItem];
-		autoPlay.auto();
+		autoPlay.step();
 		assert.ok(typeof window.pointX === 'number');
 
-		// 3. AutoPlay.auto() item priority adjustment towards ball
+		// 3. AutoPlay.step() item priority adjustment towards ball
 		// Case A: item to the right of ball, ball to the left
 		const ballFarL = new Ball(BALL_CREATE_MODE.OTHER);
 		ballFarL.x = 100;
@@ -188,30 +188,30 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		window.balls = [ballFarL];
 		const itemCatchR = new Item(0, 210, 480, '#000', '#fff');
 		window.items = [itemCatchR];
-		autoPlay.auto();
+		autoPlay.step();
 
 		// Case B: item to the left of ball, ball to the right
 		ballFarL.x = 320;
-		autoPlay.auto();
+		autoPlay.step();
 
 		// Case C: item very close to ball (<= (blockWidth + bar.width)/2)
 		ballFarL.x = 220;
-		autoPlay.auto();
+		autoPlay.step();
 
-		// 4. AutoPlay.auto() weapon dodging to left and right
+		// 4. AutoPlay.step() weapon dodging to left and right
 		const enemyWeaponL = new Weapon(1, 400, 400, -1);
 		enemyWeaponL.vy = 10;
 		window.weapons = [enemyWeaponL];
 		ballFarL.x = 200;
 		bar.x = 400;
-		autoPlay.auto();
+		autoPlay.step();
 
-		// 5. AutoPlay.auto() leftSpeed > rightSpeed swap via negative barSpin
+		// 5. AutoPlay.step() leftSpeed > rightSpeed swap via negative barSpin
 		const origSpin = window.barSpin;
 		window.barSpin = -1;
 		bar.vxMax = 1000;
 		autoPlay.simuData = {};
-		autoPlay.auto();
+		autoPlay.step();
 		window.barSpin = origSpin;
 		bar.vxMax = window.barDefaultSpeed;
 
@@ -253,7 +253,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 			step: 1,
 			self: quickBall,
 		};
-		autoPlay.auto();
+		autoPlay.step();
 		assert.ok(typeof window.pointX === 'number');
 	});
 
@@ -261,9 +261,9 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		// Countdown formatting: breakLimit with non-zero decimal (e.g. 75 / 50 = 1.5s)
 		const bCount = new Block(1, 1, 1, 0, 0, 0, 0, window.gameManage);
 		bCount.breakLimit = 75; // 1.5s
-		window.gameManage.balls = [{}];
-		globalThis.balls = window.gameManage.balls;
-		bCount.move();
+		window.gameManage.objectManage.balls = [{}];
+		globalThis.balls = window.gameManage.objectManage.balls;
+		bCount.move(true);
 		assert.equal(bCount.text, '1.5 s');
 
 		// Special block hit sound (spBlock) with strong ball
@@ -289,7 +289,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		if (window.gameManage?.sounds && origSoundPlay) {
 			window.gameManage.sounds.play = origSoundPlay;
 		}
-		window.gameManage.balls = [];
+		window.gameManage.objectManage.balls = [];
 		globalThis.balls = [];
 
 		// Simulation break decrease when simulate > 1
@@ -301,8 +301,8 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		// Warp blocks: enter without exit, and enter with exit and isChangedVY
 		const bEnter = new Block(1, 1, 1, BLOCK_FUNCTION.WARP_ENTER, 0, 1, 0, window.gameManage);
 		const bExit = new Block(4, 4, 1, BLOCK_FUNCTION.WARP_EXIT, 0, 1, 0, window.gameManage);
-		window.gameManage.blockMap = [[], [null, bEnter], [], [], [null, null, null, null, bExit]];
-		globalThis.blockMap = window.gameManage.blockMap;
+		window.gameManage.objectManage.blockMap = [[], [null, bEnter], [], [], [null, null, null, null, bExit]];
+		globalThis.blockMap = window.gameManage.objectManage.blockMap;
 		const testBall = {
 			x: 50,
 			y: 50,
@@ -311,13 +311,13 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 			status: BALL_STATUS.NORMAL,
 			simulate: 0,
 		};
-		bEnter.action(testBall, 1);
+		bEnter.action(testBall, 1, window.gameManage.objectManage.blockMap);
 		assert.ok(testBall.x !== 50 || testBall.y !== 50);
 
 		// Warp enter with NO exit block in blockMap
-		window.gameManage.blockMap = [[], [null, bEnter]];
-		globalThis.blockMap = window.gameManage.blockMap;
-		bEnter.action(testBall, 0);
+		window.gameManage.objectManage.blockMap = [[], [null, bEnter]];
+		globalThis.blockMap = window.gameManage.objectManage.blockMap;
+		bEnter.action(testBall, 0, window.gameManage.objectManage.blockMap);
 
 		// Block sound effects for normal ball hitting special block and warp block
 		const bNormalHit = new Block(2, 2, 1, BLOCK_FUNCTION.ACCELERATION, 0, 0, 0);
@@ -328,26 +328,26 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 
 	it('covers AutoPlay weapon firing and simulateReset execution', () => {
 		const g = window.gameManage;
-		// Weapon firing in AutoPlay.auto()
-		g.bar.weapon = 1;
-		g.bar.weaponInter = 0;
-		g.weapons = [];
+		// Weapon firing in AutoPlay.step()
+		g.objectManage.bar.weapon = 1;
+		g.objectManage.bar.weaponInter = 0;
+		g.objectManage.weapons = [];
 		const activeBall = new Ball(BALL_CREATE_MODE.OTHER, g);
 		activeBall.x = 140;
 		activeBall.y = 100;
 		activeBall.vx = 0;
 		activeBall.vy = 1;
-		g.balls = [activeBall];
+		g.objectManage.balls = [activeBall];
 
 		const fireTarget = new Block(3, 2, 1, 0, 0, 0, 0, g);
-		g.blockMap = [];
+		g.objectManage.blockMap = [];
 		for (let r = 0; r < 5; r++) {
-			g.blockMap[r] = [];
+			g.objectManage.blockMap[r] = [];
 		}
-		g.blockMap[2][3] = fireTarget;
-		g.bar.x = fireTarget.getCenterX();
-		g.autoPlay.auto();
-		assert.equal(g.weapons.length, 1, 'AutoPlay.auto should fire weapon when lined up with target');
+		g.objectManage.blockMap[2][3] = fireTarget;
+		g.objectManage.bar.x = fireTarget.getCenterX();
+		g.autoPlay.step();
+		assert.equal(g.objectManage.weapons.length, 1, 'AutoPlay.step should fire weapon when lined up with target');
 
 		// simulateReset execution in main.js
 		g.simulateReset();
@@ -358,37 +358,37 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		const input = window.inputManage;
 
 		// 1. Touch weapon fire on dynamicCanvas.ontouchstart
-		g.bar.weapon = 1;
-		g.bar.weaponInter = 0;
-		g.weapons = [];
+		g.objectManage.bar.weapon = 1;
+		g.objectManage.bar.weaponInter = 0;
+		g.objectManage.weapons = [];
 		g.dynamicCanvas.ontouchstart({
 			touches: [{ pageX: 200, pageY: 200 }],
 			preventDefault: () => {},
 		});
-		assert.equal(g.weapons.length, 1, 'Touch start should fire weapon when armed');
+		assert.equal(g.objectManage.weapons.length, 1, 'Touch start should fire weapon when armed');
 
 		// 2. Cloud rendering in drawAll when block has exploded > 0
 		const bExploded = new Block(2, 2, 1, 0, 0, 0, 0, g);
 		bExploded.exploded = 5;
-		g.blockMap = [[], [], [null, null, bExploded]];
+		g.objectManage.blockMap = [[], [], [null, null, bExploded]];
 		g.drawAll(g.dynamicCtx);
 
 		// 3. Keyboard space down then up launches ball when empty
 		g.ctrl.ctrlSwitch = 1;
 		g.ctrl.autoSwitch = 0;
-		g.balls = [];
+		g.objectManage.balls = [];
 		input.mouseDownTime = 0;
 		input.getKeyPress({ keyCode: 32 }, 'down');
 		assert.ok(input.mouseDownTime > 0);
 		input.getKeyPress({ keyCode: 32 }, 'up');
-		assert.equal(g.balls.length, 1, 'Releasing space should launch ball');
+		assert.equal(g.objectManage.balls.length, 1, 'Releasing space should launch ball');
 
 		// 4. Keyboard space up when ball present and weapon armed
-		g.bar.weapon = 1;
-		g.bar.weaponInter = 0;
-		g.weapons = [];
+		g.objectManage.bar.weapon = 1;
+		g.objectManage.bar.weaponInter = 0;
+		g.objectManage.weapons = [];
 		input.getKeyPress({ keyCode: 32 }, 'up');
-		assert.equal(g.weapons.length, 1, 'Releasing space with weapon should fire');
+		assert.equal(g.objectManage.weapons.length, 1, 'Releasing space with weapon should fire');
 
 		// 5. Keyboard nextStage (U, keyCode 85) down and up
 		const initialStage = g.ctrl.stageIndex;

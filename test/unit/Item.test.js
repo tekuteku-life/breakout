@@ -92,25 +92,27 @@ test('Item class unit tests', async (t) => {
 		};
 		const mockGame = {
 			bar: mockBar,
-			items: [],
+			objectManage: {
+				items: [],
+			},
 			canvasHeight: 600,
 		};
 
 		// Fall out of canvas
 		const itemFalling = new Item(0, 50, 610, '#fff', '#000', mockGame);
-		mockGame.items = [itemFalling];
+		mockGame.objectManage.items = [itemFalling];
 		itemFalling.move();
-		assert.equal(mockGame.items.length, 0);
+		assert.equal(mockGame.objectManage.items.length, 0);
 
 		// Collision with bar (上位調停フロー)
 		const itemHit = new Item(0, 100, 495, '#fff', '#000', mockGame);
-		mockGame.items = [itemHit];
+		mockGame.objectManage.items = [itemHit];
 		itemHit.move();
 		if (itemHit.checkCollision(mockBar)) {
 			itemHit.applyEffect();
 			itemHit.destructor();
 		}
-		assert.equal(mockGame.items.length, 0);
+		assert.equal(mockGame.objectManage.items.length, 0);
 		assert.equal(awardAdded, true);
 	});
 
@@ -149,11 +151,11 @@ test('Item class unit tests', async (t) => {
 	});
 
 	await t.test('destructor removes item from game items array', () => {
-		const mockGame = { items: [] };
+		const mockGame = { objectManage: { items: [] } };
 		const item = new Item(0, 0, 0, '#fff', '#000', mockGame);
-		mockGame.items.push(item);
+		mockGame.objectManage.items.push(item);
 		item.destructor();
-		assert.equal(mockGame.items.length, 0);
+		assert.equal(mockGame.objectManage.items.length, 0);
 	});
 
 	await t.test('Item getters and destructor via standard Array', () => {
@@ -162,19 +164,18 @@ test('Item class unit tests', async (t) => {
 		const mockCtrl = { ctrlProp: true };
 		const mockGame = {
 			bar: mockBar,
-			items: mockItems,
+			objectManage: {
+				items: mockItems,
+			},
 			ctrl: mockCtrl,
 			canvasHeight: 600,
 		};
 		const item = new Item(0, 50, 60, '#fff', '#000', mockGame);
-		assert.equal(item.getGame(), mockGame);
-		assert.equal(item.getItems(), mockItems);
-		assert.equal(item.getCtrl(), mockCtrl);
 		assert.equal(item.getCanvasHeight(), 600);
 
 		// destructor removes item from array
 		const plainArray = [item];
-		mockGame.items = plainArray;
+		mockGame.objectManage.items = plainArray;
 		item.destructor();
 		assert.equal(plainArray.length, 0);
 	});

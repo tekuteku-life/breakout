@@ -59,12 +59,8 @@ export default class StatusManage
 		this.game = null;
 	}
 
-	getGame() {
-		return this.game || null;
-	}
-
 	getBalls() {
-		return (this.game && this.game.balls) || [];
+		return (this.game && this.game.objectManage && this.game.objectManage.balls) || [];
 	}
 
 	getCtrl() {
@@ -76,7 +72,7 @@ export default class StatusManage
 	}
 
 	getBlockMap() {
-		return (this.game && this.game.blockMap) || [];
+		return (this.game && this.game.objectManage && this.game.objectManage.blockMap) || [];
 	}
 
 	getStaticCtx() {
@@ -316,7 +312,7 @@ export default class StatusManage
 
 		let text = '/ Score:' + displayPoint + ' / Hi-Score:' + String(scoreMng.hiScore);
 		text += ' / Stage:' + stageTitleStr + ' / Time:' + playTime_min + '\'' + playTime + ' / Mode:' + (ctrl.autoSwitch === 0 ? 'MP' : 'AP');
-		text += '<span style="font-size: 0.8em; margin-left: 3em;">' + this.getRealFPS() + 'fps / ' + String(this.game.balls.length) + '</span>';
+		text += '<span style="font-size: 0.8em; margin-left: 3em;">' + this.getRealFPS() + 'fps / ' + String(this.getBalls().length) + '</span>';
 
 		const maxLife = this.game.maxLife || DEFAULT_CONFIG.maxLife;
 		const lifeSpaceSize = maxLife * 17 + 5;

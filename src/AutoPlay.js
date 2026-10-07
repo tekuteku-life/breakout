@@ -28,28 +28,33 @@ export default class AutoPlay
 		this.game = null;
 	}
 
-	getGame() {
-		return this.game || null;
+	getObjectManage() {
+		return (this.game && this.game.objectManage) || null;
 	}
 
 	getBar() {
-		return (this.game && this.game.bar) || null;
+		const om = this.getObjectManage();
+		return om ? om.bar : null;
 	}
 
 	getBalls() {
-		return (this.game && this.game.balls) || [];
+		const om = this.getObjectManage();
+		return om ? om.balls : [];
 	}
 
 	getItems() {
-		return (this.game && this.game.items) || [];
+		const om = this.getObjectManage();
+		return om ? om.items : [];
 	}
 
 	getWeapons() {
-		return (this.game && this.game.weapons) || [];
+		const om = this.getObjectManage();
+		return om ? om.weapons : [];
 	}
 
 	getBlockMap() {
-		return (this.game && this.game.blockMap) || [];
+		const om = this.getObjectManage();
+		return om ? om.blockMap : [];
 	}
 
 	getCtrl() {
@@ -497,8 +502,9 @@ export default class AutoPlay
 				this.game?.statusBarHeight
 			);
 		}
-		if (this.game && typeof this.game.getNearbyBlocks === 'function') {
-			const nearBlocks = this.game.getNearbyBlocks(ball.x, ball.y, ball.radius, ball.vx, ball.vy);
+		const om = this.getObjectManage();
+		if (om && typeof om.getNearbyBlocks === 'function') {
+			const nearBlocks = om.getNearbyBlocks(ball.x, ball.y, ball.radius, ball.vx, ball.vy);
 			for (let i = 0; i < nearBlocks.length; i++) {
 				const blk = nearBlocks[i];
 				if (typeof ball.checkCollision === 'function' && ball.checkCollision(blk) === true) {
@@ -514,10 +520,5 @@ export default class AutoPlay
 		if (typeof ball.updateHistory === 'function') {
 			ball.updateHistory();
 		}
-	}
-
-	auto()
-	{
-		this.step();
 	}
 }

@@ -58,7 +58,7 @@ describe('System Test SYS-10: Robustness, Input, and Edge Cases', () => {
 		g.ctrl.pauseSwitchOff();
 		input.mouseDownTime = Date.now();
 		canvas.ontouchend({ preventDefault: () => {} });
-		assert.equal(g.balls.length, 1, 'Touch end should launch ball');
+		assert.equal(g.objectManage.balls.length, 1, 'Touch end should launch ball');
 	});
 
 	it('SYS-10: handles low FPS detection warning and simulateReset', () => {
@@ -110,14 +110,14 @@ describe('System Test SYS-10: Robustness, Input, and Edge Cases', () => {
 		// Keyboard space down then up with weapon equipped
 		g.ctrl.ctrlSwitch = 1;
 		g.ctrl.autoSwitch = 0;
-		g.bar.weapon = 1;
-		g.bar.weaponInter = 0;
-		g.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
-		g.weapons = [];
+		g.objectManage.bar.weapon = 1;
+		g.objectManage.bar.weaponInter = 0;
+		g.objectManage.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
+		g.objectManage.weapons = [];
 
 		input.getKeyPress({ keyCode: 32 }, 'down');
 		input.getKeyPress({ keyCode: 32 }, 'up');
-		assert.equal(g.weapons.length, 1, 'Releasing space with weapon should fire weapon');
+		assert.equal(g.objectManage.weapons.length, 1, 'Releasing space with weapon should fire weapon');
 
 		// Null event handling (does not throw)
 		assert.doesNotThrow(() => input.getKeyPress(null, 'up'));

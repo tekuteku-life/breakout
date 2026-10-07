@@ -99,10 +99,6 @@ export default class Control
 		this.game = null;
 	}
 
-	getGame() {
-		return this.game || null;
-	}
-
 	getStorage() {
 		return (this.game && this.game.storage) || null;
 	}
@@ -112,17 +108,17 @@ export default class Control
 	}
 
 	getDefaultLife() {
-		const g = this.getGame();
+		const g = this.game;
 		return (g && g.defaultLife) || DEFAULT_CONFIG.defaultLife;
 	}
 
 	getCanvasWidth() {
-		const g = this.getGame();
+		const g = this.game;
 		return (g && g.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
 	}
 
 	getCanvasHeight() {
-		const g = this.getGame();
+		const g = this.game;
 		return (g && g.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
 	}
 

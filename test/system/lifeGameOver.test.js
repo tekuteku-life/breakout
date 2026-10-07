@@ -21,18 +21,18 @@ describe('System Test SYS-06: Life Decrement and Game Over Scenario', () => {
 		// Launch a ball
 		g.dynamicCanvas.onmousedown();
 		g.dynamicCanvas.onmouseup({ button: 0 });
-		assert.equal(g.balls.length, 1);
+		assert.equal(g.objectManage.balls.length, 1);
 
 		// Set player to 1 life remaining
 		g.statusMng.life = 1;
 		g.scoreMng.score = 500;
 
 		// Ball falls off the screen
-		const ball = g.balls[0];
+		const ball = g.objectManage.balls[0];
 		ball.fall();
 
 		// Ball removed, life decremented to 0
-		assert.equal(g.balls.length, 0);
+		assert.equal(g.objectManage.balls.length, 0);
 		assert.equal(g.statusMng.isAlive(), false, 'Player should be dead (life <= 0)');
 
 		// Execute gameOver routine
@@ -56,7 +56,7 @@ describe('System Test SYS-06: Life Decrement and Game Over Scenario', () => {
 		// Launch a ball
 		g.dynamicCanvas.onmousedown();
 		g.dynamicCanvas.onmouseup({ button: 0 });
-		assert.equal(g.balls.length, 1);
+		assert.equal(g.objectManage.balls.length, 1);
 
 		// Reduce player life to 0 while ball is still active (e.g. poison item or bar damage)
 		g.statusMng.life = 0;
@@ -72,12 +72,12 @@ describe('System Test SYS-06: Life Decrement and Game Over Scenario', () => {
 		// Run step(): should NOT trigger gameOver because ball is still in play
 		g.step();
 		assert.equal(gameOverTriggered, false, 'Should not game over when balls.length > 0');
-		assert.equal(g.balls.length, 1);
+		assert.equal(g.objectManage.balls.length, 1);
 
 		// Now drop the ball
-		const ball = g.balls[0];
+		const ball = g.objectManage.balls[0];
 		ball.fall();
-		assert.equal(g.balls.length, 0);
+		assert.equal(g.objectManage.balls.length, 0);
 
 		// Now step(): should trigger gameOver because balls are 0 and life is 0
 		g.step();
@@ -90,7 +90,7 @@ describe('System Test SYS-06: Life Decrement and Game Over Scenario', () => {
 		// Launch a ball
 		g.dynamicCanvas.onmousedown();
 		g.dynamicCanvas.onmouseup({ button: 0 });
-		assert.equal(g.balls.length, 1);
+		assert.equal(g.objectManage.balls.length, 1);
 
 		// Player has 2 lives
 		g.statusMng.life = 2;
@@ -99,11 +99,11 @@ describe('System Test SYS-06: Life Decrement and Game Over Scenario', () => {
 		g.gameOver = () => { gameOverTriggered = true; };
 
 		// Ball falls off the screen
-		const ball = g.balls[0];
+		const ball = g.objectManage.balls[0];
 		ball.fall();
 
 		// Ball removed, life decremented from 2 to 1
-		assert.equal(g.balls.length, 0);
+		assert.equal(g.objectManage.balls.length, 0);
 		assert.equal(g.statusMng.life, 1);
 		assert.equal(g.statusMng.isAlive(), true);
 
@@ -133,29 +133,29 @@ describe('System Test SYS-06: Life Decrement and Game Over Scenario', () => {
 		// Launch initial ball
 		g.dynamicCanvas.onmousedown();
 		g.dynamicCanvas.onmouseup({ button: 0 });
-		assert.equal(g.balls.length, 1);
+		assert.equal(g.objectManage.balls.length, 1);
 
 		// Duplicate balls via DOUBLE item effect
 		EventBus.emitEvent('ball:applyItem', 0);
-		assert.equal(g.balls.length, 2, 'Should have 2 balls in play');
+		assert.equal(g.objectManage.balls.length, 2, 'Should have 2 balls in play');
 
 		const initialLife = g.statusMng.life;
 		assert.ok(initialLife >= 2);
 
 		// One ball falls
-		const ball1 = g.balls[0];
+		const ball1 = g.objectManage.balls[0];
 		ball1.fall();
 
 		// Ball removed, but 1 ball still active in play
-		assert.equal(g.balls.length, 1, '1 ball should still be alive');
+		assert.equal(g.objectManage.balls.length, 1, '1 ball should still be alive');
 		assert.equal(g.statusMng.life, initialLife, 'Life MUST NOT decrease while balls are still in play');
 
 		// The second ball falls
-		const ball2 = g.balls[0];
+		const ball2 = g.objectManage.balls[0];
 		ball2.fall();
 
 		// All balls gone, now life decreases by 1
-		assert.equal(g.balls.length, 0);
+		assert.equal(g.objectManage.balls.length, 0);
 		assert.equal(g.statusMng.life, initialLife - 1, 'Life decreases by 1 only when all balls are lost');
 	});
 });

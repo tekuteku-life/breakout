@@ -135,11 +135,12 @@ test('ScoreManage class unit tests', async (t) => {
 			storage: mockStorage,
 			statusMng: mockStatusMng,
 			ctrl: mockCtrl,
-			balls: mockBalls,
+			objectManage: {
+				balls: mockBalls,
+			},
 		};
 
 		const sm = new ScoreManage(mockGame);
-		assert.equal(sm.getGame(), mockGame);
 		assert.equal(sm.getStorage(), mockStorage);
 		assert.equal(sm.getStatusMng(), mockStatusMng);
 		assert.equal(sm.getCtrl(), mockCtrl);

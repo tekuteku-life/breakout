@@ -24,7 +24,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 
 	it('handles bar bounce angles, spin acceleration, and velocity clamping', () => {
 		const g = window.gameManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 		bar.x = 400;
 		bar.y = 500;
 		bar.width = 80;
@@ -35,11 +35,11 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.y = 495;
 		ball.vx = 0;
 		ball.vy = 5;
-		g.balls = [ball];
+		g.objectManage.balls = [ball];
 
 		// Collision with moving bar
 		ball.move();
-		g.resolveCollisions();
+		g.objectManage.resolveCollisions();
 		assert.ok(ball.vy < 0, 'Ball should reflect upward');
 		assert.ok(ball.vx !== 0, 'Spin from moving bar should affect ball.vx');
 
@@ -49,7 +49,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.vx = 1;
 		ball.vy = 5;
 		ball.move();
-		g.resolveCollisions();
+		g.objectManage.resolveCollisions();
 		assert.ok(ball.vy < 0);
 
 		// Right edge hit
@@ -58,13 +58,13 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.vx = -1;
 		ball.vy = 5;
 		ball.move();
-		g.resolveCollisions();
+		g.objectManage.resolveCollisions();
 		assert.ok(ball.vy < 0);
 	});
 
 	it('handles absorption capture and relaunch with bar velocity and random angle', () => {
 		const g = window.gameManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 		bar.x = 400;
 		bar.y = 500;
 		bar.absorptionStatusTime = 50;
@@ -74,11 +74,11 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.y = 495;
 		ball.vx = 0;
 		ball.vy = 5;
-		g.balls = [ball];
+		g.objectManage.balls = [ball];
 
 		// Ball hits bar during absorption
 		ball.move();
-		g.resolveCollisions();
+		g.objectManage.resolveCollisions();
 		assert.equal(ball.isAbsorption, 1, 'Ball should be absorbed');
 		assert.equal(bar.absorptionNum, 1);
 
@@ -99,7 +99,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 	it('handles bar movement bounds, edge vibration, and speed/status transitions', () => {
 		const g = window.gameManage;
 		const input = window.inputManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 
 		// Left boundary clamping
 		input.pointX = -50;
@@ -160,55 +160,55 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 
 	it('executes auto AI: launching, trajectory simulation, item avoidance/collection, and weapon dodging', () => {
 		const g = window.gameManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 
 		// 1. Auto launch when no balls
-		g.balls = [];
-		g.autoPlay.auto();
-		assert.equal(g.balls.length, 1, 'Auto should spawn and launch ball');
+		g.objectManage.balls = [];
+		g.autoPlay.step();
+		assert.equal(g.objectManage.balls.length, 1, 'Auto should spawn and launch ball');
 
 		// 2. Auto absorption relaunch
-		g.balls[0].isAbsorption = 1;
+		g.objectManage.balls[0].isAbsorption = 1;
 		bar.absorptionNum = 1;
-		g.autoPlay.auto();
+		g.autoPlay.step();
 		assert.equal(bar.absorptionNum, 0, 'Auto should relaunch absorbed balls');
 
 		// 3. Falling ball tracking and simulation
-		const ball = g.balls[0];
+		const ball = g.objectManage.balls[0];
 		ball.x = 350;
 		ball.y = 400;
 		ball.vx = 2;
 		ball.vy = 4;
-		g.autoPlay.auto();
+		g.autoPlay.step();
 		assert.ok(g.autoPlay.simuData != null, 'simuData should be created');
 
 		// 4. Consecutive auto steps with simulation cache
-		g.autoPlay.auto();
+		g.autoPlay.step();
 
 		// 5. Beneficial item approach
 		const goodItem = new Item(0, 300, 300, '#000', '#fff', g); // Life item
-		g.items = [goodItem];
-		g.autoPlay.auto();
+		g.objectManage.items = [goodItem];
+		g.autoPlay.step();
 
 		// 6. Dangerous item avoidance (left and right evasion)
 		const badItem1 = new Item(4, bar.x + 2, bar.y - 30, '#000', '#fff', g); // Speed up penalty
-		g.items = [badItem1];
-		g.autoPlay.auto();
+		g.objectManage.items = [badItem1];
+		g.autoPlay.step();
 
 		const badItem2 = new Item(6, bar.x - 2, bar.y - 30, '#000', '#fff', g);
-		g.items = [badItem2];
-		g.autoPlay.auto();
+		g.objectManage.items = [badItem2];
+		g.autoPlay.step();
 
 		// 7. Weapon dodge when falling towards bar
 		const enemyWeapon = new Weapon(1, bar.x, bar.y - 40, -1, g);
 		enemyWeapon.vy = 5;
-		g.weapons = [enemyWeapon];
-		g.autoPlay.auto();
+		g.objectManage.weapons = [enemyWeapon];
+		g.autoPlay.step();
 	});
 
 	it('absorbs ball on bar hit during absorption mode without triggering fall', () => {
 		const g = window.gameManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 		bar.absorptionStatusTime = 500;
 		bar.absorptionNum = 0;
 
@@ -217,7 +217,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.y = bar.getTopY() - 2;
 		ball.vx = 0;
 		ball.vy = 8;
-		g.balls = [ball];
+		g.objectManage.balls = [ball];
 
 		// Step movement
 		ball.move();
@@ -226,18 +226,18 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.fall = () => { fallCalled = true; };
 
 		// Resolve collisions
-		g.resolveCollisions();
+		g.objectManage.resolveCollisions();
 
 		assert.equal(fallCalled, false, 'Ball should NOT fall when hitting bar in absorption mode');
 		assert.equal(ball.isAbsorption, 1, 'Ball should be absorbed');
 		assert.equal(bar.absorptionNum, 1, 'Bar absorptionNum should increment to 1');
-		assert.equal(g.balls.length, 1, 'Ball must remain in balls array');
+		assert.equal(g.objectManage.balls.length, 1, 'Ball must remain in balls array');
 		assert.ok(ball.y <= bar.getTopY(), 'Ball position should be at or above bar surface');
 
 		// Subsequent frames while absorbed: must not fall
 		for (let frame = 0; frame < 5; frame++) {
 			ball.move();
-			g.resolveCollisions();
+			g.objectManage.resolveCollisions();
 			assert.equal(fallCalled, false, `Ball should not fall during absorbed frame ${frame}`);
 			assert.equal(ball.isAbsorption, 1);
 		}

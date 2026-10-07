@@ -36,7 +36,7 @@ export default class ScoreManage
 			this.score = (this.score || 0) + Number(point || 0);
 		};
 		this.onAwardAddHandler = (data) => {
-			if (!this.awardNum || !data) return;
+			if (!this.awardNum || !data) { return; }
 			const key = typeof data === 'string' ? data : data.key;
 			const count = (typeof data === 'object' && data.count != null) ? data.count : 1;
 			if (this.awardNum[key] !== undefined) {
@@ -44,21 +44,22 @@ export default class ScoreManage
 			}
 		};
 		this.onContinuousBreakHandler = (data) => {
-			if (!this.awardNum || !data) return;
+			if (!this.awardNum || !data) { return; }
 			const currentMax = this.awardNum.continuousBreakNum || 0;
 			if (data.breakNum > currentMax) {
 				this.awardNum.continuousBreakNum = data.breakNum;
-				EventBus.emitEvent('balloon:spawn', {
+				const balloonData = {
 					text: data.breakNum,
 					x: data.x,
 					y: data.y,
 					width: 25,
 					height: 10,
 					alpha: 0.13,
-					backColor: data.backColor,
-					fontColor: data.fontColor,
 					fontSize: 12,
-				});
+				};
+				if (data.backColor !== undefined) balloonData.backColor = data.backColor;
+				if (data.fontColor !== undefined) balloonData.fontColor = data.fontColor;
+				EventBus.emitEvent('balloon:spawn', balloonData);
 			}
 		};
 
@@ -81,10 +82,6 @@ export default class ScoreManage
 		this.game = null;
 	}
 
-	getGame() {
-		return this.game || null;
-	}
-
 	getStorage() {
 		return (this.game && this.game.storage) || null;
 	}
@@ -98,7 +95,7 @@ export default class ScoreManage
 	}
 
 	getBalls() {
-		return (this.game && this.game.balls) || [];
+		return (this.game && this.game.objectManage && this.game.objectManage.balls) || [];
 	}
 
 

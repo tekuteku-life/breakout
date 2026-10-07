@@ -115,16 +115,8 @@ export default class Bar
 	}
 
 
-	getGame() {
-		return this.game || null;
-	}
-
-	getBalls() {
-		if (this.game) {
-			if (this.game.objectManage && this.game.objectManage.balls) return this.game.objectManage.balls;
-			if (this.game.balls) return this.game.balls;
-		}
-		return [];
+	absorbBall() {
+		this.absorptionNum++;
 	}
 
 	getPointX() {
@@ -138,10 +130,6 @@ export default class Bar
 
 	getCanvasWidth() {
 		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
-	}
-
-	getCanvasHeight() {
-		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
 	}
 
 
@@ -226,40 +214,7 @@ export default class Bar
 	//--------------------------------------------------
 	relaunch()
 	{
-		const balls = this.getBalls();
-		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
-
-		// 吸着しているボールを探す
-		let found = false;
-		for( var i = 0, len = balls.length; i < len; i++ )
-		{
-			var ball = balls[i];
-
-			if( ball && ball.isAbsorption == 1 )
-			{
-				// 吸着状態の解除
-				ball.isAbsorption = 0;
-
-				// 球速の変更
-				if( Math.abs(this.vx) > bDefaultSpeed * 0.3 )
-				{
-					ball.vx = this.vx * BAR_PARAM.SPIN_RATIO;
-
-				// ランダムに決定
-				} else
-				{
-					ball.vx *= Math.random()*0.7 + 0.3;
-				}
-
-				// 吸着球個数の減少
-				this.absorptionNum--;
-				found = true;
-				break;
-			}
-		}
-		if (!found) {
-			this.absorptionNum = 0;
-		}
+		EventBus.emitEvent('ball:relaunch', { barVx: this.vx });
 	}
 
 

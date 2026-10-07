@@ -53,48 +53,6 @@ export default class GameManage {
 		this.setupEventBus();
 	}
 
-	get bar() {
-		return this.objectManage ? this.objectManage.bar : null;
-	}
-	set bar(v) {
-		if (this.objectManage) this.objectManage.bar = v;
-	}
-
-	get balls() {
-		return this.objectManage ? this.objectManage.balls : [];
-	}
-	set balls(v) {
-		if (this.objectManage) this.objectManage.balls = v;
-	}
-
-	get items() {
-		return this.objectManage ? this.objectManage.items : [];
-	}
-	set items(v) {
-		if (this.objectManage) this.objectManage.items = v;
-	}
-
-	get weapons() {
-		return this.objectManage ? this.objectManage.weapons : [];
-	}
-	set weapons(v) {
-		if (this.objectManage) this.objectManage.weapons = v;
-	}
-
-	get blockMap() {
-		return this.objectManage ? this.objectManage.blockMap : [];
-	}
-	set blockMap(v) {
-		if (this.objectManage) this.objectManage.blockMap = v;
-	}
-
-	get balloons() {
-		return this.objectManage ? this.objectManage.balloons : [];
-	}
-	set balloons(v) {
-		if (this.objectManage) this.objectManage.balloons = v;
-	}
-
 	destructor() {
 		this.stop();
 
@@ -375,11 +333,6 @@ export default class GameManage {
 		this.start();
 	}
 
-	clearEntities() {
-		if (this.objectManage) {
-			this.objectManage.clearEntities();
-		}
-	}
 
 	start() {
 		this.stop();
@@ -457,7 +410,7 @@ export default class GameManage {
 				return;
 			}
 			// ゲームオーバー判定（ボール全滅 かつ ライフなし）
-			if (this.statusMng && this.statusMng.isAlive() === false && this.balls.length === 0) {
+			if (this.statusMng && this.statusMng.isAlive() === false && (!this.objectManage || this.objectManage.balls.length === 0)) {
 				this.gameOver();
 				return;
 			}
@@ -475,7 +428,7 @@ export default class GameManage {
 
 		// 設定フォームの制御
 		if (this.ctrl && this.ctrl.formSelector) {
-			const playing = this.balls.length !== 0;
+			const playing = Boolean(this.objectManage && this.objectManage.balls.length !== 0);
 			if (this.ctrl.formSelector["continue"]) {
 				this.ctrl.formSelector["continue"].disabled = playing;
 			}
@@ -487,31 +440,6 @@ export default class GameManage {
 		// 描画
 		if (this.dynamicCtx) {
 			this.drawAll(this.dynamicCtx);
-		}
-	}
-
-	//--------------------------------------------------
-	// 近傍ブロックの探索
-	//--------------------------------------------------
-	getNearbyBlocks(x, y, radius, vx = 0, vy = 0) {
-		return this.objectManage ? this.objectManage.getNearbyBlocks(x, y, radius, vx, vy) : [];
-	}
-
-	updateEntities() {
-		if (this.objectManage) {
-			this.objectManage.updateEntities();
-		}
-	}
-
-	applyFieldEffects() {
-		if (this.objectManage) {
-			this.objectManage.applyFieldEffects();
-		}
-	}
-
-	resolveCollisions() {
-		if (this.objectManage) {
-			this.objectManage.resolveCollisions();
 		}
 	}
 
@@ -537,7 +465,7 @@ export default class GameManage {
 		}
 
 		// 画面の難視化
-		if (this.bar && this.bar.disturbStatusTime > 0) {
+		if (this.objectManage && this.objectManage.bar && this.objectManage.bar.disturbStatusTime > 0) {
 			const blockWidth = this.blockWidth || DEFAULT_CONFIG.blockWidth;
 			const disturbWidth = blockWidth;
 			const startPoint = ((Date.now() / 6) % disturbWidth) * 2 - disturbWidth;
@@ -690,23 +618,5 @@ export default class GameManage {
 		};
 	}
 
-	launchBall(mouseDownTime = 0) {
-		return this.objectManage ? this.objectManage.launchBall(mouseDownTime) : null;
-	}
 
-	spawnWeapon(type, x, y = null, vect = null) {
-		return this.objectManage ? this.objectManage.spawnWeapon(type, x, y, vect) : null;
-	}
-
-	spawnItem(data) {
-		return this.objectManage ? this.objectManage.spawnItem(data) : null;
-	}
-
-	spawnBalloon(data) {
-		return this.objectManage ? this.objectManage.spawnBalloon(data) : null;
-	}
-
-	applyBallItem(type) {
-		return this.objectManage ? this.objectManage.applyBallItem(type) : null;
-	}
 }

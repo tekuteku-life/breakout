@@ -18,7 +18,7 @@ import EventBus from "./EventBus.js";
 //--------------------------------------------------
 export default class Ball
 {
-	constructor(launch, game = null, initialMouseDownTime = 0)
+	constructor(launch, game = null, initialMouseDownTime = 0, origin = null)
 	{
 		this.game = game;
 		const bSize = (this.game && this.game.ballSize !== undefined) ? this.game.ballSize : DEFAULT_CONFIG.ballSize;
@@ -67,7 +67,7 @@ export default class Ball
 		//--------------------------------------------------
 		if( launch == BALL_CREATE_MODE.LAUNCH ) {
 			const mdTime = this.inputMouseDownTime || 0;
-			const bar = (this.game && this.game.bar) || null;
+			const bar = origin || (this.game && this.game.objectManage && this.game.objectManage.bar) || null;
 			const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
 			const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
 
@@ -90,8 +90,10 @@ export default class Ball
 
 			// 初期位置の決定
 			if (bar) {
-				this.x = bar.getCenterX();
-				this.y = bar.getTopY() - this.radius;
+				const cx = typeof bar.getCenterX === 'function' ? bar.getCenterX() : (bar.x !== undefined ? bar.x : 0);
+				const topY = typeof bar.getTopY === 'function' ? bar.getTopY() : (bar.y !== undefined ? bar.y : 0);
+				this.x = cx;
+				this.y = topY - this.radius;
 			}
 		}
 	}
@@ -104,7 +106,7 @@ export default class Ball
 		this.onResetStatusHandler = null;
 		EventBus.removeTimer(`ball:${this.ballId}:status`);
 
-		const ballList = this.getBalls();
+		const ballList = (this.game && this.game.objectManage && this.game.objectManage.balls) || null;
 		if (ballList) {
 			const idx = ballList.indexOf(this);
 			if (idx >= 0) ballList.splice(idx, 1);
@@ -146,18 +148,6 @@ export default class Ball
 	resetStatus() {
 		this.status = BALL_STATUS.NORMAL;
 		this.statusTime = 0;
-	}
-
-	getGame() {
-		return this.game || null;
-	}
-
-	getBalls() {
-		if (this.game) {
-			if (this.game.objectManage && this.game.objectManage.balls) return this.game.objectManage.balls;
-			if (this.game.balls) return this.game.balls;
-		}
-		return [];
 	}
 
 	getCanvasWidth() {
@@ -263,7 +253,6 @@ export default class Ball
 	fall()
 	{
 		const game = this.game;
-		const bar = (game && game.bar) || null;
 
 		// 落下音（EventBus経由で通知）
 		EventBus.emitEvent('sound:play', 'fall');
@@ -275,10 +264,10 @@ export default class Ball
 		this.destructor();
 
 		// 残りのボール一覧を取得（destructorでthis.gameがnullになるためgame参照を使用）
-		const remainingBalls = (game && game.balls) ? game.balls : [];
+		const remainingBalls = (game && game.objectManage && game.objectManage.balls) ? game.objectManage.balls : [];
 
 		// 全てのボールが落ちた場合のみ、EventBus経由でラウンドリセットを通知
-		if ((!bar || bar.immortalStatusTime <= 0) && remainingBalls.length === 0) {
+		if (remainingBalls.length === 0) {
 			EventBus.emitEvent('ball:allLost');
 		}
 	}
@@ -327,11 +316,11 @@ export default class Ball
 	//--------------------------------------------------
 	// 移動
 	//--------------------------------------------------
-	move()
+	move(targetBar = null)
 	{
 		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
 		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
-		const bar = (this.game && this.game.bar) || null;
+		const bar = targetBar || (this.game && this.game.objectManage && this.game.objectManage.bar) || null;
 
 		// 移動前の座標を保持
 		this.prevX = this.x;
@@ -462,7 +451,11 @@ export default class Ball
 			{
 				this.isAbsorption = 1;
 				this.absorptionPoint = [ this.getCenterX() - bar.getCenterX(), this.getCenterY() - bar.getTopY() ];
-				bar.absorptionNum++;
+				if (typeof bar.absorbBall === 'function') {
+					bar.absorbBall();
+				} else {
+					bar.absorptionNum++;
+				}
 				this.histX = [];
 				this.histY = [];
 				return true;
@@ -510,7 +503,7 @@ export default class Ball
 	//--------------------------------------------------
 	// 衝突判定（単一ブロックとの交差・反射判定）
 	//--------------------------------------------------
-	checkCollision(block)
+	checkCollision(block, blockMapParam = null)
 	{
 		if (!block) { return false; }
 		if (this.simulate === 0 && block.type === 0) { return false; }
@@ -530,7 +523,7 @@ export default class Ball
 		let directVectX = 0;
 		let directVectY = 0;
 
-		const blockMap = (this.game && this.game.blockMap) || (block.game && block.game.blockMap) || null;
+		const blockMap = blockMapParam || (this.game && this.game.objectManage && this.game.objectManage.blockMap) || (block.game && block.game.objectManage && block.game.objectManage.blockMap) || null;
 		const blkWidth = block.width || DEFAULT_CONFIG.blockWidth;
 		const blkHeight = block.height || DEFAULT_CONFIG.blockHeight;
 		const sBarHeight = this.getStatusBarHeight();

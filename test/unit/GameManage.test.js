@@ -21,18 +21,19 @@ test('GameManage class unit tests', async (t) => {
 		assert.equal(gm.statusBarHeight, 30);
 		assert.equal(gm.FPS, 60);
 
-		assert.equal(gm.bar, null);
-		assert.deepEqual(gm.balls, []);
-		assert.deepEqual(gm.items, []);
-		assert.deepEqual(gm.weapons, []);
-		assert.deepEqual(gm.blockMap, []);
+		assert.equal(gm.objectManage.bar, null);
+		assert.deepEqual(gm.objectManage.balls, []);
+		assert.deepEqual(gm.objectManage.items, []);
+		assert.deepEqual(gm.objectManage.weapons, []);
+		assert.deepEqual(gm.objectManage.blockMap, []);
+		gm.destructor();
 	});
 
 	await t.test('initializes game state, entities, and canvases on init(0)', () => {
 		const gm = new GameManage();
 		gm.init(0);
 
-		assert.ok(gm.bar !== null);
+		assert.ok(gm.objectManage.bar !== null);
 		assert.ok(gm.ctrl !== null);
 		assert.ok(gm.statusMng !== null);
 		assert.ok(gm.scoreMng !== null);
@@ -42,43 +43,38 @@ test('GameManage class unit tests', async (t) => {
 		// Stop animation frame loop
 		gm.stop();
 		assert.equal(gm.isRunning, false);
+		gm.destructor();
 	});
 
-	await t.test('spawns weapons and launches balls via helper methods', () => {
+	await t.test('spawns weapons and launches balls via objectManage', () => {
 		const gm = new GameManage();
 		gm.init(0);
 		gm.stop();
 
 		// Launch ball
-		gm.balls = [];
-		gm.launchBall();
-		assert.equal(gm.balls.length, 1);
+		gm.objectManage.balls = [];
+		gm.objectManage.launchBall();
+		assert.equal(gm.objectManage.balls.length, 1);
 
 		// Spawn weapon
-		gm.weapons = [];
-		gm.spawnWeapon(1, 200);
-		assert.equal(gm.weapons.length, 1);
-		assert.equal(gm.weapons[0].type, 0);
-		assert.equal(gm.weapons[0].x, 200);
+		gm.objectManage.weapons = [];
+		gm.objectManage.spawnWeapon(1, 200);
+		assert.equal(gm.objectManage.weapons.length, 1);
+		assert.equal(gm.objectManage.weapons[0].type, 0);
+		assert.equal(gm.objectManage.weapons[0].x, 200);
 
 		// Spawn item & balloon & applyBallItem
-		gm.spawnItem({ type: 1, x: 10, y: 10 });
-		assert.equal(gm.items.length, 1);
-		gm.spawnBalloon({ text: '1', x: 0, y: 0, width: 10, height: 10, alpha: 1, backColor: '#0', fontColor: '#1', fontSize: 10 });
-		assert.equal(gm.balloons.length, 1);
-		gm.applyBallItem(1);
+		gm.objectManage.spawnItem({ type: 1, x: 10, y: 10 });
+		assert.equal(gm.objectManage.items.length, 1);
+		gm.objectManage.spawnBalloon({ text: '1', x: 0, y: 0, width: 10, height: 10, alpha: 1, backColor: '#0', fontColor: '#1', fontSize: 10 });
+		assert.equal(gm.objectManage.balloons.length, 1);
+		gm.objectManage.applyBallItem(1);
 
-		// Getters and setters
-		const prevBar = gm.bar;
-		gm.bar = prevBar;
-		assert.equal(gm.bar, prevBar);
-		gm.blockMap = [[1]];
-		assert.deepEqual(gm.blockMap, [[1]]);
-
-		// Delegations
-		gm.updateEntities();
-		gm.applyFieldEffects();
-		gm.resolveCollisions();
+		// ObjectManage operations
+		gm.objectManage.updateEntities();
+		gm.objectManage.applyFieldEffects();
+		gm.objectManage.resolveCollisions();
+		gm.destructor();
 	});
 
 	await t.test('exercises game loop step() updating game entities', () => {
@@ -149,7 +145,7 @@ test('GameManage class unit tests', async (t) => {
 
 		// bar:damage
 		EventBus.emitEvent('bar:damage', 2);
-		assert.equal(gm.bar.hitPoint, 3);
+		assert.equal(gm.objectManage.bar.hitPoint, 3);
 
 		// game:simulateReset
 		let resetCalled = false;
@@ -195,18 +191,14 @@ test('GameManage class unit tests', async (t) => {
 		const gm = new GameManage();
 		gm.init(0);
 
-		gm.launchBall();
-		gm.spawnWeapon(1, 200);
-		gm.items.push({ destructor: () => {} });
-		gm.balloons.push({ destructor: () => {} });
+		gm.objectManage.launchBall();
+		gm.objectManage.spawnWeapon(1, 200);
+		gm.objectManage.items.push({ destructor: () => {} });
+		gm.objectManage.balloons.push({ destructor: () => {} });
 
 		gm.destructor();
 		assert.equal(gm.isRunning, false);
-		assert.equal(gm.balls.length, 0);
-		assert.equal(gm.items.length, 0);
-		assert.equal(gm.weapons.length, 0);
-		assert.equal(gm.balloons.length, 0);
-		assert.equal(gm.bar, null);
+		assert.equal(gm.objectManage, null);
 		assert.equal(gm.ctrl, null);
 		assert.equal(gm.statusMng, null);
 		assert.equal(gm.scoreMng, null);

@@ -101,7 +101,7 @@ test('Block class unit tests', async (t) => {
 
 		// Vertical move block
 		const mockMoveMap = [];
-		const mockMoveGame = { blockMap: mockMoveMap, FPS: 50, blockWidth: 50, blockHeight: 20, statusBarHeight: 22, canvasWidth: 750 };
+		const mockMoveGame = { objectManage: { blockMap: mockMoveMap }, FPS: 50, blockWidth: 50, blockHeight: 20, statusBarHeight: 22, canvasWidth: 750 };
 		const bMove = new Block(1, 1, 1, BLOCK_FUNCTION.VERTICAL_MOVE, 0, 0, 0, mockMoveGame);
 		bMove.moveInter = 0;
 		bMove.moveVect = 1;
@@ -119,7 +119,7 @@ test('Block class unit tests', async (t) => {
 		let spawnedWeapon = null;
 		EventBus.destructor();
 		EventBus.addOnEvent('weapon:spawn', (data) => { spawnedWeapon = data; });
-		const mockGame = { FPS: 60, balls: [{}] };
+		const mockGame = { FPS: 60, objectManage: { balls: [{}] } };
 		const bAttack = new Block(1, 1, 1, BLOCK_FUNCTION.ATTACK, 0, 0, 0, mockGame);
 		bAttack.attackInter = 0;
 		bAttack.move();
@@ -146,7 +146,7 @@ test('Block class unit tests', async (t) => {
 		// Warp block
 		const mockWarpMap = [];
 		const mockWarpGame = {
-			blockMap: mockWarpMap,
+			objectManage: { blockMap: mockWarpMap },
 			FPS: 50,
 			blockWidth: 50,
 			blockHeight: 20,
@@ -218,7 +218,7 @@ test('Block class unit tests', async (t) => {
 	await t.test('explode triggers chain reactions across adjacent blocks', () => {
 		const mockExplodeMap = [];
 		const mockExplodeGame = {
-			blockMap: mockExplodeMap,
+			objectManage: { blockMap: mockExplodeMap },
 			FPS: 50,
 			blockWidth: 50,
 			blockHeight: 20,
@@ -252,7 +252,7 @@ test('Block class unit tests', async (t) => {
 
 	await t.test('move handles breakLimit countdown, formatting, and expiration', () => {
 		const mockBreakGame = {
-			balls: [{}],
+			objectManage: { balls: [{}] },
 			FPS: 50,
 			blockWidth: 50,
 			blockHeight: 20,
@@ -265,7 +265,7 @@ test('Block class unit tests', async (t) => {
 		assert.equal(b.text, '1.0 s');
 
 		// When balls.length == 0
-		mockBreakGame.balls = [];
+		mockBreakGame.objectManage.balls = [];
 		b.move();
 		assert.equal(b.breakLimit, 0);
 		assert.equal(b.text, null);
@@ -274,7 +274,7 @@ test('Block class unit tests', async (t) => {
 	await t.test('move handles moving block boundary collisions and direction reversals', () => {
 		const mockBoundMap = [];
 		const mockBoundGame = {
-			blockMap: mockBoundMap,
+			objectManage: { blockMap: mockBoundMap },
 			FPS: 50,
 			blockWidth: 50,
 			blockHeight: 20,
@@ -331,7 +331,7 @@ test('Block class unit tests', async (t) => {
 	await t.test('action handles infinite loop bounce prevention and explode strength', () => {
 		const mockActionMap = [];
 		const mockActionGame = {
-			blockMap: mockActionMap,
+			objectManage: { blockMap: mockActionMap },
 			FPS: 50,
 			blockWidth: 50,
 			blockHeight: 20,
@@ -373,35 +373,33 @@ test('Block class unit tests', async (t) => {
 		const mockCtrl = { ctrlProp: true };
 		const mockGame = {
 			staticCtx: mockStaticCtx,
-			blockMap: mockBlockMap,
-			balls: mockBalls,
+			objectManage: {
+				blockMap: mockBlockMap,
+				balls: mockBalls,
+			},
 			ctrl: mockCtrl,
 			canvasWidth: 800,
 			canvasHeight: 600,
 			statusBarHeight: 30,
 		};
 		const b = new Block(1, 1, 1, 0, 1, 0, 0, mockGame);
-		assert.equal(b.getGame(), mockGame);
 		assert.equal(b.getStaticCtx(), mockStaticCtx);
-		assert.equal(b.getBlockMap(), mockBlockMap);
-		assert.equal(b.getCtrl(), mockCtrl);
 		assert.equal(b.getCanvasWidth(), 800);
 		assert.equal(b.getCanvasHeight(), 600);
 		assert.equal(b.getStatusBarHeight(), 30);
 
-		// Destructor with item destructor
-		let itemDestructorCalled = false;
-		b.item = { destructor: () => { itemDestructorCalled = true; } };
+		// Destructor cleanup
 		b.clear = () => {};
 		b.destructor();
-		assert.equal(itemDestructorCalled, true);
+		assert.equal(b.item, null);
+		assert.equal(b.game, null);
 	});
 
 	await t.test('infinite block (infinit=1) cannot be destroyed by Hard (STRONG) ball, only by Fire (ULTIMATE) ball', () => {
 		EventBus.destructor();
 		const mockGame = {
 			FPS: 60,
-			blockMap: [],
+			objectManage: { blockMap: [] },
 			canvasWidth: 750,
 			canvasHeight: 530,
 			statusBarHeight: 0,

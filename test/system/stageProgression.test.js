@@ -21,15 +21,15 @@ describe('System Test SYS-04 & SYS-05: Stage Progression and Clear Scenarios', (
 		g.statusMng.blockNum = 0; // Trigger stage clear
 
 		// Add dummy active entities
-		g.balls = [{ radius: 4 }];
-		g.items = [{ type: 1 }];
+		g.objectManage.balls = [{ radius: 4 }];
+		g.objectManage.items = [{ type: 1 }];
 
 		// Trigger game over routine (with statusMng.isAlive() === true => clear branch)
 		g.gameOver();
 
 		// Entities cleared
-		assert.equal(g.balls.length, 0, 'Balls should be cleared upon clear');
-		assert.equal(g.items.length, 0, 'Items should be cleared upon clear');
+		assert.equal(g.objectManage.balls.length, 0, 'Balls should be cleared upon clear');
+		assert.equal(g.objectManage.items.length, 0, 'Items should be cleared upon clear');
 
 		// Life increased by stageLifeUp[1] (= 1) -> life becomes 3
 		assert.equal(g.statusMng.life, 3, 'Life should be restored according to stageLifeUp');

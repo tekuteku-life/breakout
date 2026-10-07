@@ -15,6 +15,7 @@ import {
 	BALL_STATUS,
 	ITEM_TYPE,
 	BALL_PARAM,
+	BAR_PARAM,
 	BLOCK_FUNCTION,
 	WEAPON_TYPE,
 	WEAPON_PARAM,
@@ -87,6 +88,10 @@ export default class ObjectManage {
 		this.onBallAllLostHandler = () => {
 			this.onBallAllLost();
 		};
+		this.onBallRelaunchHandler = (data) => {
+			const barVx = (data && data.barVx !== undefined) ? data.barVx : (this.bar ? this.bar.vx : 0);
+			this.relaunchBall(barVx);
+		};
 
 		EventBus.addOnEvent('item:spawn', this.onItemSpawnHandler);
 		EventBus.addOnEvent('weapon:spawn', this.onWeaponSpawnHandler);
@@ -94,6 +99,7 @@ export default class ObjectManage {
 		EventBus.addOnEvent('ball:launch', this.onBallLaunchHandler);
 		EventBus.addOnEvent('ball:applyItem', this.onBallApplyItemHandler);
 		EventBus.addOnEvent('ball:allLost', this.onBallAllLostHandler);
+		EventBus.addOnEvent('ball:relaunch', this.onBallRelaunchHandler);
 	}
 
 	removeEventBus() {
@@ -104,6 +110,9 @@ export default class ObjectManage {
 		if (this.onBallLaunchHandler) { EventBus.removeOnEvent('ball:launch', this.onBallLaunchHandler); }
 		if (this.onBallApplyItemHandler) { EventBus.removeOnEvent('ball:applyItem', this.onBallApplyItemHandler); }
 		if (this.onBallAllLostHandler) { EventBus.removeOnEvent('ball:allLost', this.onBallAllLostHandler); }
+		if (this.onBallRelaunchHandler) {
+			EventBus.removeOnEvent('ball:relaunch', this.onBallRelaunchHandler);
+		}
 
 		this.onItemSpawnHandler = null;
 		this.onWeaponSpawnHandler = null;
@@ -111,6 +120,7 @@ export default class ObjectManage {
 		this.onBallLaunchHandler = null;
 		this.onBallApplyItemHandler = null;
 		this.onBallAllLostHandler = null;
+		this.onBallRelaunchHandler = null;
 		this.eventBusSetup = false;
 	}
 
@@ -244,13 +254,14 @@ export default class ObjectManage {
 
 		// ブロック移動
 		if (this.blockMap) {
+			const hasBalls = this.balls.length > 0;
 			for (let i = 0, len1 = this.blockMap.length; i < len1; i++) {
 				const blockLine = this.blockMap[i];
 				if (blockLine) {
 					for (let j = 0, len2 = blockLine.length; j < len2; j++) {
 						const block = blockLine[j];
 						if (block && typeof block.move === 'function') {
-							block.move();
+							block.move(hasBalls, this.blockMap);
 						}
 					}
 				}
@@ -260,7 +271,7 @@ export default class ObjectManage {
 		// ボール移動
 		for (let i = 0; i < this.balls.length; i++) {
 			const b = this.balls[i];
-			if (b && typeof b.move === 'function') { b.move(); }
+			if (b && typeof b.move === 'function') { b.move(this.bar); }
 		}
 
 		// 武器移動
@@ -335,9 +346,9 @@ export default class ObjectManage {
 				const nearBlocks = this.getNearbyBlocks(ball.x, ball.y, ball.radius, ball.vx, ball.vy);
 				for (let k = 0; k < nearBlocks.length; k++) {
 					const blk = nearBlocks[k];
-					if (ball.checkCollision(blk) === true) {
+					if (ball.checkCollision(blk, this.blockMap) === true) {
 						const isChangedVY = (ball.lastHitAxis === 'y') ? 1 : 0;
-						const addSpeed = blk.action(ball, isChangedVY);
+						const addSpeed = blk.action(ball, isChangedVY, this.blockMap);
 						if (addSpeed && typeof ball.applySpeedDelta === 'function') {
 							ball.applySpeedDelta(addSpeed);
 						}
@@ -379,10 +390,10 @@ export default class ObjectManage {
 							EventBus.emitEvent('sound:play', 'block');
 						}
 						if (weapon.type === WEAPON_TYPE.MISSILE) {
-							blk.action(null, 0);
+							blk.action(null, 0, this.blockMap);
 						} else if (blk.infinit !== 1) {
 							if (blk.life < 1) {
-								blk.action(null, 0);
+								blk.action(null, 0, this.blockMap);
 							} else {
 								blk.decreaseLife();
 							}
@@ -428,9 +439,35 @@ export default class ObjectManage {
 	}
 
 	launchBall(mouseDownTime = 0) {
-		const b = new Ball(BALL_CREATE_MODE.LAUNCH, this.game, mouseDownTime);
+		const origin = this.bar ? { x: this.bar.getCenterX(), y: this.bar.getTopY(), vx: this.bar.vx } : null;
+		const b = new Ball(BALL_CREATE_MODE.LAUNCH, this.game, mouseDownTime, origin);
 		this.balls.push(b);
 		return b;
+	}
+
+	relaunchBall(barVx = null) {
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		const effectiveBarVx = (barVx !== null && barVx !== undefined) ? barVx : (this.bar ? this.bar.vx : 0);
+		for (let i = 0, len = this.balls.length; i < len; i++) {
+			const ball = this.balls[i];
+			if (ball && ball.isAbsorption === 1) {
+				ball.isAbsorption = 0;
+				if (Math.abs(effectiveBarVx) > bDefaultSpeed * 0.3) {
+					ball.vx = effectiveBarVx * BAR_PARAM.SPIN_RATIO;
+				} else {
+					ball.vx *= Math.random() * 0.7 + 0.3;
+				}
+				if (Math.abs(ball.vx) > bDefaultSpeed * 1.5) {
+					ball.vx = (ball.vx > 0 ? 1 : -1) * bDefaultSpeed * 1.5;
+				}
+				if (this.bar && this.bar.absorptionNum > 0) {
+					this.bar.absorptionNum--;
+				}
+				EventBus.emitEvent('sound:play', 'launch');
+				return true;
+			}
+		}
+		return false;
 	}
 
 	spawnWeapon(type, x, y = null, vect = null) {
@@ -463,16 +500,23 @@ export default class ObjectManage {
 
 	spawnBalloon(data) {
 		if (!data) { return null; }
+		const backColor = (data.backColor !== undefined)
+			? data.backColor
+			: ((this.game && this.game.popBalloonBackColor !== undefined) ? this.game.popBalloonBackColor : DEFAULT_CONFIG.popBalloonBackColor);
+		const fontColor = (data.fontColor !== undefined)
+			? data.fontColor
+			: ((this.game && this.game.popBalloonFontColor !== undefined) ? this.game.popBalloonFontColor : DEFAULT_CONFIG.popBalloonFontColor);
+
 		const balloon = new Balloon(
 			data.text,
 			data.x,
 			data.y,
-			data.width,
-			data.height,
-			data.alpha,
-			data.backColor,
-			data.fontColor,
-			data.fontSize
+			data.width !== undefined ? data.width : 50,
+			data.height !== undefined ? data.height : 20,
+			data.alpha !== undefined ? data.alpha : 1,
+			backColor,
+			fontColor,
+			data.fontSize !== undefined ? data.fontSize : 16
 		);
 		this.balloons.push(balloon);
 		return balloon;
@@ -526,6 +570,11 @@ export default class ObjectManage {
 	}
 
 	onBallAllLost() {
+		// バーが不死身状態の場合はラウンドリセットおよびライフ減少を行わない
+		if (this.bar && this.bar.immortalStatusTime > 0) {
+			return;
+		}
+
 		// 全アイテムの消去
 		for (let i = 0; i < this.items.length; i++) {
 			if (this.items[i] && typeof this.items[i].destructor === 'function') {

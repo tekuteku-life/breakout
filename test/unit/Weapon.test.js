@@ -9,8 +9,7 @@ test('Weapon class unit tests', async (t) => {
 	const mockCtx = createMock2DContext();
 
 	await t.test('constructor and coordinate getters', () => {
-		const mockBar = { getTopY: () => 500 };
-		const mockGame = { bar: mockBar };
+		const mockGame = { objectManage: { weapons: [] } };
 		const gun = new Weapon(1, 100, 200, 1, mockGame);
 		assert.equal(gun.type, 0); // gun
 		assert.equal(gun.x, 100);
@@ -18,7 +17,7 @@ test('Weapon class unit tests', async (t) => {
 		assert.equal(gun.vect, 1);
 		assert.equal(gun.size, 1);
 
-		const missile = new Weapon(2, 100, null, null, mockGame);
+		const missile = new Weapon(2, 100, 500, null, mockGame);
 		assert.equal(missile.type, 1); // missile
 		assert.equal(missile.size, 4);
 		assert.equal(missile.vect, 1);
@@ -38,7 +37,7 @@ test('Weapon class unit tests', async (t) => {
 		EventBus.addOnEvent('sound:play', (data) => {
 			soundPlayed = data;
 		});
-		const mockGame = { FPS: 60 };
+		const mockGame = { FPS: 60, objectManage: { weapons: [] } };
 
 		// Gun launch
 		const gun = new Weapon(1, 100, 200, 1, mockGame);
@@ -55,9 +54,9 @@ test('Weapon class unit tests', async (t) => {
 
 		// Offscreen
 		const offscreenWp = new Weapon(1, 100, -100, 1, mockGame);
-		mockGame.weapons = [offscreenWp];
+		mockGame.objectManage.weapons = [offscreenWp];
 		offscreenWp.move();
-		assert.equal(mockGame.weapons.length, 0);
+		assert.equal(mockGame.objectManage.weapons.length, 0);
 	});
 
 	await t.test('checkCollision handles block collisions for gun and missile', () => {
@@ -78,46 +77,48 @@ test('Weapon class unit tests', async (t) => {
 		};
 
 		const mockGame = {
-			weapons: []
+			objectManage: {
+				weapons: []
+			}
 		};
 
 		// Gun hits block
 		const gun = new Weapon(1, 100, 100, 1, mockGame);
 		gun.setInter = 1;
-		mockGame.weapons = [gun];
+		mockGame.objectManage.weapons = [gun];
 		gun.move();
 		if (gun.checkCollision(mockBlock)) {
 			if (mockBlock.life >= 1) mockBlock.decreaseLife();
 			gun.destructor();
 		}
 		assert.equal(blockLifeDecreased, true);
-		assert.equal(mockGame.weapons.length, 0);
+		assert.equal(mockGame.objectManage.weapons.length, 0);
 
 		// Gun hits block with life < 1
 		mockBlock.life = 0;
 		const gun2 = new Weapon(1, 100, 100, 1, mockGame);
 		gun2.setInter = 1;
-		mockGame.weapons = [gun2];
+		mockGame.objectManage.weapons = [gun2];
 		gun2.move();
 		if (gun2.checkCollision(mockBlock)) {
 			mockBlock.action();
 			gun2.destructor();
 		}
 		assert.equal(blockActionCalled, true);
-		assert.equal(mockGame.weapons.length, 0);
+		assert.equal(mockGame.objectManage.weapons.length, 0);
 
 		// Missile hits block
 		blockActionCalled = false;
 		const missile = new Weapon(2, 100, 100, 1, mockGame);
 		missile.setInter = 1;
-		mockGame.weapons = [missile];
+		mockGame.objectManage.weapons = [missile];
 		missile.move();
 		if (missile.checkCollision(mockBlock)) {
 			mockBlock.action();
 			missile.destructor();
 		}
 		assert.equal(blockActionCalled, true);
-		assert.equal(mockGame.weapons.length, 0);
+		assert.equal(mockGame.objectManage.weapons.length, 0);
 	});
 
 	await t.test('checkCollision handles bar collisions when moving downward', () => {
@@ -132,13 +133,15 @@ test('Weapon class unit tests', async (t) => {
 			endamage: () => { damageApplied = true; },
 		};
 		const mockGame = {
-			bar: mockBar,
-			weapons: []
+			objectManage: {
+				bar: mockBar,
+				weapons: []
+			}
 		};
 
 		const wpDown = new Weapon(1, 200, 295, -1, mockGame);
 		wpDown.setInter = 1;
-		mockGame.weapons = [wpDown];
+		mockGame.objectManage.weapons = [wpDown];
 		wpDown.move();
 
 		if (wpDown.checkCollision(mockBar)) {
@@ -147,7 +150,7 @@ test('Weapon class unit tests', async (t) => {
 		}
 
 		assert.equal(damageApplied, true);
-		assert.equal(mockGame.weapons.length, 0);
+		assert.equal(mockGame.objectManage.weapons.length, 0);
 	});
 
 	await t.test('draw renders gun and missile graphics', () => {
@@ -159,31 +162,30 @@ test('Weapon class unit tests', async (t) => {
 	});
 
 	await t.test('destructor removes weapon from game weapons array', () => {
-		const mockGame = { weapons: [] };
+		const mockGame = { objectManage: { weapons: [] } };
 		const wp = new Weapon(1, 0, 0, 1, mockGame);
-		mockGame.weapons.push(wp);
+		mockGame.objectManage.weapons.push(wp);
 		wp.destructor();
-		assert.equal(mockGame.weapons.length, 0);
+		assert.equal(mockGame.objectManage.weapons.length, 0);
 	});
 
 	await t.test('Weapon getters and destructor via standard Array', () => {
 		const mockBar = { getTopY: () => 400 };
 		const mockWeapons = [{ weaponProp: true }];
 		const mockGame = {
-			bar: mockBar,
-			weapons: mockWeapons,
+			objectManage: {
+				bar: mockBar,
+				weapons: mockWeapons,
+			},
 			canvasHeight: 600,
 			statusBarHeight: 30,
 		};
-		const wp = new Weapon(1, 50, null, 1, mockGame);
-		assert.equal(wp.getGame(), mockGame);
-		assert.equal(wp.getWeapons(), mockWeapons);
+		const wp = new Weapon(1, 50, 400, 1, mockGame);
 		assert.equal(wp.getCanvasHeight(), 600);
-		assert.equal(wp.getStatusBarHeight(), 30);
 
 		// destructor removes weapon from array
 		const plainArray = [wp];
-		mockGame.weapons = plainArray;
+		mockGame.objectManage.weapons = plainArray;
 		wp.destructor();
 		assert.equal(plainArray.length, 0);
 	});
@@ -191,17 +193,19 @@ test('Weapon class unit tests', async (t) => {
 	await t.test('spawnWeapon sets bar.weaponInter to prevent continuous stacked bullet firing', () => {
 		const mockBar = { weaponInter: 0, getTopY: () => 500 };
 		const mockGame = {
-			bar: mockBar,
-			weapons: [],
+			objectManage: {
+				bar: mockBar,
+				weapons: [],
+			},
 		};
 
 		// Simulate GameManage.spawnWeapon
-		const w = new Weapon(1, 100, null, 1, mockGame);
-		mockGame.weapons.push(w);
+		const w = new Weapon(1, 100, 500, 1, mockGame);
+		mockGame.objectManage.weapons.push(w);
 		mockBar.weaponInter = 12;
 
 		assert.equal(mockBar.weaponInter, 12, 'weaponInter should be set to 12 after weapon fire');
-		assert.equal(mockGame.weapons.length, 1);
+		assert.equal(mockGame.objectManage.weapons.length, 1);
 	});
 
 	await t.test('draw calls save and restore on missile rendering', () => {

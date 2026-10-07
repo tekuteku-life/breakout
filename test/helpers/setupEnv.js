@@ -556,12 +556,14 @@ export function setupEnvironment() {
 	gm.statusMng = globalThis.statusMng;
 	gm.scoreMng = globalThis.scoreMng;
 	gm.sounds = globalThis.sounds;
-	gm.bar = globalThis.bar;
-	gm.weapons = globalThis.weapons;
-	gm.items = globalThis.items;
-	gm.balls = globalThis.balls;
-	gm.balloons = globalThis.balloons;
-	gm.blockMap = globalThis.blockMap;
+	if (gm.objectManage) {
+		gm.objectManage.bar = globalThis.bar;
+		gm.objectManage.weapons = globalThis.weapons;
+		gm.objectManage.items = globalThis.items;
+		gm.objectManage.balls = globalThis.balls;
+		gm.objectManage.balloons = globalThis.balloons;
+		gm.objectManage.blockMap = globalThis.blockMap;
+	}
 	gm.loadSetupVariables(globalThis);
 	if (gm.screenManage && typeof gm.screenManage.printRecordScreen === 'function') {
 		gm.screenManage.printRecordScreen(0, 0);

@@ -24,7 +24,7 @@ describe('System Test SYS-02 & SYS-03: Game Play, Launch, and Loop', () => {
 		const input = window.inputManage;
 
 		// Verify initial state
-		assert.equal(g.balls.length, 0);
+		assert.equal(g.objectManage.balls.length, 0);
 
 		// Mouse down to charge launch
 		g.dynamicCanvas.onmousedown();
@@ -32,29 +32,29 @@ describe('System Test SYS-02 & SYS-03: Game Play, Launch, and Loop', () => {
 
 		// Mouse up to launch
 		g.dynamicCanvas.onmouseup({ button: 0 });
-		assert.equal(g.balls.length, 1, 'Ball should be launched');
+		assert.equal(g.objectManage.balls.length, 1, 'Ball should be launched');
 		assert.equal(input.mouseDownTime, 0, 'Mouse down time should reset');
 
 		// Attempt duplicate launch while ball is in play
 		g.dynamicCanvas.onmousedown();
 		g.dynamicCanvas.onmouseup({ button: 0 });
-		assert.equal(g.balls.length, 1, 'Duplicate ball launch should be prevented');
+		assert.equal(g.objectManage.balls.length, 1, 'Duplicate ball launch should be prevented');
 	});
 
 	it('SYS-02: handles weapon firing and absorbed ball relaunching on click', () => {
 		const g = window.gameManage;
 
 		// Set bar weapon
-		g.bar.weapon = 1; // Gun
-		g.bar.weaponInter = 0;
+		g.objectManage.bar.weapon = 1; // Gun
+		g.objectManage.bar.weaponInter = 0;
 
 		g.dynamicCanvas.onmousedown();
-		assert.equal(g.weapons.length, 1, 'Weapon should be fired on mousedown');
+		assert.equal(g.objectManage.weapons.length, 1, 'Weapon should be fired on mousedown');
 
 		// Absorbed ball relaunch
-		g.bar.absorptionNum = 1;
+		g.objectManage.bar.absorptionNum = 1;
 		let relaunched = false;
-		g.bar.relaunch = () => { relaunched = true; g.bar.absorptionNum = 0; };
+		g.objectManage.bar.relaunch = () => { relaunched = true; g.objectManage.bar.absorptionNum = 0; };
 		g.dynamicCanvas.onmouseup({ button: 0 });
 		assert.ok(relaunched, 'Absorbed ball should be relaunched on mouseup');
 	});
@@ -63,17 +63,17 @@ describe('System Test SYS-02 & SYS-03: Game Play, Launch, and Loop', () => {
 		const g = window.gameManage;
 
 		// Populate block with exploded > 0
-		const b = g.blockMap[0][0];
+		const b = g.objectManage.blockMap[0][0];
 		if (b) {
 			b.exploded = 5;
 		}
 
 		// Add balloon
 		const balloon = new Balloon(100, 100, 'Test Balloon', g);
-		g.balloons.push(balloon);
+		g.objectManage.balloons.push(balloon);
 
 		// Activate disturbance
-		g.bar.disturbStatusTime = 10;
+		g.objectManage.bar.disturbStatusTime = 10;
 
 		// Execute drawAll
 		g.drawAll(g.dynamicCtx);
@@ -117,7 +117,7 @@ describe('System Test SYS-02 & SYS-03: Game Play, Launch, and Loop', () => {
 		const input = window.inputManage;
 
 		// When pauseSwitch is 0 and ball is in play
-		g.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
+		g.objectManage.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
 		window.gameLoopTick();
 		assert.equal(g.ctrl.formSelector['continue'].disabled, true);
 		assert.equal(g.ctrl.formSelector['stage'].disabled, true);
@@ -135,13 +135,13 @@ describe('System Test SYS-02 & SYS-03: Game Play, Launch, and Loop', () => {
 		window.gameLoopTick();
 
 		// With weapons and items active
-		g.items = [new Item(0, 100, 100, '#000', '#fff', g)];
-		g.weapons = [new Weapon(1, 100, 100, 1, null, g)];
+		g.objectManage.items = [new Item(0, 100, 100, '#000', '#fff', g)];
+		g.objectManage.weapons = [new Weapon(1, 100, 100, 1, null, g)];
 		window.gameLoopTick();
 
 		// With balls empty
 		g.ctrl.autoSwitch = 0;
-		g.balls = [];
+		g.objectManage.balls = [];
 		window.gameLoopTick();
 		assert.equal(g.ctrl.formSelector['continue'].disabled, false);
 		assert.equal(g.ctrl.formSelector['stage'].disabled, false);

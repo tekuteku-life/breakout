@@ -71,33 +71,15 @@ export default class Block
 	{
 		const ctx = this.getStaticCtx();
 		if (ctx) { this.clear(ctx); }
-		if (this.item && typeof this.item.destructor === 'function') {
-			this.item.destructor();
-		}
 		this.item = null;
 		this.imgData = null;
 		this.game = null;
-	}
-
-	getGame() {
-		return this.game || null;
 	}
 
 	getStaticCtx() {
 		return (this.game && this.game.staticCtx) || null;
 	}
 
-	getBlockMap() {
-		if (this.game) {
-			if (this.game.objectManage && this.game.objectManage.blockMap) return this.game.objectManage.blockMap;
-			if (this.game.blockMap) return this.game.blockMap;
-		}
-		return [];
-	}
-
-	getCtrl() {
-		return (this.game && this.game.ctrl) || null;
-	}
 
 	getCanvasWidth() {
 		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
@@ -205,11 +187,10 @@ export default class Block
 	//--------------------------------------------------
 	// 状態・カウントダウン更新（見た目・耐久度）
 	//--------------------------------------------------
-	updateState()
+	updateState(hasBalls = true)
 	{
 		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 		const blockLife = (this.game && this.game.blockLife) || [];
-		const balls = (this.game && this.game.balls) || [];
 		const staticCtx = this.getStaticCtx();
 
 		// 爆発モーションのカウントダウン
@@ -219,7 +200,7 @@ export default class Block
 		if( this.breakLimit > 0 )
 		{
 			// カウントダウンのリセット
-			if( balls.length == 0 ) { this.breakLimit = 1; }
+			if( !hasBalls ) { this.breakLimit = 1; }
 
 			// 残り時間の計算
 			const countDownTime = ~~(this.breakLimit / fps * 10) / 10;
@@ -247,13 +228,13 @@ export default class Block
 	//--------------------------------------------------
 	// 移動処理（横移動ブロック）
 	//--------------------------------------------------
-	movePosition()
+	movePosition(blockMapParam = null)
 	{
 		if( this.type == 0 || this.func !== BLOCK_FUNCTION.VERTICAL_MOVE ) { return; }
 
 		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 		const blockMoveInter = (this.game && this.game.blockMoveInter !== undefined) ? this.game.blockMoveInter : DEFAULT_CONFIG.blockMoveInter;
-		const blockMap = this.getBlockMap();
+		const blockMap = blockMapParam || (this.game && this.game.objectManage && this.game.objectManage.blockMap) || [];
 		const canvasWidth = this.getCanvasWidth();
 		const statusBarHeight = this.getStatusBarHeight();
 		const staticCtx = this.getStaticCtx();
@@ -294,11 +275,10 @@ export default class Block
 	//--------------------------------------------------
 	// 攻撃処理（攻撃ブロックの弾発射通知）
 	//--------------------------------------------------
-	updateAttack()
+	updateAttack(hasBalls = true)
 	{
 		if( this.type == 0 || this.func !== BLOCK_FUNCTION.ATTACK ) { return; }
-		const balls = (this.game && this.game.balls) || [];
-		if( balls.length === 0 ) { return; }
+		if( !hasBalls ) { return; }
 
 		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 		const blockAttackInter = (this.game && this.game.blockAttackInter !== undefined) ? this.game.blockAttackInter : DEFAULT_CONFIG.blockAttackInter;
@@ -359,11 +339,14 @@ export default class Block
 	//--------------------------------------------------
 	// 動き・状態遷移
 	//--------------------------------------------------
-	move()
+	move(hasBalls = null, blockMap = null)
 	{
-		this.updateState();
-		this.movePosition();
-		this.updateAttack();
+		const effectiveHasBalls = hasBalls !== null
+			? hasBalls
+			: (this.game && this.game.objectManage && this.game.objectManage.balls ? this.game.objectManage.balls.length > 0 : true);
+		this.updateState(effectiveHasBalls);
+		this.movePosition(blockMap);
+		this.updateAttack(effectiveHasBalls);
 		this.updateBlink();
 	}
 
@@ -409,10 +392,10 @@ export default class Block
 	//--------------------------------------------------
 	// アクション
 	//--------------------------------------------------
-	action(ball, isChangedVY)
+	action(ball, isChangedVY, blockMapParam = null)
 	{
 		var addSpeed = 0;
-		const blockMap = this.getBlockMap();
+		const blockMap = blockMapParam || (this.game && this.game.objectManage && this.game.objectManage.blockMap) || [];
 		const canvasWidth = this.getCanvasWidth();
 		const canvasHeight = this.getCanvasHeight();
 		const statusBarHeight = this.getStatusBarHeight();
@@ -425,8 +408,6 @@ export default class Block
 		const ballMaxSpeed = (this.game && this.game.ballMaxSpeed !== undefined) ? this.game.ballMaxSpeed : DEFAULT_CONFIG.ballMaxSpeed;
 		const ballSize = (this.game && this.game.ballSize !== undefined) ? this.game.ballSize : DEFAULT_CONFIG.ballSize;
 		const blockIncrPoint = (this.game && this.game.blockIncrPoint !== undefined) ? this.game.blockIncrPoint : DEFAULT_CONFIG.blockIncrPoint;
-		const popBalloonBackColor = (this.game && this.game.popBalloonBackColor !== undefined) ? this.game.popBalloonBackColor : DEFAULT_CONFIG.popBalloonBackColor;
-		const popBalloonFontColor = (this.game && this.game.popBalloonFontColor !== undefined) ? this.game.popBalloonFontColor : DEFAULT_CONFIG.popBalloonFontColor;
 		const blockBreakLimit = (this.game && this.game.blockBreakLimit) || [];
 		const ballInfBoundCancel = (this.game && this.game.ballInfBoundCancel !== undefined) ? this.game.ballInfBoundCancel : DEFAULT_CONFIG.ballInfBoundCancel;
 
@@ -488,7 +469,7 @@ export default class Block
 			}
 
 			// 周りのブロックを破壊
-			this.explode(this.getLeftX() / this.width, (this.getTopY() - statusBarHeight) / this.height, 1, ball);
+			this.explode(this.getLeftX() / this.width, (this.getTopY() - statusBarHeight) / this.height, 1, ball, blockMap);
 
 			// 爆発による速度の増加
 			addSpeed = ballDefaultSpeed;
@@ -599,8 +580,6 @@ export default class Block
 						breakNum: ball.breakNum,
 						x: bx,
 						y: by,
-						backColor: popBalloonBackColor,
-						fontColor: popBalloonFontColor,
 					});
 				}
 
@@ -725,9 +704,9 @@ export default class Block
 	//--------------------------------------------------
 	// 爆弾による巻き込み破壊
 	//--------------------------------------------------
-	explode(x, y, area, ball)
+	explode(x, y, area, ball, blockMapParam = null)
 	{
-		const blockMap = this.getBlockMap();
+		const blockMap = blockMapParam || (this.game && this.game.objectManage && this.game.objectManage.blockMap) || [];
 		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 		const blockMotionTime = (this.game && this.game.blockMotionTime !== undefined) ? this.game.blockMotionTime : DEFAULT_CONFIG.blockMotionTime;
 		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint !== undefined) ? this.game.blockDefaultPoint : DEFAULT_CONFIG.blockDefaultPoint;
@@ -756,7 +735,7 @@ export default class Block
 							block.break(ball);
 
 							// さらに巻き込み破壊
-							this.explode(j, i, 1, ball);
+							this.explode(j, i, 1, ball, blockMap);
 
 						// 通常
 						} else {

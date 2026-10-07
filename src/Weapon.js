@@ -16,28 +16,19 @@ export default class Weapon
 	constructor(type, x, y, vect, game = null)
 	{
 		this.game = game;
-		const bar = (this.game && this.game.bar) || null;
 
 		this.type = type - 1;							// 武器の種類（0:銃、1：ミサイル）
 		this.x = x;										// 横軸座標
-		this.y = 0;										// 縦軸座標
+		this.y = (y != null) ? y : 0;					// 縦軸座標
 		this.vy = 0;									// 縦軸速度
-		this.vect = 0;									// 進行方向
+		this.vect = (vect != null) ? vect : 1;			// 進行方向
 		this.size = (this.type == WEAPON_TYPE.GUN ? 1 : 4);	// サイズ
 		this.setInter = 0;								// 発射間隔制御フラグ
-
-		// 縦軸座標の設定
-		if( y != null ) { this.y = y; }
-		else { this.y = bar ? ~~(bar.getTopY()) : 0; }
-
-		// 進行方向の設定
-		if( vect != null ) { this.vect = vect; }
-		else { this.vect = 1; }
 	}
 
 	destructor()
 	{
-		const weaponList = this.getWeapons();
+		const weaponList = (this.game && this.game.objectManage && this.game.objectManage.weapons) || null;
 		if (weaponList) {
 			const idx = weaponList.indexOf(this);
 			if (idx >= 0) weaponList.splice(idx, 1);
@@ -45,24 +36,8 @@ export default class Weapon
 		this.game = null;
 	}
 
-	getGame() {
-		return this.game || null;
-	}
-
-	getWeapons() {
-		if (this.game) {
-			if (this.game.objectManage && this.game.objectManage.weapons) return this.game.objectManage.weapons;
-			if (this.game.weapons) return this.game.weapons;
-		}
-		return [];
-	}
-
 	getCanvasHeight() {
 		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
-	}
-
-	getStatusBarHeight() {
-		return (this.game && this.game.statusBarHeight) || DEFAULT_CONFIG.statusBarHeight;
 	}
 
 

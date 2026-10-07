@@ -18,7 +18,7 @@ export default class Item
 		this.game = game;
 		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
 		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
-		const ctrl = this.getCtrl();
+		const ctrl = (this.game && this.game.ctrl) || null;
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
 		const itemTextList = (this.game && this.game.itemText) || [];
 		const imgSource = (this.game && this.game.imgData) || null;
@@ -36,29 +36,13 @@ export default class Item
 
 	destructor()
 	{
-		const itemList = this.getItems();
+		const itemList = (this.game && this.game.objectManage && this.game.objectManage.items) || null;
 		if (itemList) {
 			const idx = itemList.indexOf(this);
 			if (idx >= 0) itemList.splice(idx, 1);
 		}
 		this.imgData = null;
 		this.game = null;
-	}
-
-	getGame() {
-		return this.game || null;
-	}
-
-	getItems() {
-		if (this.game) {
-			if (this.game.objectManage && this.game.objectManage.items) return this.game.objectManage.items;
-			if (this.game.items) return this.game.items;
-		}
-		return [];
-	}
-
-	getCtrl() {
-		return (this.game && this.game.ctrl) || null;
 	}
 
 	getCanvasHeight() {
@@ -106,7 +90,7 @@ export default class Item
 	//--------------------------------------------------
 	move()
 	{
-		const ctrl = this.getCtrl();
+		const ctrl = (this.game && this.game.ctrl) || null;
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
 		const itemSpeedList = (this.game && this.game.itemSpeed) || ITEM_PARAM.DEFAULT_SPEED;
 		const speed = itemSpeedList[stageIdx] !== undefined ? itemSpeedList[stageIdx] : ITEM_PARAM.DEFAULT_SPEED[0];

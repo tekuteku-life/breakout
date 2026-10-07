@@ -50,18 +50,17 @@ test('Bar class unit tests', async (t) => {
 		assert.doesNotThrow(() => bar.draw(mockCtx));
 	});
 
-	await t.test('relaunch releases absorbed ball', () => {
-		const mockBall = {
-			isAbsorption: 1,
-			vx: 2,
-		};
-		const mockGame = { balls: [mockBall], FPS: 50 };
-		const bar = new Bar(mockGame);
-		bar.absorptionNum = 1;
+	await t.test('relaunch emits ball:relaunch with bar velocity', () => {
+		let emittedData = null;
+		EventBus.destructor();
+		EventBus.addOnEvent('ball:relaunch', (data) => {
+			emittedData = data;
+		});
+		const bar = new Bar();
+		bar.vx = 4;
 
 		bar.relaunch();
-		assert.equal(mockBall.isAbsorption, 0);
-		assert.equal(bar.absorptionNum, 0);
+		assert.deepEqual(emittedData, { barVx: 4 });
 	});
 
 	await t.test('move calculates speed towards pointX and handles state transitions with EventBus timers', () => {
@@ -165,22 +164,21 @@ test('Bar class unit tests', async (t) => {
 		const mockCtrl = { ctrlProp: true };
 		const mockInputManage = { pointX: 450 };
 		const mockGame = {
-			balls: mockBalls,
-			weapons: mockWeapons,
-			items: mockItems,
-			blockMap: mockBlockMap,
+			objectManage: {
+				balls: mockBalls,
+				weapons: mockWeapons,
+				items: mockItems,
+				blockMap: mockBlockMap,
+			},
 			ctrl: mockCtrl,
 			inputManage: mockInputManage,
 			canvasWidth: 800,
 			canvasHeight: 600,
 		};
 		const bar = new Bar(mockGame);
-		assert.equal(bar.getGame(), mockGame);
-		assert.equal(bar.getBalls(), mockBalls);
 		assert.equal(bar.getPointX(), 450);
 		bar.setPointX(500);
 		assert.equal(pointXSet, 500);
 		assert.equal(bar.getCanvasWidth(), 800);
-		assert.equal(bar.getCanvasHeight(), 600);
 	});
 });

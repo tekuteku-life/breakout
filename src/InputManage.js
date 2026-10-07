@@ -40,24 +40,27 @@ export default class InputManage {
 		this.boundHandlers = {};
 	}
 
-	getGame() {
-		return this.game || null;
-	}
-
 	getCtrl() {
 		return (this.game && this.game.ctrl) || null;
 	}
 
+	getObjectManage() {
+		return (this.game && this.game.objectManage) || null;
+	}
+
 	getBar() {
-		return (this.game && this.game.bar) || null;
+		const om = this.getObjectManage();
+		return om ? om.bar : null;
 	}
 
 	getBalls() {
-		return (this.game && this.game.balls) || [];
+		const om = this.getObjectManage();
+		return om ? om.balls : [];
 	}
 
 	getWeapons() {
-		return (this.game && this.game.weapons) || [];
+		const om = this.getObjectManage();
+		return om ? om.weapons : [];
 	}
 
 	getStatusMng() {
@@ -88,7 +91,7 @@ export default class InputManage {
 		// マウス移動
 		if (targetWin && targetCanvas) {
 			const onMouseMove = (event) => {
-				const g = this.getGame();
+				const g = this.game;
 				const scale = (g && g.ctrl) ? g.ctrl.scale : ((targetWin.ctrl) ? targetWin.ctrl.scale : 1);
 				this.getMouseMove(event, targetCanvas, 0, scale);
 			};
@@ -117,7 +120,7 @@ export default class InputManage {
 			this.boundHandlers.winClick = targetWin.onclick;
 
 			targetWin.onresize = () => {
-				const g = this.getGame();
+				const g = this.game;
 				const ctrl = g ? g.ctrl : targetWin.ctrl;
 				if (ctrl && typeof ctrl.fixSize === 'function') ctrl.fixSize();
 			};
@@ -134,7 +137,7 @@ export default class InputManage {
 		// タッチ操作
 		if (targetWin && targetCanvas) {
 			const onTouchMove = (event) => {
-				const g = this.getGame();
+				const g = this.game;
 				const scale = (g && g.ctrl) ? g.ctrl.scale : ((targetWin.ctrl) ? targetWin.ctrl.scale : 1);
 				this.getMouseMove(event, targetCanvas, 1, scale);
 				if (event && typeof event.preventDefault === 'function') {
@@ -210,7 +213,7 @@ export default class InputManage {
 	}
 
 	handlePointerDown(button = 0) {
-		const g = this.getGame();
+		const g = this.game;
 		const ctrl = this.getCtrl();
 		const bar = this.getBar();
 		const weapons = this.getWeapons();
@@ -326,7 +329,7 @@ export default class InputManage {
 		else if (code == 82) this.keyStr = 'prevStage';
 		else this.keyStr = '';
 
-		const g = this.getGame();
+		const g = this.game;
 		const ctrl = this.getCtrl();
 		if (this.keyStr !== '' &&
 			(this.keyStr !== 'Auto' && this.keyStr !== 'Ctrl' && this.keyStr !== 'Pause' && this.keyStr !== 'Sound' && this.keyStr !== 'sizeFit' && this.keyStr !== 'nextStage' && this.keyStr !== 'prevStage') &&

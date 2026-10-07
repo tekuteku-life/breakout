@@ -24,13 +24,13 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		const g = window.gameManage;
 		const block = new Block(5, 4, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 0, g);
 		block.item = 0; // Ball duplicate item
-		g.items = [];
+		g.objectManage.items = [];
 
 		// Break block
 		block.break(null);
-		assert.equal(g.items.length, 1, 'Item should be spawned upon block break');
+		assert.equal(g.objectManage.items.length, 1, 'Item should be spawned upon block break');
 
-		const item = g.items[0];
+		const item = g.objectManage.items[0];
 		assert.equal(item.type, 0);
 		const initialY = item.y;
 
@@ -42,14 +42,14 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 	it('destroys item when falling below canvas height', () => {
 		const g = window.gameManage;
 		const item = new Item(0, 100, g.canvasHeight + 10, '#000', '#fff', g);
-		g.items = [item];
+		g.objectManage.items = [item];
 		item.move();
-		assert.equal(g.items.length, 0, 'Item falling below canvas should be removed');
+		assert.equal(g.objectManage.items.length, 0, 'Item falling below canvas should be removed');
 	});
 
 	it('triggers collision when bar catches falling item', () => {
 		const g = window.gameManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 		bar.x = 200;
 		bar.y = 500;
 		bar.width = 100;
@@ -57,7 +57,7 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 
 		// Item positioned right above bar
 		const item = new Item(0, bar.getCenterX(), bar.getTopY() - 5, '#000', '#fff', g);
-		g.items = [item];
+		g.objectManage.items = [item];
 
 		// Check collision logic
 		assert.ok(item.checkCollision(bar));
@@ -65,45 +65,45 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		// Move should detect collision, apply effect and remove item
 		const initialScoreAward = g.scoreMng.awardNum.getItemNum;
 		item.move();
-		g.resolveCollisions();
-		assert.equal(g.items.length, 0, 'Item should be consumed upon bar collision');
+		g.objectManage.resolveCollisions();
+		assert.equal(g.objectManage.items.length, 0, 'Item should be consumed upon bar collision');
 		assert.equal(g.scoreMng.awardNum.getItemNum, initialScoreAward + 1);
 	});
 
 	it('applies ball multiplication item (type 0) up to ballMaxNum', () => {
 		const g = window.gameManage;
 		const ballMaxNum = g.ballMaxNum || 4;
-		g.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
-		const item = new Item(0, g.bar.x, g.bar.y, '#000', '#fff', g);
+		g.objectManage.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
+		const item = new Item(0, g.objectManage.bar.x, g.objectManage.bar.y, '#000', '#fff', g);
 		item.applyEffect();
-		assert.equal(g.balls.length, 2, 'Ball count should double');
+		assert.equal(g.objectManage.balls.length, 2, 'Ball count should double');
 
 		// Duplicate again
 		item.applyEffect();
-		assert.equal(g.balls.length, 4);
+		assert.equal(g.objectManage.balls.length, 4);
 
 		// Clamp test at ballMaxNum
-		g.balls = [];
+		g.objectManage.balls = [];
 		for (let i = 0; i < ballMaxNum; i++) {
-			g.balls.push(new Ball(BALL_CREATE_MODE.INIT, g));
+			g.objectManage.balls.push(new Ball(BALL_CREATE_MODE.INIT, g));
 		}
 		item.applyEffect();
-		assert.equal(g.balls.length, ballMaxNum, 'Ball count should not exceed ballMaxNum');
+		assert.equal(g.objectManage.balls.length, ballMaxNum, 'Ball count should not exceed ballMaxNum');
 	});
 
 	it('applies strong ball (type 1) and ultimate ball (type 2) status', () => {
 		const g = window.gameManage;
 		const ball = new Ball(BALL_CREATE_MODE.INIT, g);
-		g.balls = [ball];
+		g.objectManage.balls = [ball];
 
 		// Strong ball
-		const strongItem = new Item(1, g.bar.x, g.bar.y, '#000', '#fff', g);
+		const strongItem = new Item(1, g.objectManage.bar.x, g.objectManage.bar.y, '#000', '#fff', g);
 		strongItem.applyEffect();
 		assert.equal(ball.status, BALL_STATUS.STRONG);
 		assert.ok(ball.statusTime > 0);
 
 		// Ultimate ball
-		const ultimateItem = new Item(2, g.bar.x, g.bar.y, '#000', '#fff', g);
+		const ultimateItem = new Item(2, g.objectManage.bar.x, g.objectManage.bar.y, '#000', '#fff', g);
 		ultimateItem.applyEffect();
 		assert.equal(ball.status, BALL_STATUS.ULTIMATE);
 		assert.ok(ball.statusTime > 0);
@@ -111,7 +111,7 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 
 	it('applies bar width modification items (type 3: expand, type 4: shrink)', () => {
 		const g = window.gameManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 		const barMaxWidth = g.barMaxWidth || 140;
 		const barMinWidth = g.barMinWidth || 50;
 		bar.width = 100;
@@ -143,11 +143,11 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		const g = window.gameManage;
 		const initialLife = g.statusMng.life;
 
-		const healItem = new Item(5, g.bar.x, g.bar.y, '#000', '#fff', g);
+		const healItem = new Item(5, g.objectManage.bar.x, g.objectManage.bar.y, '#000', '#fff', g);
 		healItem.applyEffect();
 		assert.equal(g.statusMng.life, initialLife + 1);
 
-		const hurtItem = new Item(6, g.bar.x, g.bar.y, '#000', '#fff', g);
+		const hurtItem = new Item(6, g.objectManage.bar.x, g.objectManage.bar.y, '#000', '#fff', g);
 		hurtItem.applyEffect();
 		assert.equal(g.statusMng.life, initialLife);
 	});
@@ -157,20 +157,20 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		const ball = new Ball(BALL_CREATE_MODE.INIT, g);
 		ball.vx = 4;
 		ball.vy = -4;
-		g.balls = [ball];
+		g.objectManage.balls = [ball];
 
-		const speedUpItem = new Item(7, g.bar.x, g.bar.y, '#000', '#fff', g);
+		const speedUpItem = new Item(7, g.objectManage.bar.x, g.objectManage.bar.y, '#000', '#fff', g);
 		speedUpItem.applyEffect();
 		assert.ok(Math.abs(ball.vx) >= 4);
 
-		const speedDownItem = new Item(8, g.bar.x, g.bar.y, '#000', '#fff', g);
+		const speedDownItem = new Item(8, g.objectManage.bar.x, g.objectManage.bar.y, '#000', '#fff', g);
 		speedDownItem.applyEffect();
 		assert.ok(Math.abs(ball.vx) <= 10);
 	});
 
 	it('equips bar with weapons (type 9: gun, type 10: missile)', () => {
 		const g = window.gameManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 
 		// Gun item
 		const gunItem = new Item(9, bar.x, bar.y, '#000', '#fff', g);
@@ -187,7 +187,7 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 
 	it('applies bar mobility and status items (type 11: slow, type 12: vibrate, type 13: magnet, type 14: immortal, type 15: disturb)', () => {
 		const g = window.gameManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 		const barDefaultSpeed = g.barDefaultSpeed || 75;
 		const barMinSpeed = g.barMinSpeed || 10;
 		const barImmortalColor = g.barImmortalColor || '#ffff00';
@@ -222,7 +222,7 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 
 	it('resets bar status when status effect timers expire via EventBus or reset methods', () => {
 		const g = window.gameManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 		const barDefaultWidth = g.barDefaultWidth || 80;
 		const barDefaultSpeed = g.barDefaultSpeed || 75;
 		const barDefaultHeight = g.barDefaultHeight || 7;
@@ -264,42 +264,42 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		bar.applyItemEffect(13); // ABSORB
 		const ball = new Ball(BALL_CREATE_MODE.INIT, g);
 		ball.isAbsorption = 1;
-		g.balls = [ball];
+		g.objectManage.balls = [ball];
 		bar.absorptionNum = 1;
 		EventBus.tickTimers(15000);
 		assert.equal(bar.absorptionNum, 0, 'Absorbed balls should be relaunched');
 		assert.equal(ball.isAbsorption, 0);
 	});
 
-	it('exercises autoPlay.auto() dodging harmful items and targeting beneficial items', () => {
+	it('exercises autoPlay.step() dodging harmful items and targeting beneficial items', () => {
 		const g = window.gameManage;
 		const input = window.inputManage;
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 		bar.x = 300;
 		bar.y = 500;
-		g.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
-		g.balls[0].y = 100;
-		g.balls[0].vy = 2;
+		g.objectManage.balls = [new Ball(BALL_CREATE_MODE.INIT, g)];
+		g.objectManage.balls[0].y = 100;
+		g.objectManage.balls[0].vy = 2;
 
 		// 1. Beneficial item falling nearby
 		const goodItem = new Item(0, 320, 400, '#000', '#fff', g);
-		g.items = [goodItem];
-		g.autoPlay.auto();
+		g.objectManage.items = [goodItem];
+		g.autoPlay.step();
 		assert.ok(input.pointX !== undefined);
 
 		// 2. Harmful item (type 6: life decrease) falling right above bar
 		const badItem = new Item(6, bar.getCenterX(), bar.y - 15, '#000', '#fff', g);
-		g.items = [badItem];
-		g.autoPlay.auto();
+		g.objectManage.items = [badItem];
+		g.autoPlay.step();
 		// AI should attempt to steer away from the bad item
 		assert.ok(Math.abs(input.pointX - badItem.getCenterX()) >= 0);
 
 		// 3. Harmful item near left/right screen boundary
 		badItem.x = 10;
-		g.autoPlay.auto();
+		g.autoPlay.step();
 
 		badItem.x = g.canvasWidth - 10;
-		g.autoPlay.auto();
+		g.autoPlay.step();
 	});
 
 	it('draws items and bar absorption graphics without errors', () => {
@@ -308,7 +308,7 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		item.draw(g.staticCtx);
 
 		// Draw bar with absorption effects active
-		const bar = g.bar;
+		const bar = g.objectManage.bar;
 		bar.absorptionStatusTime = 100;
 		bar.draw(g.staticCtx);
 		bar.absorptionStatusTime = 0;
@@ -317,26 +317,26 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 	it('returns duplicated balls to normal state over time when cloned in special status', () => {
 		const g = window.gameManage;
 		const ball = new Ball(BALL_CREATE_MODE.INIT, g);
-		g.balls = [ball];
+		g.objectManage.balls = [ball];
 
 		// Apply HARD status (type 1)
-		const hardItem = new Item(1, g.bar.x, g.bar.y, '#000', '#fff', g);
+		const hardItem = new Item(1, g.objectManage.bar.x, g.objectManage.bar.y, '#000', '#fff', g);
 		hardItem.applyEffect();
 		assert.equal(ball.status, BALL_STATUS.STRONG);
 
 		// Duplicate balls (type 0: DOUBLE)
-		const doubleItem = new Item(0, g.bar.x, g.bar.y, '#000', '#fff', g);
+		const doubleItem = new Item(0, g.objectManage.bar.x, g.objectManage.bar.y, '#000', '#fff', g);
 		doubleItem.applyEffect();
-		assert.equal(g.balls.length, 2);
-		assert.equal(g.balls[0].status, BALL_STATUS.STRONG);
-		assert.equal(g.balls[1].status, BALL_STATUS.STRONG);
+		assert.equal(g.objectManage.balls.length, 2);
+		assert.equal(g.objectManage.balls[0].status, BALL_STATUS.STRONG);
+		assert.equal(g.objectManage.balls[1].status, BALL_STATUS.STRONG);
 
 		// Advance timer past status duration
 		const statusDurationMs = (g.ballStatusTime || 10) * 1000 + 100;
 		EventBus.tickTimers(statusDurationMs);
 
 		// Both original and duplicated balls should return to NORMAL
-		assert.equal(g.balls[0].status, BALL_STATUS.NORMAL);
-		assert.equal(g.balls[1].status, BALL_STATUS.NORMAL);
+		assert.equal(g.objectManage.balls[0].status, BALL_STATUS.NORMAL);
+		assert.equal(g.objectManage.balls[1].status, BALL_STATUS.NORMAL);
 	});
 });

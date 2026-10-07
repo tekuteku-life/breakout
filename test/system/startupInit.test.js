@@ -31,15 +31,15 @@ describe('System Test SYS-01: Startup and Initialization', () => {
 		assert.equal(gm.ctrl.stageIndex, 0);
 
 		// 3. Game entities initialization
-		assert.ok(gm.bar, 'Bar instance created');
+		assert.ok(gm.objectManage.bar, 'Bar instance created');
 		assert.ok(gm.statusMng, 'StatusManage instance created');
 		assert.ok(gm.scoreMng, 'ScoreManage instance created');
 		assert.ok(gm.sounds, 'Sound instance created');
 		assert.ok(gm.imgData, 'ImageData instance created');
-		assert.ok(Array.isArray(gm.balls));
-		assert.ok(Array.isArray(gm.items));
-		assert.ok(Array.isArray(gm.weapons));
-		assert.ok(gm.blockMap, 'blockMap loaded from stage 0');
+		assert.ok(Array.isArray(gm.objectManage.balls));
+		assert.ok(Array.isArray(gm.objectManage.items));
+		assert.ok(Array.isArray(gm.objectManage.weapons));
+		assert.ok(gm.objectManage.blockMap, 'blockMap loaded from stage 0');
 
 		// 4. Form selectors set up
 		assert.ok(gm.ctrl.formSelector['stage'], 'Stage selector populated');

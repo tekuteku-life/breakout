@@ -18,14 +18,17 @@ test('StatusManage class unit tests', async (t) => {
 		EventBus.addOnEvent('control:togglePause', () => {
 			ctrlObj.pauseSwitch = ctrlObj.pauseSwitch === 0 ? 1 : 0;
 		});
+		const om = overrides.objectManage || {
+			balls: overrides.balls !== undefined ? overrides.balls : [],
+			blockMap: overrides.blockMap !== undefined ? overrides.blockMap : [],
+		};
 		return {
 			FPS: 60,
 			maxLife: 5,
-			balls: [],
 			scoreMng: { score: 0 },
-			blockMap: [],
 			staticCtx: mockCtx,
 			imgData: globalThis.imgData,
+			objectManage: om,
 			...overrides,
 			ctrl: ctrlObj,
 		};
@@ -90,7 +93,7 @@ test('StatusManage class unit tests', async (t) => {
 		const sm = new StatusManage(game);
 		sm.countPlayTime();
 
-		game.balls = [{}];
+		game.objectManage.balls = [{}];
 		sm.startTime = 0;
 		sm.playTime = 0;
 		sm.countPlayTime();
@@ -181,14 +184,15 @@ test('StatusManage class unit tests', async (t) => {
 		const mockBlockMap = [[1]];
 		const mockStaticCtx = { staticCtxProp: true };
 		const mockGame = {
-			balls: mockBalls,
+			objectManage: {
+				balls: mockBalls,
+				blockMap: mockBlockMap,
+			},
 			ctrl: mockCtrl,
 			scoreMng: mockScoreMng,
-			blockMap: mockBlockMap,
 			staticCtx: mockStaticCtx,
 		};
 		const sm = new StatusManage(mockGame);
-		assert.equal(sm.getGame(), mockGame);
 		assert.equal(sm.getBalls(), mockBalls);
 		assert.deepEqual(sm.getCtrl(), mockCtrl);
 		assert.deepEqual(sm.getScoreMng(), mockScoreMng);

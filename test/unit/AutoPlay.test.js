@@ -22,18 +22,19 @@ test('AutoPlay class unit tests', async (t) => {
 		const mockBlockMap = [[1]];
 		const mockCtrl = { autoSwitch: 1 };
 		const mockGame = {
-			bar: mockBar,
-			balls: mockBalls,
-			items: mockItems,
-			weapons: mockWeapons,
-			blockMap: mockBlockMap,
+			objectManage: {
+				bar: mockBar,
+				balls: mockBalls,
+				items: mockItems,
+				weapons: mockWeapons,
+				blockMap: mockBlockMap,
+			},
 			ctrl: mockCtrl,
 			canvasWidth: 800,
 			canvasHeight: 600,
 		};
 
 		const ap = new AutoPlay(mockGame);
-		assert.equal(ap.getGame(), mockGame);
 		assert.equal(ap.getBar(), mockBar);
 		assert.equal(ap.getBalls(), mockBalls);
 		assert.equal(ap.getItems(), mockItems);
@@ -57,11 +58,13 @@ test('AutoPlay class unit tests', async (t) => {
 
 		const mockBar = new Bar();
 		const mockGame = {
-			bar: mockBar,
-			balls: [],
-			items: [],
-			weapons: [],
-			blockMap: [],
+			objectManage: {
+				bar: mockBar,
+				balls: [],
+				items: [],
+				weapons: [],
+				blockMap: [],
+			},
 			ctrl: { autoSwitch: 1, stageIndex: 0 },
 			canvasWidth: 750,
 			canvasHeight: 530,
@@ -69,7 +72,7 @@ test('AutoPlay class unit tests', async (t) => {
 		};
 
 		const ap = new AutoPlay(mockGame);
-		ap.auto();
+		ap.step();
 
 		assert.ok(closed);
 		assert.ok(launched);
@@ -83,11 +86,13 @@ test('AutoPlay class unit tests', async (t) => {
 		mockBar.relaunch = () => { relaunchedCount++; };
 
 		const mockGame = {
-			bar: mockBar,
-			balls: [new Ball(BALL_CREATE_MODE.OTHER)],
-			items: [],
-			weapons: [],
-			blockMap: [],
+			objectManage: {
+				bar: mockBar,
+				balls: [new Ball(BALL_CREATE_MODE.OTHER)],
+				items: [],
+				weapons: [],
+				blockMap: [],
+			},
 			ctrl: { autoSwitch: 1, stageIndex: 0 },
 			canvasWidth: 750,
 			canvasHeight: 530,
@@ -131,11 +136,13 @@ test('AutoPlay class unit tests', async (t) => {
 		bar.setPointX = (val) => { setPoint = val; };
 
 		const game = {
-			bar,
-			balls: [ball],
-			items: [],
-			weapons: [],
-			blockMap: [],
+			objectManage: {
+				bar,
+				balls: [ball],
+				items: [],
+				weapons: [],
+				blockMap: [],
+			},
 			ctrl: { autoSwitch: 1, stageIndex: 0 },
 			canvasWidth: 750,
 			canvasHeight: 530,
@@ -162,11 +169,13 @@ test('AutoPlay class unit tests', async (t) => {
 		const blockMap = [[], [], [null, null, null, infBlock, null, targetBlock]];
 
 		const game = {
-			bar,
-			balls: [new Ball(BALL_CREATE_MODE.OTHER)],
-			items: [],
-			weapons: [],
-			blockMap,
+			objectManage: {
+				bar,
+				balls: [new Ball(BALL_CREATE_MODE.OTHER)],
+				items: [],
+				weapons: [],
+				blockMap,
+			},
 			ctrl: { autoSwitch: 1, stageIndex: 0 },
 			canvasWidth: 750,
 			canvasHeight: 530,
@@ -178,7 +187,7 @@ test('AutoPlay class unit tests', async (t) => {
 
 		// With existing weapon fired
 		const firedWeapon = new Weapon(1, infBlock.getCenterX(), 300, 1);
-		game.weapons = [firedWeapon];
+		game.objectManage.weapons = [firedWeapon];
 		ap.step();
 	});
 
@@ -194,11 +203,13 @@ test('AutoPlay class unit tests', async (t) => {
 		ball.vy = 2;
 
 		const game = {
-			bar,
-			balls: [ball],
-			items: [testItem],
-			weapons: [],
-			blockMap: [],
+			objectManage: {
+				bar,
+				balls: [ball],
+				items: [testItem],
+				weapons: [],
+				blockMap: [],
+			},
 			ctrl: { autoSwitch: 1, stageIndex: 0 },
 			canvasWidth: 750,
 			canvasHeight: 530,
@@ -246,7 +257,7 @@ test('AutoPlay class unit tests', async (t) => {
 		for (let j = 0; j < 15; j++) {
 			blocks.push(new Block(j, 5, 1, 0, 1, 0, 0, gm));
 		}
-		gm.blockMap = [[], [], [], [], [], blocks];
+		gm.objectManage.blockMap = [[], [], [], [], [], blocks];
 		gm.statusMng.countBlockNum();
 
 		const ball = new Ball(BALL_CREATE_MODE.OTHER, gm);
@@ -254,11 +265,11 @@ test('AutoPlay class unit tests', async (t) => {
 		ball.y = 480;
 		ball.vx = 2;
 		ball.vy = 4;
-		gm.balls = [ball];
+		gm.objectManage.balls = [ball];
 
-		gm.bar.x = 180;
-		gm.bar.y = 500;
-		gm.bar.pointX = 180;
+		gm.objectManage.bar.x = 180;
+		gm.objectManage.bar.y = 500;
+		gm.objectManage.bar.pointX = 180;
 
 		gm.autoPlay.step();
 
@@ -266,7 +277,7 @@ test('AutoPlay class unit tests', async (t) => {
 		assert.ok(sim, 'simuData should be populated');
 		assert.ok(sim.breakMaxNum > 0 || sim.collisionMaxNum > 0, 'Should detect block collision/destruction in simulation');
 		assert.ok(typeof sim.dvx === 'number', 'sim.dvx should be computed');
-		assert.ok(typeof gm.bar.pointX === 'number', 'bar.pointX should be updated');
+		assert.ok(typeof gm.objectManage.bar.pointX === 'number', 'bar.pointX should be updated');
 	});
 
 	await t.test('auto optimizes route with multiple balls and handles leftSpeed swap', () => {
@@ -284,7 +295,7 @@ test('AutoPlay class unit tests', async (t) => {
 		for (let j = 0; j < 15; j++) {
 			blocks.push(new Block(j, 5, 1, 0, 1, 0, 0, gm));
 		}
-		gm.blockMap = [[], [], [], [], [], blocks];
+		gm.objectManage.blockMap = [[], [], [], [], [], blocks];
 		gm.statusMng.countBlockNum();
 
 		// Ball 1: near bar, falling, located on right side of screen
@@ -301,17 +312,17 @@ test('AutoPlay class unit tests', async (t) => {
 		ball2.vx = 2;
 		ball2.vy = -3;
 
-		gm.balls = [ball1, ball2];
-		gm.bar.x = 640;
-		gm.bar.y = 500;
-		gm.bar.pointX = 640;
+		gm.objectManage.balls = [ball1, ball2];
+		gm.objectManage.bar.x = 640;
+		gm.objectManage.bar.y = 500;
+		gm.objectManage.bar.pointX = 640;
 
 		gm.autoPlay.step();
 
 		const sim = gm.autoPlay.simuData;
 		assert.ok(sim, 'simuData should be created');
 		assert.ok(typeof sim.dvx === 'number');
-		assert.ok(typeof gm.bar.pointX === 'number');
+		assert.ok(typeof gm.objectManage.bar.pointX === 'number');
 	});
 
 	await t.test('auto does not throw TypeError when stDvx exceeds enDvx and no-collision search triggers', () => {
@@ -325,11 +336,13 @@ test('AutoPlay class unit tests', async (t) => {
 		ball.vy = 4;
 
 		const game = {
-			bar,
-			balls: [ball],
-			items: [],
-			weapons: [],
-			blockMap: [],
+			objectManage: {
+				bar,
+				balls: [ball],
+				items: [],
+				weapons: [],
+				blockMap: [],
+			},
 			ctrl: { autoSwitch: 1, stageIndex: 0 },
 			canvasWidth: 750,
 			canvasHeight: 530,

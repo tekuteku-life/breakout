@@ -13,14 +13,22 @@ test('Ball class unit tests', async (t) => {
 	globalThis.imgData = new ImageData(mockCtx);
 	globalThis.imgData.init();
 
-	const createMockGame = (overrides = {}) => ({
-		bar: globalThis.bar,
-		canvasWidth: globalThis.canvasWidth,
-		canvasHeight: globalThis.canvasHeight,
-		statusBarHeight: globalThis.statusBarHeight,
-		inputManage: { mouseDownTime: Date.now() - 500 },
-		...overrides,
-	});
+	const createMockGame = (overrides = {}) => {
+		const barObj = overrides.bar !== undefined ? overrides.bar : globalThis.bar;
+		const om = overrides.objectManage || {
+			bar: barObj,
+			balls: overrides.balls !== undefined ? overrides.balls : [],
+			blockMap: overrides.blockMap !== undefined ? overrides.blockMap : [],
+		};
+		return {
+			canvasWidth: globalThis.canvasWidth,
+			canvasHeight: globalThis.canvasHeight,
+			statusBarHeight: globalThis.statusBarHeight,
+			inputManage: { mouseDownTime: Date.now() - 500 },
+			objectManage: om,
+			...overrides,
+		};
+	};
 
 	await t.test('constructor initializes in normal mode and LAUNCH mode', () => {
 		// Normal mode
@@ -130,15 +138,17 @@ test('Ball class unit tests', async (t) => {
 
 		const mockBar = { immortalStatusTime: 0 };
 		const mockGame = {
-			bar: mockBar,
-			balls: [],
+			objectManage: {
+				bar: mockBar,
+				balls: [],
+			},
 		};
 
 		const ball = new Ball(BALL_CREATE_MODE.OTHER, mockGame);
-		mockGame.balls = [ball];
+		mockGame.objectManage.balls = [ball];
 
 		ball.fall();
-		assert.equal(mockGame.balls.length, 0);
+		assert.equal(mockGame.objectManage.balls.length, 0);
 		assert.equal(allLostCalled, true);
 		assert.equal(soundPlayed, 'fall');
 		assert.deepEqual(awardAdded, { key: 'fallBallNum', count: 1 });
@@ -151,23 +161,25 @@ test('Ball class unit tests', async (t) => {
 
 		const mockBar = { immortalStatusTime: 0 };
 		const mockGame = {
-			bar: mockBar,
-			balls: [],
+			objectManage: {
+				bar: mockBar,
+				balls: [],
+			},
 		};
 
 		const ball1 = new Ball(BALL_CREATE_MODE.OTHER, mockGame);
 		const ball2 = new Ball(BALL_CREATE_MODE.OTHER, mockGame);
-		mockGame.balls = [ball1, ball2];
+		mockGame.objectManage.balls = [ball1, ball2];
 
 		// First ball falls
 		ball1.fall();
-		assert.equal(mockGame.balls.length, 1);
-		assert.equal(mockGame.balls[0], ball2);
+		assert.equal(mockGame.objectManage.balls.length, 1);
+		assert.equal(mockGame.objectManage.balls[0], ball2);
 		assert.equal(allLostCalled, false, 'Should NOT emit ball:allLost when ball2 is still active');
 
 		// Second ball falls
 		ball2.fall();
-		assert.equal(mockGame.balls.length, 0);
+		assert.equal(mockGame.objectManage.balls.length, 0);
 		assert.equal(allLostCalled, true, 'Should emit ball:allLost when last ball falls');
 	});
 
@@ -218,8 +230,8 @@ test('Ball class unit tests', async (t) => {
 		ball.isAbsorption = 1;
 		ball.absorptionPoint = [10, 0];
 		ball.move();
-		assert.equal(ball.x, 10 + game.bar.getCenterX());
-		assert.equal(ball.y, 0 + game.bar.getTopY());
+		assert.equal(ball.x, 10 + game.objectManage.bar.getCenterX());
+		assert.equal(ball.y, 0 + game.objectManage.bar.getTopY());
 	});
 
 	await t.test('move and collision handlers handle wall bounces and bar reflections', () => {
@@ -250,36 +262,36 @@ test('Ball class unit tests', async (t) => {
 		assert.ok(ball.vy > 0);
 
 		// Bar bounce
-		game.bar.x = 200;
-		game.bar.y = 400;
-		game.bar.width = 100;
+		game.objectManage.bar.x = 200;
+		game.objectManage.bar.y = 400;
+		game.objectManage.bar.width = 100;
 		ball.x = 200;
 		ball.y = 398;
 		ball.vx = 0;
 		ball.vy = 3;
 		ball.move();
-		ball.checkCollisionWithBar(game.bar);
+		ball.checkCollisionWithBar(game.objectManage.bar);
 		assert.ok(ball.vy < 0);
 	});
 
 	await t.test('destructor removes ball from global balls array', () => {
-		const mockGame = { balls: [] };
+		const mockGame = { objectManage: { balls: [] } };
 		const ball = new Ball(BALL_CREATE_MODE.OTHER, mockGame);
-		mockGame.balls.push(ball);
+		mockGame.objectManage.balls.push(ball);
 		ball.destructor();
-		assert.equal(mockGame.balls.length, 0);
+		assert.equal(mockGame.objectManage.balls.length, 0);
 	});
 
 	await t.test('move triggers fall when ball passes below canvas height', () => {
-		const mockGame = { balls: [], canvasHeight: 530 };
+		const mockGame = { objectManage: { balls: [] }, canvasHeight: 530 };
 		const ball = new Ball(BALL_CREATE_MODE.OTHER, mockGame);
-		mockGame.balls.push(ball);
+		mockGame.objectManage.balls.push(ball);
 		ball.x = 200;
 		ball.y = 528;
 		ball.vy = 10;
 		ball.move();
 		ball.checkCollisionWithWall(800, mockGame.canvasHeight, 30);
-		assert.equal(mockGame.balls.length, 0, 'Ball should fall and be removed');
+		assert.equal(mockGame.objectManage.balls.length, 0, 'Ball should fall and be removed');
 	});
 
 	await t.test('handles through block collisions in all 4 directions', () => {
@@ -342,25 +354,25 @@ test('Ball class unit tests', async (t) => {
 		const mockItems = [{ itemProp: true }];
 		const mockWeapons = [{ weaponProp: true }];
 		const mockGame = {
-			bar: mockBar,
-			blockMap: mockBlockMap,
-			balls: mockBalls,
-			items: mockItems,
-			weapons: mockWeapons,
+			objectManage: {
+				bar: mockBar,
+				blockMap: mockBlockMap,
+				balls: mockBalls,
+				items: mockItems,
+				weapons: mockWeapons,
+			},
 			canvasWidth: 800,
 			canvasHeight: 600,
 			statusBarHeight: 30,
 		};
 		const ball = new Ball(BALL_CREATE_MODE.OTHER, mockGame);
-		assert.equal(ball.getGame(), mockGame);
-		assert.equal(ball.getBalls(), mockBalls);
 		assert.equal(ball.getCanvasWidth(), 800);
 		assert.equal(ball.getCanvasHeight(), 600);
 		assert.equal(ball.getStatusBarHeight(), 30);
 
 		// destructor removes ball from array
 		const plainArray = [ball];
-		mockGame.balls = plainArray;
+		mockGame.objectManage.balls = plainArray;
 		ball.destructor();
 		assert.equal(plainArray.length, 0);
 	});
