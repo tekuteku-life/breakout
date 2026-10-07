@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import GameManage from '../../src/GameManage.js';
+import EventBus from '../../src/EventBus.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -538,13 +539,17 @@ export function setupEnvironment() {
 	};
 
 	// テスト環境用のGameManageインスタンス生成（ブラウザのwindow.onloadに相当）
+	if (globalThis.gameManage && typeof globalThis.gameManage.destructor === 'function') {
+		globalThis.gameManage.destructor();
+	}
+	EventBus.destructor();
 	const gm = new GameManage();
-	globalThis.eventBus = gm.eventBus;
+	globalThis.eventBus = EventBus;
 	globalThis.gameManage = gm;
 	globalThis.window.gameManage = gm;
 	globalThis.window.screenManage = gm.screenManage;
 	globalThis.window.inputManage = gm.inputManage;
-	globalThis.window.eventBus = gm.eventBus;
+	globalThis.window.eventBus = EventBus;
 
 	gm.storage = sharedStorage;
 	gm.ctrl = globalThis.ctrl;

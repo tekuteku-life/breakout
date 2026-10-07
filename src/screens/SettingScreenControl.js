@@ -3,6 +3,7 @@
 
 import ScreenControl from "./ScreenControl.js";
 import { DEFAULT_CONFIG } from "../const.js";
+import EventBus from "../EventBus.js";
 
 export default class SettingScreenControl extends ScreenControl {
 	constructor(screenManage, screenId = 'screen_setting', ctrl = null, storage = null, gameManage = null) {
@@ -10,10 +11,6 @@ export default class SettingScreenControl extends ScreenControl {
 		this.ctrl = ctrl;
 		this.storage = storage;
 		this.gameManage = gameManage;
-	}
-
-	getEventBus() {
-		return (this.gameManage && this.gameManage.eventBus) || (this.screenManage && this.screenManage.game && this.screenManage.game.eventBus) || null;
 	}
 
 	getCtrl() {
@@ -33,13 +30,13 @@ export default class SettingScreenControl extends ScreenControl {
 	bindControls() {
 		const ctrl = this.getCtrl();
 		const storage = this.getStorage();
-		if (!ctrl || !ctrl.formSelector) return;
+		if (!ctrl || !ctrl.formSelector) { return; }
 
 		// セッティングセレクタのセット
 		if (ctrl.formSelector["setting"]) {
 			ctrl.formSelector["setting"].onchange = (e) => {
 				const val = e ? e.target.value : ctrl.formSelector["setting"].value;
-				this.getEventBus()?.emitEvent('setting:change', val);
+				EventBus.emitEvent('setting:change', val);
 			};
 		}
 
@@ -66,7 +63,7 @@ export default class SettingScreenControl extends ScreenControl {
 					storage.setItem("continue_time", 0);
 					storage.setItem("continue_score", 0);
 				}
-				this.getEventBus()?.emitEvent('game:init', stageSel.value);
+				EventBus.emitEvent('game:init', stageSel.value);
 			};
 		}
 
@@ -163,4 +160,3 @@ export default class SettingScreenControl extends ScreenControl {
 		super.destructor();
 	}
 }
-

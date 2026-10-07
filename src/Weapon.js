@@ -6,6 +6,7 @@ import {
 	WEAPON_TYPE,
 	WEAPON_PARAM,
 } from "./const.js";
+import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
 // 武器
@@ -48,12 +49,12 @@ export default class Weapon
 		return this.game || null;
 	}
 
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
-	}
-
 	getWeapons() {
-		return (this.game && this.game.weapons) || [];
+		if (this.game) {
+			if (this.game.objectManage && this.game.objectManage.weapons) return this.game.objectManage.weapons;
+			if (this.game.weapons) return this.game.weapons;
+		}
+		return [];
 	}
 
 	getCanvasHeight() {
@@ -103,7 +104,7 @@ export default class Weapon
 		if( this.setInter == 0 ) {
 			this.setInter = 1;
 			const weaponSound = (this.type == WEAPON_TYPE.GUN) ? 'gun' : 'missile';
-			this.getEventBus()?.emitEvent('sound:play', weaponSound);
+			EventBus.emitEvent('sound:play', weaponSound);
 		}
 
 		// 座標を進める
@@ -158,33 +159,36 @@ export default class Weapon
 
 
 	//--------------------------------------------------
-	// 描画
+	// 描画（静的メソッド）
 	//--------------------------------------------------
-	draw(dynamicCtx)
+	static drawWeapon(dynamicCtx, weaponNumber, x, y, game = null)
 	{
-		const wColor = (this.game && this.game.weaponColor) || ['#000', '#000'];
-		const wLineColor = (this.game && this.game.weaponLineColor) || ['#fff', '#fff'];
+		if (!dynamicCtx || !weaponNumber) return;
+		const type = weaponNumber - 1;
+		const size = (type == WEAPON_TYPE.GUN ? 1 : 4);
+		const wColor = (game && game.weaponColor) || ['#000', '#000'];
+		const wLineColor = (game && game.weaponLineColor) || ['#fff', '#fff'];
 
 		// 銃
-		if( this.type == 0 )
+		if( type == 0 )
 		{
 			dynamicCtx.beginPath();
-			dynamicCtx.strokeStyle = wColor[this.type];
-			dynamicCtx.fillStyle = wLineColor[this.type];
-			dynamicCtx.rect(~~(this.x - this.size) + 0.5, ~~(this.y + this.size) + 0.5, this.size, this.size * 6);
+			dynamicCtx.strokeStyle = wColor[type] || '#000';
+			dynamicCtx.fillStyle = wLineColor[type] || '#fff';
+			dynamicCtx.rect(~~(x - size) + 0.5, ~~(y + size) + 0.5, size, size * 6);
 			dynamicCtx.fill();
 			dynamicCtx.stroke();
 
 		// ミサイル
-		} else if( this.type == 1 )
+		} else if( type == 1 )
 		{
 			// 弾頭
 			if (typeof dynamicCtx.save === 'function') { dynamicCtx.save(); }
 			dynamicCtx.beginPath();
 			dynamicCtx.scale(1, 1.4);
-			dynamicCtx.strokeStyle = wLineColor[this.type];
-			dynamicCtx.fillStyle = wColor[this.type];
-			dynamicCtx.arc(this.x + 0.5, this.y / 1.4 + 0.5, this.size, 0, 2 * Math.PI, false);
+			dynamicCtx.strokeStyle = wLineColor[type] || '#fff';
+			dynamicCtx.fillStyle = wColor[type] || '#000';
+			dynamicCtx.arc(x + 0.5, y / 1.4 + 0.5, size, 0, 2 * Math.PI, false);
 			dynamicCtx.fill();
 			dynamicCtx.stroke();
 			if (typeof dynamicCtx.restore === 'function') {
@@ -195,18 +199,23 @@ export default class Weapon
 
 			// 胴体
 			dynamicCtx.beginPath();
-			dynamicCtx.strokeStyle = wLineColor[this.type];
-			dynamicCtx.fillStyle = wColor[this.type];
-			dynamicCtx.rect(~~(this.x - this.size) + 0.5, ~~(this.y), this.size * 2, this.size * 3);
+			dynamicCtx.strokeStyle = wLineColor[type] || '#fff';
+			dynamicCtx.fillStyle = wColor[type] || '#000';
+			dynamicCtx.rect(~~(x - size) + 0.5, ~~(y), size * 2, size * 3);
 			dynamicCtx.fill();
 			dynamicCtx.stroke();
 
 			// 帯
 			dynamicCtx.beginPath();
 			dynamicCtx.fillStyle = '#dd0000';
-			dynamicCtx.rect(~~(this.x - this.size) + 0.5, ~~(this.y) + 2.5, this.size * 2, 2);
+			dynamicCtx.rect(~~(x - size) + 0.5, ~~(y) + 2.5, size * 2, 2);
 			dynamicCtx.fill();
 		}
+	}
+
+	draw(dynamicCtx)
+	{
+		Weapon.drawWeapon(dynamicCtx, this.type + 1, this.x, this.y, this.game);
 	}
 }
 

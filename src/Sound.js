@@ -2,6 +2,7 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import { DEFAULT_CONFIG } from "./const.js";
+import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
 // 効果音管理（Web Audio API / HTML Audio ハイブリッドエンジン）
@@ -42,7 +43,7 @@ export default class Sound
 		// HTML Audio フォールバック用
 		this.soundObj = {};
 		this.soundTurn = {};
-		this.bufSize = 5; // 同時再生バッファサイズ（過剰な10個プールを廃止し適正化）
+		this.bufSize = 4; // 同時再生バッファサイズ（過剰な10個プールを廃止し適正化）
 
 		const AudioCtor = typeof Audio !== 'undefined' ? Audio : null;
 		for (let i = 0; i < this.soundKeys.length; i++) {
@@ -65,14 +66,7 @@ export default class Sound
 
 		// EventBus経由で再生要求を購読
 		this.onPlayHandler = (key) => this.play(key);
-		const bus = this.getEventBus();
-		if (bus && typeof bus.addOnEvent === 'function') {
-			bus.addOnEvent('sound:play', this.onPlayHandler);
-		}
-	}
-
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
+		EventBus.addOnEvent('sound:play', this.onPlayHandler);
 	}
 
 	/**
@@ -98,9 +92,8 @@ export default class Sound
 	}
 
 	destructor() {
-		const bus = this.getEventBus();
-		if (bus && this.onPlayHandler && typeof bus.removeOnEvent === 'function') {
-			bus.removeOnEvent('sound:play', this.onPlayHandler);
+		if (this.onPlayHandler) {
+			EventBus.removeOnEvent('sound:play', this.onPlayHandler);
 			this.onPlayHandler = null;
 		}
 

@@ -2,6 +2,7 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import { DEFAULT_CONFIG } from "./const.js";
+import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
 // ゲーム制御
@@ -53,40 +54,34 @@ export default class Control
 				this.forwardStageIndex();
 				if (typeof this.recordStageIndex === 'function') this.recordStageIndex();
 			}
-			this.getEventBus()?.emitEvent('game:init', this.stageIndex);
+			EventBus.emitEvent('game:init', this.stageIndex);
 		};
 		this.onBackwardStageHandler = () => {
 			if (typeof this.backwardStageIndex === 'function') {
 				this.backwardStageIndex();
 				if (typeof this.recordStageIndex === 'function') this.recordStageIndex();
 			}
-			this.getEventBus()?.emitEvent('game:init', this.stageIndex);
+			EventBus.emitEvent('game:init', this.stageIndex);
 		};
 
-		const bus = this.getEventBus();
-		if (bus && typeof bus.addOnEvent === 'function') {
-			bus.addOnEvent('control:togglePause', this.onTogglePauseHandler);
-			bus.addOnEvent('control:toggleSound', this.onToggleSoundHandler);
-			bus.addOnEvent('control:toggleAuto', this.onToggleAutoHandler);
-			bus.addOnEvent('control:toggleCtrl', this.onToggleCtrlHandler);
-			bus.addOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
-			bus.addOnEvent('control:forwardStage', this.onForwardStageHandler);
-			bus.addOnEvent('control:backwardStage', this.onBackwardStageHandler);
-		}
+		EventBus.addOnEvent('control:togglePause', this.onTogglePauseHandler);
+		EventBus.addOnEvent('control:toggleSound', this.onToggleSoundHandler);
+		EventBus.addOnEvent('control:toggleAuto', this.onToggleAutoHandler);
+		EventBus.addOnEvent('control:toggleCtrl', this.onToggleCtrlHandler);
+		EventBus.addOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
+		EventBus.addOnEvent('control:forwardStage', this.onForwardStageHandler);
+		EventBus.addOnEvent('control:backwardStage', this.onBackwardStageHandler);
 	}
 
 	destructor()
 	{
-		const bus = this.getEventBus();
-		if (bus && typeof bus.removeOnEvent === 'function') {
-			if (this.onTogglePauseHandler) bus.removeOnEvent('control:togglePause', this.onTogglePauseHandler);
-			if (this.onToggleSoundHandler) bus.removeOnEvent('control:toggleSound', this.onToggleSoundHandler);
-			if (this.onToggleAutoHandler) bus.removeOnEvent('control:toggleAuto', this.onToggleAutoHandler);
-			if (this.onToggleCtrlHandler) bus.removeOnEvent('control:toggleCtrl', this.onToggleCtrlHandler);
-			if (this.onToggleSizeFitHandler) bus.removeOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
-			if (this.onForwardStageHandler) bus.removeOnEvent('control:forwardStage', this.onForwardStageHandler);
-			if (this.onBackwardStageHandler) bus.removeOnEvent('control:backwardStage', this.onBackwardStageHandler);
-		}
+		if (this.onTogglePauseHandler) EventBus.removeOnEvent('control:togglePause', this.onTogglePauseHandler);
+		if (this.onToggleSoundHandler) EventBus.removeOnEvent('control:toggleSound', this.onToggleSoundHandler);
+		if (this.onToggleAutoHandler) EventBus.removeOnEvent('control:toggleAuto', this.onToggleAutoHandler);
+		if (this.onToggleCtrlHandler) EventBus.removeOnEvent('control:toggleCtrl', this.onToggleCtrlHandler);
+		if (this.onToggleSizeFitHandler) EventBus.removeOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
+		if (this.onForwardStageHandler) EventBus.removeOnEvent('control:forwardStage', this.onForwardStageHandler);
+		if (this.onBackwardStageHandler) EventBus.removeOnEvent('control:backwardStage', this.onBackwardStageHandler);
 		this.onTogglePauseHandler = null;
 		this.onToggleSoundHandler = null;
 		this.onToggleAutoHandler = null;
@@ -106,10 +101,6 @@ export default class Control
 
 	getGame() {
 		return this.game || null;
-	}
-
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
 	}
 
 	getStorage() {
@@ -227,11 +218,8 @@ export default class Control
 	pauseSwitchOn()
 	{
 		// 画面の切り替え（EventBus経由で通知）
-		const bus = this.getEventBus();
-		if (bus) {
-			bus.emitEvent('screen:allClose');
-			bus.emitEvent('screen:open', 'screen_pause');
-		}
+		EventBus.emitEvent('screen:allClose');
+		EventBus.emitEvent('screen:open', 'screen_pause');
 
 		// 値の設定
 		this.pauseSwitch = 1;
@@ -239,10 +227,7 @@ export default class Control
 	pauseSwitchOff()
 	{
 		// 画面の切り替え（EventBus経由で通知）
-		const bus = this.getEventBus();
-		if (bus) {
-			bus.emitEvent('screen:close', 'screen_pause');
-		}
+		EventBus.emitEvent('screen:close', 'screen_pause');
 
 		this.pauseSwitch = 0;
 	}

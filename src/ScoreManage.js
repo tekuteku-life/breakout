@@ -6,6 +6,7 @@ import {
 	BALL_STATUS,
 	AWARD_KEY_LIST,
 } from "./const.js";
+import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
 // 得点管理
@@ -47,7 +48,7 @@ export default class ScoreManage
 			const currentMax = this.awardNum.continuousBreakNum || 0;
 			if (data.breakNum > currentMax) {
 				this.awardNum.continuousBreakNum = data.breakNum;
-				this.getEventBus()?.emitEvent('balloon:spawn', {
+				EventBus.emitEvent('balloon:spawn', {
 					text: data.breakNum,
 					x: data.x,
 					y: data.y,
@@ -61,22 +62,16 @@ export default class ScoreManage
 			}
 		};
 
-		const bus = this.getEventBus();
-		if (bus && typeof bus.addOnEvent === 'function') {
-			bus.addOnEvent('score:add', this.onScoreAddHandler);
-			bus.addOnEvent('award:add', this.onAwardAddHandler);
-			bus.addOnEvent('award:continuousBreak', this.onContinuousBreakHandler);
-		}
+		EventBus.addOnEvent('score:add', this.onScoreAddHandler);
+		EventBus.addOnEvent('award:add', this.onAwardAddHandler);
+		EventBus.addOnEvent('award:continuousBreak', this.onContinuousBreakHandler);
 	}
 
 	destructor()
 	{
-		const bus = this.getEventBus();
-		if (bus && typeof bus.removeOnEvent === 'function') {
-			if (this.onScoreAddHandler) bus.removeOnEvent('score:add', this.onScoreAddHandler);
-			if (this.onAwardAddHandler) bus.removeOnEvent('award:add', this.onAwardAddHandler);
-			if (this.onContinuousBreakHandler) bus.removeOnEvent('award:continuousBreak', this.onContinuousBreakHandler);
-		}
+		if (this.onScoreAddHandler) EventBus.removeOnEvent('score:add', this.onScoreAddHandler);
+		if (this.onAwardAddHandler) EventBus.removeOnEvent('award:add', this.onAwardAddHandler);
+		if (this.onContinuousBreakHandler) EventBus.removeOnEvent('award:continuousBreak', this.onContinuousBreakHandler);
 		this.onScoreAddHandler = null;
 		this.onAwardAddHandler = null;
 		this.onContinuousBreakHandler = null;
@@ -88,10 +83,6 @@ export default class ScoreManage
 
 	getGame() {
 		return this.game || null;
-	}
-
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
 	}
 
 	getStorage() {
@@ -368,10 +359,7 @@ export default class ScoreManage
 		new MessageBox("プレイ成績を全消去しました。", false, null);
 
 		// 画面の更新（EventBus経由で通知）
-		const bus = this.getEventBus();
-		if (bus) {
-			bus.emitEvent('screen:printRecord', { stageIdx: null, mode: null });
-		}
+		EventBus.emitEvent('screen:printRecord', { stageIdx: null, mode: null });
 		return 0;
 	}
 }

@@ -65,7 +65,7 @@ test('Bar class unit tests', async (t) => {
 	});
 
 	await t.test('move calculates speed towards pointX and handles state transitions with EventBus timers', () => {
-		const bus = new EventBus();
+		EventBus.destructor();
 		const mockGame = {
 			inputManage: { pointX: 400 },
 			FPS: 50,
@@ -74,7 +74,6 @@ test('Bar class unit tests', async (t) => {
 			barDefaultSpeed: 75,
 			barDefaultHeight: 7,
 			barColor: '#114400',
-			eventBus: bus,
 		};
 		const bar = new Bar(mockGame);
 		bar.pointX = bar.getCenterX() + 20;
@@ -93,7 +92,7 @@ test('Bar class unit tests', async (t) => {
 		assert.ok(bar.height > mockGame.barDefaultHeight);
 
 		// Advance timers past duration
-		bus.tickTimers(20000);
+		EventBus.tickTimers(20000);
 
 		// States should have reset via EventBus timers
 		assert.equal(bar.width, mockGame.barDefaultWidth);
@@ -112,14 +111,11 @@ test('Bar class unit tests', async (t) => {
 
 	await t.test('endamage reduces HP and consumes life when HP reaches 0', () => {
 		let lifeConsumed = false;
-		const mockBus = {
-			emitEvent: (name, val) => {
-				if (name === 'status:addLife' && val < 0) lifeConsumed = true;
-			},
-			addOnEvent: () => {},
-			removeOnEvent: () => {}
-		};
-		const mockGame = { eventBus: mockBus, barDefaultHP: 5 };
+		EventBus.destructor();
+		EventBus.addOnEvent('status:addLife', (val) => {
+			if (val < 0) lifeConsumed = true;
+		});
+		const mockGame = { barDefaultHP: 5 };
 		const bar = new Bar(mockGame);
 
 		bar.hitPoint = 2;
@@ -158,11 +154,10 @@ test('Bar class unit tests', async (t) => {
 
 	await t.test('Bar getters and setters via game instance', () => {
 		let pointXSet = null;
-		const mockEventBus = {
-			emitEvent: (evt, val) => {
-				if (evt === 'input:setPointX') pointXSet = val;
-			}
-		};
+		EventBus.destructor();
+		EventBus.addOnEvent('input:setPointX', (val) => {
+			pointXSet = val;
+		});
 		const mockBalls = [{ ballProp: true }];
 		const mockWeapons = [{ weaponProp: true }];
 		const mockItems = [{ itemProp: true }];
@@ -170,7 +165,6 @@ test('Bar class unit tests', async (t) => {
 		const mockCtrl = { ctrlProp: true };
 		const mockInputManage = { pointX: 450 };
 		const mockGame = {
-			eventBus: mockEventBus,
 			balls: mockBalls,
 			weapons: mockWeapons,
 			items: mockItems,
@@ -182,7 +176,6 @@ test('Bar class unit tests', async (t) => {
 		};
 		const bar = new Bar(mockGame);
 		assert.equal(bar.getGame(), mockGame);
-		assert.equal(bar.getEventBus(), mockEventBus);
 		assert.equal(bar.getBalls(), mockBalls);
 		assert.equal(bar.getPointX(), 450);
 		bar.setPointX(500);

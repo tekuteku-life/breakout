@@ -9,6 +9,7 @@ import {
 	WEAPON_PARAM,
 	ITEM_PARAM,
 } from "./const.js";
+import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
 // 自動プレイ（オートパイロット制御）
@@ -29,10 +30,6 @@ export default class AutoPlay
 
 	getGame() {
 		return this.game || null;
-	}
-
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
 	}
 
 	getBar() {
@@ -88,7 +85,6 @@ export default class AutoPlay
 		const weapons = this.getWeapons();
 		const blockMap = this.getBlockMap();
 		const ctrl = this.getCtrl();
-		const bus = this.getEventBus();
 
 		// 最大予測数の計算
 		var MAX_PREDICT = SIMULATE_PARAM.MAX_PREDICT * fps;
@@ -108,7 +104,7 @@ export default class AutoPlay
 		if( ballNum == 0 )
 		{
 			// スタート画面の終了
-			bus?.emitEvent('screen:allClose');
+			EventBus.emitEvent('screen:allClose');
 
 			// 初期位置及び初速度の決定
 			bar.x = ~~( canvasWidth / 2 * (1 + (~~(Math.random() * 2) * 2 - 1) * Math.random()) );
@@ -116,10 +112,8 @@ export default class AutoPlay
 
 			// 球発射
 			const mdTime = Date.now() - 1000;
-			bus?.emitEvent('input:setMouseDownTime', mdTime);
-			if (bus) {
-				bus.emitEvent('ball:launch', { mouseDownTime: mdTime });
-			}
+			EventBus.emitEvent('input:setMouseDownTime', mdTime);
+			EventBus.emitEvent('ball:launch', { mouseDownTime: mdTime });
 			ballNum = balls.length;
 		}
 		//----------発射制御及び初期化----------
@@ -137,7 +131,7 @@ export default class AutoPlay
 		for( var i = 0; i < ballNum; i++ ) { fallSimulate[i] = balls[i].copy(BALL_COPY_MODE.SIMULATE); }
 
 		// ボールの動きのシミュレート（EventBus経由で通知）
-		if (bus) bus.emitEvent('game:simulateReset');
+		EventBus.emitEvent('game:simulateReset');
 
 		for( var t = 0; t < fallBallTime; t++ )
 		{
@@ -335,7 +329,7 @@ export default class AutoPlay
 					simulate[fallBallI].vx += dvx;
 
 					// ボールの動きのシミュレート（EventBus経由で通知）
-					if (bus) bus.emitEvent('game:simulateReset');
+					EventBus.emitEvent('game:simulateReset');
 
 					var t;
 					for( t = 0; simulate[fallBallI].getBottomY() <= bar.getTopY() && t <= MAX_PREDICT; t++ )
@@ -380,7 +374,7 @@ export default class AutoPlay
 						var check = fb.copy(BALL_COPY_MODE.SIMULATE);
 						check.x = x;
 						check.vx = vx;
-						if (bus) bus.emitEvent('game:simulateReset');
+						EventBus.emitEvent('game:simulateReset');
 
 						for( var t = 0; check.getBottomY() <= bar.getTopY() && t <= MAX_PREDICT; t++ ) { this.simulateBallStep(check); }
 
@@ -460,7 +454,7 @@ export default class AutoPlay
 
 			// 発射（EventBus経由で通知）
 			if( breakX != -1 && Math.abs(bar.getCenterX() - breakX) <= blkWidth*0.5 && weapons.length < weaponMaxNum[bar.weapon - 1] && bar.weaponInter <= 0 ) {
-				bus?.emitEvent('weapon:spawn', {
+				EventBus.emitEvent('weapon:spawn', {
 					type: bar.weapon,
 					x: bar.getCenterX()
 				});

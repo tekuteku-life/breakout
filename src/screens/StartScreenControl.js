@@ -2,6 +2,7 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import ScreenControl from "./ScreenControl.js";
+import EventBus from "../EventBus.js";
 
 export default class StartScreenControl extends ScreenControl {
 	constructor(screenManage, screenId = 'screen_start') {
@@ -17,8 +18,7 @@ export default class StartScreenControl extends ScreenControl {
 			const anc = anchors[i];
 			if (anc.className === 'barButton') {
 				anc.onmouseover = () => {
-					const eb = (this.screenManage && this.screenManage.game && this.screenManage.game.eventBus);
-					if (eb) eb.emitEvent('sound:play', 'touchButton');
+					EventBus.emitEvent('sound:play', 'touchButton');
 				};
 			}
 		}

@@ -7,6 +7,7 @@ import {
 	BLOCK_PARAM,
 	DEFAULT_CONFIG,
 } from "./const.js";
+import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
 // ブロック
@@ -82,16 +83,16 @@ export default class Block
 		return this.game || null;
 	}
 
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
-	}
-
 	getStaticCtx() {
 		return (this.game && this.game.staticCtx) || null;
 	}
 
 	getBlockMap() {
-		return (this.game && this.game.blockMap) || [];
+		if (this.game) {
+			if (this.game.objectManage && this.game.objectManage.blockMap) return this.game.objectManage.blockMap;
+			if (this.game.blockMap) return this.game.blockMap;
+		}
+		return [];
 	}
 
 	getCtrl() {
@@ -248,7 +249,7 @@ export default class Block
 	//--------------------------------------------------
 	movePosition()
 	{
-		if( this.type == 0 || this.func !== BLOCK_FUNCTION.VERTICAL_MOVE ) return;
+		if( this.type == 0 || this.func !== BLOCK_FUNCTION.VERTICAL_MOVE ) { return; }
 
 		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 		const blockMoveInter = (this.game && this.game.blockMoveInter !== undefined) ? this.game.blockMoveInter : DEFAULT_CONFIG.blockMoveInter;
@@ -295,9 +296,9 @@ export default class Block
 	//--------------------------------------------------
 	updateAttack()
 	{
-		if( this.type == 0 || this.func !== BLOCK_FUNCTION.ATTACK ) return;
+		if( this.type == 0 || this.func !== BLOCK_FUNCTION.ATTACK ) { return; }
 		const balls = (this.game && this.game.balls) || [];
-		if( balls.length === 0 ) return;
+		if( balls.length === 0 ) { return; }
 
 		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 		const blockAttackInter = (this.game && this.game.blockAttackInter !== undefined) ? this.game.blockAttackInter : DEFAULT_CONFIG.blockAttackInter;
@@ -312,7 +313,7 @@ export default class Block
 			this.attackInter = blockAttackInter * fps * (Math.random() * 0.2 + 0.8);
 
 			// 武器の発射（EventBus経由で通知）
-			this.getEventBus()?.emitEvent('weapon:spawn', {
+			EventBus.emitEvent('weapon:spawn', {
 				type: 1,
 				x: this.getCenterX(),
 				y: this.getBottomY() + 1,
@@ -434,14 +435,14 @@ export default class Block
 		{
 			// ワープブロック
 			if( this.func == BLOCK_FUNCTION.WARP_ENTER ) {
-				this.getEventBus()?.emitEvent('sound:play', 'warp');
+				EventBus.emitEvent('sound:play', 'warp');
 
 			// 通常ブロック
 			} else if( this.func != BLOCK_FUNCTION.NORMAL && this.func != BLOCK_FUNCTION.EXPLODE_STRENGTH ) {
 				if( ball.status == BALL_STATUS.NORMAL ) {
-					this.getEventBus()?.emitEvent('sound:play', 'block');
+					EventBus.emitEvent('sound:play', 'block');
 				} else {
-					this.getEventBus()?.emitEvent('sound:play', 'spBlock');
+					EventBus.emitEvent('sound:play', 'spBlock');
 				}
 			}
 		}
@@ -459,7 +460,7 @@ export default class Block
 				this.break(null);
 
 				// ポイントの付与（EventBus経由で通知）
-				this.getEventBus()?.emitEvent('score:add', blockDefaultPoint);
+				EventBus.emitEvent('score:add', blockDefaultPoint);
 			}
 
 			return;
@@ -586,7 +587,7 @@ export default class Block
 
 				// ポイント計算（EventBus経由で通知）
 				if( ball ) {
-					this.getEventBus()?.emitEvent('score:add', ball.pointIncr);
+					EventBus.emitEvent('score:add', ball.pointIncr);
 					ball.pointIncr = Number(ball.pointIncr) + blockIncrPoint;
 
 					// 連続破壊数の通知（EventBus経由で通知）
@@ -594,7 +595,7 @@ export default class Block
 					let by = ball.getCenterY();
 					if( bx > canvasWidth - 30 ) { bx = canvasWidth - 30; }
 					if( by > canvasHeight - 15 ) { by = canvasHeight - 15; }
-					this.getEventBus()?.emitEvent('award:continuousBreak', {
+					EventBus.emitEvent('award:continuousBreak', {
 						breakNum: ball.breakNum,
 						x: bx,
 						y: by,
@@ -617,7 +618,7 @@ export default class Block
 
 		// 破壊不可ブロック
 		} else if( this.infinit == 1 && ball.simulate == 0 ) {
-			this.getEventBus()?.emitEvent('score:add', ball.pointIncr);
+			EventBus.emitEvent('score:add', ball.pointIncr);
 			ball.pointIncr = Number(ball.pointIncr) + ~~(blockIncrPoint / 2);
 		}
 
@@ -670,36 +671,28 @@ export default class Block
 		else
 		{
 			const staticCtx = this.getStaticCtx();
-			const ctrl = this.getCtrl();
-			const stageIdx = ctrl ? ctrl.stageIndex : 0;
-			const itemLineColor = (this.game && this.game.itemLineColor) || [];
-			const itemColor = (this.game && this.game.itemColor) || [];
 
 			// 破壊処理
 			this.type = 0;
 			this.breakLimit = 0;
 
 			// 描画の削除
-			if (staticCtx) this.clear(staticCtx);
+			if (staticCtx) { this.clear(staticCtx); }
 
 			// 点滅の停止
 			this.blinkSwitch = 0;
 
 			// ブロック数の減少（EventBus経由で通知）
 			if( this.infinit == 0 ) {
-				this.getEventBus()?.emitEvent('status:blockBreak');
+				EventBus.emitEvent('status:blockBreak');
 			}
 
 			// アイテム出現（EventBus経由で通知）
 			if( this.item != null ) {
-				const lColor = (itemLineColor[stageIdx] && itemLineColor[stageIdx][this.item]) || '#ffffff';
-				const color = (itemColor[stageIdx] && itemColor[stageIdx][this.item]) || '#000000';
-				this.getEventBus()?.emitEvent('item:spawn', {
+				EventBus.emitEvent('item:spawn', {
 					type: this.item,
 					x: this.getLeftX(),
 					y: this.getTopY(),
-					lineColor: lColor,
-					color: color,
 				});
 			}
 		}
@@ -773,10 +766,10 @@ export default class Block
 						// シミュレートでない場合
 						if( !ball || ball.simulate == 0 ) {
 							// 爆発音（EventBus経由で通知）
-							this.getEventBus()?.emitEvent('sound:play', 'bomb');
+							EventBus.emitEvent('sound:play', 'bomb');
 
 							// ポイント計算（EventBus経由で通知）
-							this.getEventBus()?.emitEvent('score:add', ~~(blockDefaultPoint * 1.5));
+							EventBus.emitEvent('score:add', ~~(blockDefaultPoint * 1.5));
 							if( ball ) { ball.pointIncr += ~~(blockIncrPoint / 2); }
 						}
 					}

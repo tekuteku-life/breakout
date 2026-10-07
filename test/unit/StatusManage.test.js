@@ -13,9 +13,9 @@ test('StatusManage class unit tests', async (t) => {
 	globalThis.imgData.init();
 
 	const createMockGame = (overrides = {}) => {
-		const bus = overrides.eventBus || new EventBus();
 		const ctrlObj = overrides.ctrl || { pauseSwitch: 0, autoSwitch: 0 };
-		bus.addOnEvent('control:togglePause', () => {
+		EventBus.destructor();
+		EventBus.addOnEvent('control:togglePause', () => {
 			ctrlObj.pauseSwitch = ctrlObj.pauseSwitch === 0 ? 1 : 0;
 		});
 		return {
@@ -28,7 +28,6 @@ test('StatusManage class unit tests', async (t) => {
 			imgData: globalThis.imgData,
 			...overrides,
 			ctrl: ctrlObj,
-			eventBus: bus,
 		};
 	};
 

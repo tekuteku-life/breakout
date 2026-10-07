@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setupEnvironment, createMock2DContext } from '../helpers/setupEnv.js';
 import Weapon from '../../src/Weapon.js';
+import EventBus from '../../src/EventBus.js';
 
 test('Weapon class unit tests', async (t) => {
 	setupEnvironment();
@@ -33,12 +34,11 @@ test('Weapon class unit tests', async (t) => {
 
 	await t.test('move handles launch sound, acceleration, and off-screen bounds', () => {
 		let soundPlayed = '';
-		const mockBus = {
-			emitEvent: (evt, data) => {
-				if (evt === 'sound:play') soundPlayed = data;
-			}
-		};
-		const mockGame = { eventBus: mockBus, FPS: 60 };
+		EventBus.destructor();
+		EventBus.addOnEvent('sound:play', (data) => {
+			soundPlayed = data;
+		});
+		const mockGame = { FPS: 60 };
 
 		// Gun launch
 		const gun = new Weapon(1, 100, 200, 1, mockGame);
@@ -78,7 +78,6 @@ test('Weapon class unit tests', async (t) => {
 		};
 
 		const mockGame = {
-			eventBus: { emitEvent: () => {} },
 			weapons: []
 		};
 

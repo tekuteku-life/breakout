@@ -6,6 +6,7 @@ import ScreenManage from "./ScreenManage.js";
 import InputManage from "./InputManage.js";
 import EventBus from "./EventBus.js";
 import AutoPlay from "./AutoPlay.js";
+import ObjectManage from "./ObjectManage.js";
 import Block from "./Block.js";
 import { APP_VER } from "./const.js";
 
@@ -121,12 +122,16 @@ Array.prototype.copy = function()
 //--------------------------------------------------
 window.onload = function()
 {
-	// ゲーム全体の管理インスタンスを生成（ScreenManage, InputManage, EventBusはGameManage内で生成）
+	if (typeof window !== 'undefined' && window.gameManage && typeof window.gameManage.destructor === 'function') {
+		window.gameManage.destructor();
+	}
+	// ゲーム全体の管理インスタンスを生成
 	const gameManage = new GameManage();
 	window.gameManage = gameManage;
+	window.objectManage = gameManage.objectManage;
 	window.screenManage = gameManage.screenManage;
 	window.inputManage = gameManage.inputManage;
-	window.eventBus = gameManage.eventBus;
+	window.eventBus = EventBus;
 
 	// ゲームの初期化
 	gameManage.init(0);
@@ -156,14 +161,13 @@ window.onload = function()
 // 右クリックメニューの無効化（一時停止処理の呼出）
 window.oncontextmenu = function()
 {
-	if (typeof window !== 'undefined' && window.gameManage && window.gameManage.eventBus) {
-		window.gameManage.eventBus.emitEvent('control:togglePause');
-	}
+	EventBus.emitEvent('control:togglePause');
 	return false;
 };
 
 export {
 	GameManage,
+	ObjectManage,
 	ScreenManage,
 	InputManage,
 	EventBus,

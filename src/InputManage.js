@@ -3,6 +3,7 @@
 
 import MessageBox from "./MessageBox.js";
 import { DEFAULT_CONFIG } from "./const.js";
+import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
 // 入力管理クラス
@@ -25,20 +26,14 @@ export default class InputManage {
 		this.onSetMouseDownTimeHandler = (time) => {
 			this.mouseDownTime = time;
 		};
-		const bus = this.getEventBus();
-		if (bus && typeof bus.addOnEvent === 'function') {
-			bus.addOnEvent('input:setPointX', this.onSetPointXHandler);
-			bus.addOnEvent('input:setMouseDownTime', this.onSetMouseDownTimeHandler);
-		}
+		EventBus.addOnEvent('input:setPointX', this.onSetPointXHandler);
+		EventBus.addOnEvent('input:setMouseDownTime', this.onSetMouseDownTimeHandler);
 	}
 
 	destructor() {
 		this.unbind();
-		const bus = this.getEventBus();
-		if (bus && typeof bus.removeOnEvent === 'function') {
-			if (this.onSetPointXHandler) bus.removeOnEvent('input:setPointX', this.onSetPointXHandler);
-			if (this.onSetMouseDownTimeHandler) bus.removeOnEvent('input:setMouseDownTime', this.onSetMouseDownTimeHandler);
-		}
+		if (this.onSetPointXHandler) EventBus.removeOnEvent('input:setPointX', this.onSetPointXHandler);
+		if (this.onSetMouseDownTimeHandler) EventBus.removeOnEvent('input:setMouseDownTime', this.onSetMouseDownTimeHandler);
 		this.onSetPointXHandler = null;
 		this.onSetMouseDownTimeHandler = null;
 		this.game = null;
@@ -47,10 +42,6 @@ export default class InputManage {
 
 	getGame() {
 		return this.game || null;
-	}
-
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
 	}
 
 	getCtrl() {
@@ -133,7 +124,7 @@ export default class InputManage {
 			this.boundHandlers.winResize = targetWin.onresize;
 
 			const onContextMenu = () => {
-				this.getEventBus()?.emitEvent('control:togglePause');
+				EventBus.emitEvent('control:togglePause');
 				return false;
 			};
 			targetWin.oncontextmenu = onContextMenu;
@@ -156,10 +147,10 @@ export default class InputManage {
 			const onTouchStart = (event) => {
 				if (event && event.touches) {
 					if (event.touches.length === 2) {
-						this.getEventBus()?.emitEvent('control:toggleAuto');
+						EventBus.emitEvent('control:toggleAuto');
 						return;
 					} else if (event.touches.length === 3) {
-						this.getEventBus()?.emitEvent('control:togglePause');
+						EventBus.emitEvent('control:togglePause');
 						return;
 					}
 				}
@@ -227,16 +218,13 @@ export default class InputManage {
 
 		if (ctrl && ctrl.ctrlSwitch == 0) {
 			this.mouseDownTime = Date.now();
-			const bus = this.getEventBus();
-			if (bus) {
-				bus.emitEvent('input:mouseDownTime', this.mouseDownTime);
-				bus.emitEvent('input:pointerDown', { button, mouseDownTime: this.mouseDownTime });
-			}
+			EventBus.emitEvent('input:mouseDownTime', this.mouseDownTime);
+			EventBus.emitEvent('input:pointerDown', { button, mouseDownTime: this.mouseDownTime });
 		}
 
 		// 武器の発射（EventBus経由で通知）
 		if (bar && bar.weapon != 0 && weapons && weapons.length < weaponMaxNum[bar.weapon - 1] && bar.weaponInter <= 0) {
-			this.getEventBus()?.emitEvent('weapon:spawn', {
+			EventBus.emitEvent('weapon:spawn', {
 				type: bar.weapon,
 				x: bar.getCenterX()
 			});
@@ -254,18 +242,15 @@ export default class InputManage {
 
 		// 発射制御（EventBus経由で通知）
 		if (ctrl && ctrl.ctrlSwitch == 0 && button != 2 && balls && balls.length == 0 && isAlive && mdTime != 0) {
-			this.getEventBus()?.emitEvent('ball:launch', { mouseDownTime: mdTime });
+			EventBus.emitEvent('ball:launch', { mouseDownTime: mdTime });
 			this.mouseDownTime = 0;
-			const bus = this.getEventBus();
-			if (bus) {
-				bus.emitEvent('input:mouseDownTime', 0);
-				bus.emitEvent('input:pointerUp', { button });
-			}
+			EventBus.emitEvent('input:mouseDownTime', 0);
+			EventBus.emitEvent('input:pointerUp', { button });
 		}
 
 		// 吸着状態からの再発射（EventBus経由で通知）
 		if (bar && bar.absorptionNum > 0) {
-			this.getEventBus()?.emitEvent('bar:relaunch');
+			EventBus.emitEvent('bar:relaunch');
 		}
 	}
 
@@ -302,17 +287,14 @@ export default class InputManage {
 		this.pointY *= (cHeight / offH) / sc;
 
 		// EventBusへの入力通知
-		const bus = this.getEventBus();
-		if (bus) {
-			bus.emitEvent('input:pointX', this.pointX);
-			bus.emitEvent('input:pointY', this.pointY);
-			bus.emitEvent('input:mouseMove', {
-				pointX: this.pointX,
-				pointY: this.pointY,
-				touch,
-				scale: sc,
-			});
-		}
+		EventBus.emitEvent('input:pointX', this.pointX);
+		EventBus.emitEvent('input:pointY', this.pointY);
+		EventBus.emitEvent('input:mouseMove', {
+			pointX: this.pointX,
+			pointY: this.pointY,
+			touch,
+			scale: sc,
+		});
 	}
 
 	getKeyPress(e, action) {
@@ -353,23 +335,20 @@ export default class InputManage {
 		}
 
 		// EventBusへの入力値通知
-		const bus = this.getEventBus();
-		if (bus) {
-			bus.emitEvent('input:keyCode', this.keyCode);
-			bus.emitEvent('input:keyStr', this.keyStr);
-			bus.emitEvent('input:keyPress', {
-				keyCode: this.keyCode,
-				keyStr: this.keyStr,
-				keyPressIncr: this.keyPressIncr,
-				action,
-			});
-		}
+		EventBus.emitEvent('input:keyCode', this.keyCode);
+		EventBus.emitEvent('input:keyStr', this.keyStr);
+		EventBus.emitEvent('input:keyPress', {
+			keyCode: this.keyCode,
+			keyStr: this.keyStr,
+			keyPressIncr: this.keyPressIncr,
+			action,
+		});
 
 		// 処理の実行
 		if (this.keyStr === 'Launch') {
 			if (action === 'down') {
 				this.mouseDownTime = Date.now();
-				if (bus) bus.emitEvent('input:mouseDownTime', this.mouseDownTime);
+				EventBus.emitEvent('input:mouseDownTime', this.mouseDownTime);
 			} else {
 				const balls = this.getBalls();
 				const statusMng = this.getStatusMng();
@@ -379,11 +358,11 @@ export default class InputManage {
 				const weaponMaxNum = (g && g.weaponMaxNum) || [3, 2];
 
 				if (balls.length === 0 && isAlive && this.mouseDownTime !== 0) {
-					this.getEventBus()?.emitEvent('ball:launch', { mouseDownTime: this.mouseDownTime });
+					EventBus.emitEvent('ball:launch', { mouseDownTime: this.mouseDownTime });
 					this.mouseDownTime = 0;
-					if (bus) bus.emitEvent('input:mouseDownTime', 0);
+					EventBus.emitEvent('input:mouseDownTime', 0);
 				} else if (bar && bar.weapon != 0 && weapons.length < weaponMaxNum[bar.weapon - 1] && bar.weaponInter <= 0) {
-					this.getEventBus()?.emitEvent('weapon:spawn', {
+					EventBus.emitEvent('weapon:spawn', {
 						type: bar.weapon,
 						x: bar.getCenterX()
 					});
@@ -391,47 +370,47 @@ export default class InputManage {
 			}
 		} else if (this.keyStr === 'Pause') {
 			if (action === 'up') {
-				this.getEventBus()?.emitEvent('control:togglePause');
+				EventBus.emitEvent('control:togglePause');
 			}
 		} else if (this.keyStr === 'Sound') {
 			if (action === 'up') {
-				this.getEventBus()?.emitEvent('control:toggleSound');
+				EventBus.emitEvent('control:toggleSound');
 			}
 		} else if (this.keyStr === 'Auto') {
 			if (action === 'up') {
-				this.getEventBus()?.emitEvent('control:toggleAuto');
+				EventBus.emitEvent('control:toggleAuto');
 			}
 		} else if (this.keyStr === 'Ctrl') {
 			if (action === 'up') {
-				this.getEventBus()?.emitEvent('control:toggleCtrl');
+				EventBus.emitEvent('control:toggleCtrl');
 			}
 		} else if (this.keyStr === 'sizeFit') {
 			if (action === 'up') {
-				this.getEventBus()?.emitEvent('control:toggleSizeFit');
+				EventBus.emitEvent('control:toggleSizeFit');
 			}
 		} else if (this.keyStr === 'Right') {
 			if (action === 'up') {
 				this.keyStr = '';
 			} else {
 				this.keyPressIncr = 5;
-				if (bus) bus.emitEvent('input:keyPressIncr', this.keyPressIncr);
+				EventBus.emitEvent('input:keyPressIncr', this.keyPressIncr);
 			}
 		} else if (this.keyStr === 'Left') {
 			if (action === 'up') {
 				this.keyStr = '';
 			} else {
 				this.keyPressIncr = 5;
-				if (bus) bus.emitEvent('input:keyPressIncr', this.keyPressIncr);
+				EventBus.emitEvent('input:keyPressIncr', this.keyPressIncr);
 			}
 		} else if (this.keyStr === 'nextStage') {
 			if (action === 'down') {
-				this.getEventBus()?.emitEvent('control:forwardStage');
+				EventBus.emitEvent('control:forwardStage');
 			} else {
 				this.keyStr = '';
 			}
 		} else if (this.keyStr === 'prevStage') {
 			if (action === 'down') {
-				this.getEventBus()?.emitEvent('control:backwardStage');
+				EventBus.emitEvent('control:backwardStage');
 			} else {
 				this.keyStr = '';
 			}
@@ -440,7 +419,7 @@ export default class InputManage {
 
 	updateKeyboardBarMove(canvasWidth) {
 		const ctrl = this.getCtrl();
-		if (!ctrl || ctrl.autoSwitch != 0 || ctrl.ctrlSwitch != 1) return;
+		if (!ctrl || ctrl.autoSwitch != 0 || ctrl.ctrlSwitch != 1) { return; }
 
 		const cWidth = canvasWidth || this.getCanvasWidth();
 		if (this.keyStr === 'Right') {
@@ -454,10 +433,7 @@ export default class InputManage {
 		if (this.pointX < 0) this.pointX = 0;
 		else if (this.pointX > cWidth) this.pointX = cWidth;
 
-		const bus = this.getEventBus();
-		if (bus) {
-			bus.emitEvent('input:pointX', this.pointX);
-			bus.emitEvent('input:keyPressIncr', this.keyPressIncr);
-		}
+		EventBus.emitEvent('input:pointX', this.pointX);
+		EventBus.emitEvent('input:keyPressIncr', this.keyPressIncr);
 	}
 }

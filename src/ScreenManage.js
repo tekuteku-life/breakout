@@ -9,6 +9,7 @@ import AllClearScreenControl from "./screens/AllClearScreenControl.js";
 import GameOverScreenControl from "./screens/GameOverScreenControl.js";
 import AboutScreenControl from "./screens/AboutScreenControl.js";
 import { DEFAULT_CONFIG } from "./const.js";
+import EventBus from "./EventBus.js";
 
 export default class ScreenManage {
 	constructor(game = null) {
@@ -35,27 +36,17 @@ export default class ScreenManage {
 			this.printRecordScreen(type, stage);
 		};
 
-		const bus = this.getEventBus();
-		if (bus && typeof bus.addOnEvent === 'function') {
-			bus.addOnEvent('screen:open', this.onOpenHandler);
-			bus.addOnEvent('screen:close', this.onCloseHandler);
-			bus.addOnEvent('screen:allClose', this.onAllCloseHandler);
-			bus.addOnEvent('screen:printRecord', this.onPrintRecordHandler);
-		}
-	}
-
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
+		EventBus.addOnEvent('screen:open', this.onOpenHandler);
+		EventBus.addOnEvent('screen:close', this.onCloseHandler);
+		EventBus.addOnEvent('screen:allClose', this.onAllCloseHandler);
+		EventBus.addOnEvent('screen:printRecord', this.onPrintRecordHandler);
 	}
 
 	destructor() {
-		const bus = this.getEventBus();
-		if (bus && typeof bus.removeOnEvent === 'function') {
-			if (this.onOpenHandler) { bus.removeOnEvent('screen:open', this.onOpenHandler); }
-			if (this.onCloseHandler) { bus.removeOnEvent('screen:close', this.onCloseHandler); }
-			if (this.onAllCloseHandler) { bus.removeOnEvent('screen:allClose', this.onAllCloseHandler); }
-			if (this.onPrintRecordHandler) { bus.removeOnEvent('screen:printRecord', this.onPrintRecordHandler); }
-		}
+		if (this.onOpenHandler) { EventBus.removeOnEvent('screen:open', this.onOpenHandler); }
+		if (this.onCloseHandler) { EventBus.removeOnEvent('screen:close', this.onCloseHandler); }
+		if (this.onAllCloseHandler) { EventBus.removeOnEvent('screen:allClose', this.onAllCloseHandler); }
+		if (this.onPrintRecordHandler) { EventBus.removeOnEvent('screen:printRecord', this.onPrintRecordHandler); }
 		this.onOpenHandler = null;
 		this.onCloseHandler = null;
 		this.onAllCloseHandler = null;

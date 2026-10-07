@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setupEnvironment } from '../helpers/setupEnv.js';
 import GameManage from '../../src/GameManage.js';
+import EventBus from '../../src/EventBus.js';
 
 test('GameManage class unit tests', async (t) => {
 	setupEnvironment();
@@ -59,6 +60,25 @@ test('GameManage class unit tests', async (t) => {
 		assert.equal(gm.weapons.length, 1);
 		assert.equal(gm.weapons[0].type, 0);
 		assert.equal(gm.weapons[0].x, 200);
+
+		// Spawn item & balloon & applyBallItem
+		gm.spawnItem({ type: 1, x: 10, y: 10 });
+		assert.equal(gm.items.length, 1);
+		gm.spawnBalloon({ text: '1', x: 0, y: 0, width: 10, height: 10, alpha: 1, backColor: '#0', fontColor: '#1', fontSize: 10 });
+		assert.equal(gm.balloons.length, 1);
+		gm.applyBallItem(1);
+
+		// Getters and setters
+		const prevBar = gm.bar;
+		gm.bar = prevBar;
+		assert.equal(gm.bar, prevBar);
+		gm.blockMap = [[1]];
+		assert.deepEqual(gm.blockMap, [[1]]);
+
+		// Delegations
+		gm.updateEntities();
+		gm.applyFieldEffects();
+		gm.resolveCollisions();
 	});
 
 	await t.test('exercises game loop step() updating game entities', () => {
@@ -104,49 +124,49 @@ test('GameManage class unit tests', async (t) => {
 		// sound:play
 		let soundPlayed = null;
 		gm.sounds.play = (k) => { soundPlayed = k; };
-		gm.eventBus.emitEvent('sound:play', 'touchButton');
+		EventBus.emitEvent('sound:play', 'touchButton');
 		assert.equal(soundPlayed, 'touchButton');
 
 		// score:add
 		const initialScore = gm.scoreMng.score;
-		gm.eventBus.emitEvent('score:add', 500);
+		EventBus.emitEvent('score:add', 500);
 		assert.equal(gm.scoreMng.score, initialScore + 500);
 
 		// game:over
 		let gameOverCalled = false;
 		gm.gameOver = () => { gameOverCalled = true; };
-		gm.eventBus.emitEvent('game:over');
+		EventBus.emitEvent('game:over');
 		assert.equal(gameOverCalled, true);
 
 		// award:add
-		gm.eventBus.emitEvent('award:add', { key: 'getItemNum', count: 2 });
+		EventBus.emitEvent('award:add', { key: 'getItemNum', count: 2 });
 		assert.equal(gm.scoreMng.awardNum.getItemNum, 2);
 
 		// status:addLife
 		const initLife = gm.statusMng.life;
-		gm.eventBus.emitEvent('status:addLife', 1);
+		EventBus.emitEvent('status:addLife', 1);
 		assert.equal(gm.statusMng.life, initLife + 1);
 
 		// bar:damage
-		gm.eventBus.emitEvent('bar:damage', 2);
+		EventBus.emitEvent('bar:damage', 2);
 		assert.equal(gm.bar.hitPoint, 3);
 
 		// game:simulateReset
 		let resetCalled = false;
 		gm.simulateReset = () => { resetCalled = true; };
-		gm.eventBus.emitEvent('game:simulateReset');
+		EventBus.emitEvent('game:simulateReset');
 		assert.equal(resetCalled, true);
 
 		// game:init
 		let initCalled = false;
 		gm.init = () => { initCalled = true; };
-		gm.eventBus.emitEvent('game:init', 1);
+		EventBus.emitEvent('game:init', 1);
 		assert.equal(initCalled, true);
 
 		// setting:change
 		let settingCalled = false;
 		gm.changeSetting = () => { settingCalled = true; };
-		gm.eventBus.emitEvent('setting:change', 'sample');
+		EventBus.emitEvent('setting:change', 'sample');
 		assert.equal(settingCalled, true);
 
 		// screen:open, close, allClose, printRecord
@@ -155,19 +175,19 @@ test('GameManage class unit tests', async (t) => {
 		gm.screenManage.closeScreen = (s) => { screenAction = 'close:' + s; };
 		gm.screenManage.allClose = () => { screenAction = 'allClose'; };
 		gm.screenManage.printRecordScreen = (t, s) => { screenAction = `printRecord:${t},${s}`; };
-		gm.eventBus.emitEvent('screen:open', 'start');
+		EventBus.emitEvent('screen:open', 'start');
 		assert.equal(screenAction, 'open:start');
-		gm.eventBus.emitEvent('screen:close', 'start');
+		EventBus.emitEvent('screen:close', 'start');
 		assert.equal(screenAction, 'close:start');
-		gm.eventBus.emitEvent('screen:allClose');
+		EventBus.emitEvent('screen:allClose');
 		assert.equal(screenAction, 'allClose');
-		gm.eventBus.emitEvent('screen:printRecord', { type: 1, stage: 2 });
+		EventBus.emitEvent('screen:printRecord', { type: 1, stage: 2 });
 		assert.equal(screenAction, 'printRecord:1,2');
 
 		// input:setMouseDownTime, input:setPointX
-		gm.eventBus.emitEvent('input:setMouseDownTime', 12345);
+		EventBus.emitEvent('input:setMouseDownTime', 12345);
 		assert.equal(gm.inputManage.mouseDownTime, 12345);
-		gm.eventBus.emitEvent('input:setPointX', 300);
+		EventBus.emitEvent('input:setPointX', 300);
 		assert.equal(gm.inputManage.pointX, 300);
 	});
 

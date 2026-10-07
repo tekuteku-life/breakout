@@ -8,6 +8,7 @@ import Ball from '../../src/Ball.js';
 import Item from '../../src/Item.js';
 import Weapon from '../../src/Weapon.js';
 import ImageData from '../../src/ImageData.js';
+import EventBus from '../../src/EventBus.js';
 import { BALL_CREATE_MODE, DEFAULT_CONFIG, ITEM_TYPE } from '../../src/const.js';
 
 describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
@@ -124,29 +125,29 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		// Width and speed status countdown via EventBus timers
 		bar.applyItemEffect(ITEM_TYPE.LONG);
 		assert.ok(bar.width > DEFAULT_CONFIG.barDefaultWidth);
-		g.eventBus.tickTimers(10000);
+		EventBus.tickTimers(10000);
 		assert.equal(bar.width, DEFAULT_CONFIG.barDefaultWidth);
 
 		bar.applyItemEffect(ITEM_TYPE.SLOW);
 		assert.ok(bar.vxMax < DEFAULT_CONFIG.barDefaultSpeed);
-		g.eventBus.tickTimers(10000);
+		EventBus.tickTimers(10000);
 		assert.equal(bar.vxMax, DEFAULT_CONFIG.barDefaultSpeed);
 
 		// Weapon and immortal status countdown via EventBus timers
 		bar.applyItemEffect(ITEM_TYPE.GUN);
 		assert.equal(bar.weapon, 1);
-		g.eventBus.tickTimers(10000);
+		EventBus.tickTimers(10000);
 		assert.equal(bar.weapon, 0);
 
 		bar.applyItemEffect(ITEM_TYPE.IMMORTAL);
 		assert.ok(bar.immortalStatusTime > 0);
-		g.eventBus.tickTimers(10000);
+		EventBus.tickTimers(10000);
 		assert.equal(bar.immortalStatusTime, 0);
 
 		// Disturb status countdown via EventBus timers
 		bar.applyItemEffect(ITEM_TYPE.DISTURB);
 		assert.ok(bar.disturbStatusTime > 0);
-		g.eventBus.tickTimers(10000);
+		EventBus.tickTimers(10000);
 		assert.equal(bar.disturbStatusTime, 0);
 
 		// Damage handling

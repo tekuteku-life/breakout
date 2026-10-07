@@ -3,6 +3,7 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { setupEnvironment } from '../helpers/setupEnv.js';
 import '../../src/main.js';
+import EventBus from '../../src/EventBus.js';
 
 describe('System Test SYS-06: Life Decrement and Game Over Scenario', () => {
 	beforeEach(() => {
@@ -135,7 +136,7 @@ describe('System Test SYS-06: Life Decrement and Game Over Scenario', () => {
 		assert.equal(g.balls.length, 1);
 
 		// Duplicate balls via DOUBLE item effect
-		g.eventBus.emitEvent('ball:applyItem', 0);
+		EventBus.emitEvent('ball:applyItem', 0);
 		assert.equal(g.balls.length, 2, 'Should have 2 balls in play');
 
 		const initialLife = g.statusMng.life;

@@ -57,28 +57,28 @@ test('Ball class unit tests', async (t) => {
 	});
 
 	await t.test('copy preserves special status and configures status timer to return to normal', () => {
-		const bus = new EventBus();
-		const game = createMockGame({ eventBus: bus, FPS: 50 });
+		EventBus.destructor();
+		const game = createMockGame({ FPS: 50 });
 		const original = new Ball(BALL_CREATE_MODE.LAUNCH, game);
 		original.setStatus(BALL_STATUS.STRONG, 1.0); // 1.0 second timer
 
 		// Advance 400ms (0.4s elapsed, 0.6s remaining)
-		bus.tickTimers(400);
+		EventBus.tickTimers(400);
 		assert.equal(original.status, BALL_STATUS.STRONG);
 
 		// Clone via RAND mode (e.g. ITEM_TYPE.DOUBLE duplication)
 		const cloned = original.copy(BALL_COPY_MODE.RAND);
 		assert.equal(cloned.status, BALL_STATUS.STRONG);
 		assert.ok(cloned.ballId !== original.ballId);
-		assert.equal(bus.hasTimer(`ball:${cloned.ballId}:status`), true);
+		assert.equal(EventBus.hasTimer(`ball:${cloned.ballId}:status`), true);
 
 		// Advance another 400ms (cloned should have ~200ms remaining, still STRONG)
-		bus.tickTimers(400);
+		EventBus.tickTimers(400);
 		assert.equal(cloned.status, BALL_STATUS.STRONG);
 		assert.equal(original.status, BALL_STATUS.STRONG);
 
 		// Advance another 300ms (both should expire and return to NORMAL)
-		bus.tickTimers(300);
+		EventBus.tickTimers(300);
 		assert.equal(original.status, BALL_STATUS.NORMAL);
 		assert.equal(cloned.status, BALL_STATUS.NORMAL);
 		assert.equal(cloned.statusTime, 0);
@@ -87,7 +87,7 @@ test('Ball class unit tests', async (t) => {
 		original.setStatus(BALL_STATUS.ULTIMATE, 2.0);
 		const simClone = original.copy(BALL_COPY_MODE.SIMULATE);
 		assert.equal(simClone.status, BALL_STATUS.ULTIMATE);
-		assert.equal(bus.hasTimer(`ball:${simClone.ballId}:status`), false);
+		assert.equal(EventBus.hasTimer(`ball:${simClone.ballId}:status`), false);
 
 		// Expired original ball copy resets status to NORMAL
 		const expired = new Ball(BALL_CREATE_MODE.LAUNCH, game);
@@ -102,8 +102,8 @@ test('Ball class unit tests', async (t) => {
 		manualStatusBall.statusTime = 50; // 50 frames = 1.0s at 50 FPS
 		const manualClone = manualStatusBall.copy(BALL_COPY_MODE.RAND);
 		assert.equal(manualClone.status, BALL_STATUS.STRONG);
-		assert.equal(bus.hasTimer(`ball:${manualClone.ballId}:status`), true);
-		bus.tickTimers(1100);
+		assert.equal(EventBus.hasTimer(`ball:${manualClone.ballId}:status`), true);
+		EventBus.tickTimers(1100);
 		assert.equal(manualClone.status, BALL_STATUS.NORMAL);
 	});
 
@@ -123,16 +123,13 @@ test('Ball class unit tests', async (t) => {
 		let allLostCalled = false;
 		let soundPlayed = null;
 		let awardAdded = null;
-		const mockBus = {
-			emitEvent: (name, data) => {
-				if (name === 'ball:allLost') allLostCalled = true;
-				if (name === 'sound:play') soundPlayed = data;
-				if (name === 'award:add') awardAdded = data;
-			}
-		};
+		EventBus.destructor();
+		EventBus.addOnEvent('ball:allLost', () => { allLostCalled = true; });
+		EventBus.addOnEvent('sound:play', (data) => { soundPlayed = data; });
+		EventBus.addOnEvent('award:add', (data) => { awardAdded = data; });
+
 		const mockBar = { immortalStatusTime: 0 };
 		const mockGame = {
-			eventBus: mockBus,
 			bar: mockBar,
 			balls: [],
 		};
@@ -149,14 +146,11 @@ test('Ball class unit tests', async (t) => {
 
 	await t.test('fall does NOT emit ball:allLost when other balls are still in play', () => {
 		let allLostCalled = false;
-		const mockBus = {
-			emitEvent: (name) => {
-				if (name === 'ball:allLost') allLostCalled = true;
-			}
-		};
+		EventBus.destructor();
+		EventBus.addOnEvent('ball:allLost', () => { allLostCalled = true; });
+
 		const mockBar = { immortalStatusTime: 0 };
 		const mockGame = {
-			eventBus: mockBus,
 			bar: mockBar,
 			balls: [],
 		};
@@ -199,8 +193,8 @@ test('Ball class unit tests', async (t) => {
 	});
 
 	await t.test('move handles speed limits, state timeouts, and absorption lock', () => {
-		const bus = new EventBus();
-		const game = createMockGame({ eventBus: bus, FPS: 50 });
+		EventBus.destructor();
+		const game = createMockGame({ FPS: 50 });
 		const ball = new Ball(BALL_CREATE_MODE.OTHER, game);
 		ball.vx = 999;
 		ball.vy = -999;
@@ -212,7 +206,7 @@ test('Ball class unit tests', async (t) => {
 		assert.equal(ball.status, BALL_STATUS.STRONG);
 
 		// Advance timer to expire status
-		bus.tickTimers(200);
+		EventBus.tickTimers(200);
 		assert.equal(ball.status, BALL_STATUS.NORMAL);
 
 		// Direct resetStatus
@@ -277,7 +271,7 @@ test('Ball class unit tests', async (t) => {
 	});
 
 	await t.test('move triggers fall when ball passes below canvas height', () => {
-		const mockGame = { balls: [], canvasHeight: 530, eventBus: { emitEvent: () => {} } };
+		const mockGame = { balls: [], canvasHeight: 530 };
 		const ball = new Ball(BALL_CREATE_MODE.OTHER, mockGame);
 		mockGame.balls.push(ball);
 		ball.x = 200;
@@ -392,8 +386,9 @@ test('Ball class unit tests', async (t) => {
 		assert.equal(ball.vy, 5);
 
 		let fallEmitted = false;
-		const mockBus = { emitEvent: (evt) => { if (evt === 'sound:play') fallEmitted = true; } };
-		const ballFall = new Ball(BALL_CREATE_MODE.OTHER, { eventBus: mockBus, balls: [] });
+		EventBus.destructor();
+		EventBus.addOnEvent('sound:play', (evt) => { if (evt === 'fall') fallEmitted = true; });
+		const ballFall = new Ball(BALL_CREATE_MODE.OTHER, { balls: [] });
 		ballFall.y = 650;
 		assert.equal(ballFall.checkCollisionWithWall(800, 600, 30), true);
 		assert.equal(fallEmitted, true);
@@ -409,8 +404,7 @@ test('Ball class unit tests', async (t) => {
 			getTopY: () => 500,
 			getCenterX: () => 200,
 		};
-		const mockBus = { emitEvent: () => {} };
-		const ball = new Ball(BALL_CREATE_MODE.OTHER, { eventBus: mockBus, ballDefaultSpeed: 5, ballMaxSpeed: 10 });
+		const ball = new Ball(BALL_CREATE_MODE.OTHER, { ballDefaultSpeed: 5, ballMaxSpeed: 10 });
 		ball.x = 200;
 		ball.y = 500;
 		ball.vy = 4;

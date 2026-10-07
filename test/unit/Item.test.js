@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { setupEnvironment, createMock2DContext } from '../helpers/setupEnv.js';
 import Item from '../../src/Item.js';
 import ImageData from '../../src/ImageData.js';
+import EventBus from '../../src/EventBus.js';
 
 test('Item class unit tests', async (t) => {
 	setupEnvironment();
@@ -15,7 +16,6 @@ test('Item class unit tests', async (t) => {
 		blockWidth: 50,
 		blockHeight: 20,
 		bar: globalThis.bar,
-		eventBus: { emitEvent: () => {} },
 	};
 
 	await t.test('constructor and coordinate getters work properly', () => {
@@ -81,18 +81,16 @@ test('Item class unit tests', async (t) => {
 
 	await t.test('move handles fall-out and bar collision life-cycle', () => {
 		let awardAdded = false;
-		const mockBus = {
-			emitEvent: (name, data) => {
-				if (name === 'award:add' && data.key === 'getItemNum') awardAdded = true;
-			}
-		};
+		EventBus.destructor();
+		EventBus.addOnEvent('award:add', (data) => {
+			if (data && data.key === 'getItemNum') awardAdded = true;
+		});
 		const mockBar = {
 			getTopY: () => 500,
 			getLeftX: () => 80,
 			getRightX: () => 120,
 		};
 		const mockGame = {
-			eventBus: mockBus,
 			bar: mockBar,
 			items: [],
 			canvasHeight: 600,
@@ -119,29 +117,33 @@ test('Item class unit tests', async (t) => {
 	await t.test('applyEffect covers all 16 item types (0 to 15) via EventBus', () => {
 		for (let type = 0; type <= 15; type++) {
 			const emittedEvents = [];
-			const mockBus = {
-				emitEvent: (name, data) => {
-					emittedEvents.push({ name, data });
-				}
+			EventBus.destructor();
+			const origEmit = EventBus.emitEvent;
+			EventBus.emitEvent = (name, data) => {
+				emittedEvents.push({ name, data });
+				return origEmit.call(EventBus, name, data);
 			};
-			const mockGame = { eventBus: mockBus };
-			const item = new Item(type, 0, 0, '#fff', '#000', mockGame);
-			item.applyEffect();
+			try {
+				const item = new Item(type, 0, 0, '#fff', '#000', {});
+				item.applyEffect();
 
-			// Every item emits award:add and sound:play
-			assert.ok(emittedEvents.some(e => e.name === 'award:add' && e.data?.key === 'getItemNum'));
-			const expectedSound = (type === 4 || type === 6 || type === 11 || type === 12) ? 'minusItem' : 'plusItem';
-			assert.ok(emittedEvents.some(e => e.name === 'sound:play' && e.data === expectedSound));
+				// Every item emits award:add and sound:play
+				assert.ok(emittedEvents.some(e => e.name === 'award:add' && e.data?.key === 'getItemNum'));
+				const expectedSound = (type === 4 || type === 6 || type === 11 || type === 12) ? 'minusItem' : 'plusItem';
+				assert.ok(emittedEvents.some(e => e.name === 'sound:play' && e.data === expectedSound));
 
-			// Specific effect verification
-			if (type === 0 || type === 1 || type === 2 || type === 7 || type === 8) {
-				assert.ok(emittedEvents.some(e => e.name === 'ball:applyItem' && e.data === type));
-			} else if (type === 5) {
-				assert.ok(emittedEvents.some(e => e.name === 'status:addLife' && e.data === 1));
-			} else if (type === 6) {
-				assert.ok(emittedEvents.some(e => e.name === 'status:addLife' && e.data === -1));
-			} else {
-				assert.ok(emittedEvents.some(e => e.name === 'bar:applyItem' && e.data === type));
+				// Specific effect verification
+				if (type === 0 || type === 1 || type === 2 || type === 7 || type === 8) {
+					assert.ok(emittedEvents.some(e => e.name === 'ball:applyItem' && e.data === type));
+				} else if (type === 5) {
+					assert.ok(emittedEvents.some(e => e.name === 'status:addLife' && e.data === 1));
+				} else if (type === 6) {
+					assert.ok(emittedEvents.some(e => e.name === 'status:addLife' && e.data === -1));
+				} else {
+					assert.ok(emittedEvents.some(e => e.name === 'bar:applyItem' && e.data === type));
+				}
+			} finally {
+				EventBus.emitEvent = origEmit;
 			}
 		}
 	});

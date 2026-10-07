@@ -11,6 +11,7 @@ import {
 	BLOCK_FUNCTION,
 	DEFAULT_CONFIG,
 } from "./const.js";
+import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
 // ボール
@@ -57,11 +58,8 @@ export default class Ball
 				this.resetStatus();
 			}
 		};
-		const bus = this.getEventBus();
-		if (bus && typeof bus.addOnEvent === 'function') {
-			bus.addOnEvent('input:mouseDownTime', this.onMouseDownHandler);
-			bus.addOnEvent('ball:resetStatus', this.onResetStatusHandler);
-		}
+		EventBus.addOnEvent('input:mouseDownTime', this.onMouseDownHandler);
+		EventBus.addOnEvent('ball:resetStatus', this.onResetStatusHandler);
 
 
 		//--------------------------------------------------
@@ -100,16 +98,11 @@ export default class Ball
 
 	destructor()
 	{
-		const bus = this.getEventBus();
-		if (bus && typeof bus.removeOnEvent === 'function') {
-			if (this.onMouseDownHandler) { bus.removeOnEvent('input:mouseDownTime', this.onMouseDownHandler); }
-			if (this.onResetStatusHandler) { bus.removeOnEvent('ball:resetStatus', this.onResetStatusHandler); }
-		}
+		if (this.onMouseDownHandler) { EventBus.removeOnEvent('input:mouseDownTime', this.onMouseDownHandler); }
+		if (this.onResetStatusHandler) { EventBus.removeOnEvent('ball:resetStatus', this.onResetStatusHandler); }
 		this.onMouseDownHandler = null;
 		this.onResetStatusHandler = null;
-		if (bus && typeof bus.removeTimer === 'function') {
-			bus.removeTimer(`ball:${this.ballId}:status`);
-		}
+		EventBus.removeTimer(`ball:${this.ballId}:status`);
 
 		const ballList = this.getBalls();
 		if (ballList) {
@@ -135,19 +128,16 @@ export default class Ball
 		this.status = status;
 		this.statusTime = Math.round(bStatusTime * fps);
 
-		const bus = this.getEventBus();
-		if (bus && typeof bus.addTimer === 'function') {
-			const durationMs = bStatusTime * 1000;
-			bus.addTimer(`ball:${this.ballId}:status`, durationMs, () => {
-				this.resetStatus();
-			}, {
-				event: 'ball:resetStatus',
-				args: [this],
-				onTick: (timer) => {
-					this.statusTime = Math.ceil(timer.remaining / (1000 / fps));
-				}
-			});
-		}
+		const durationMs = bStatusTime * 1000;
+		EventBus.addTimer(`ball:${this.ballId}:status`, durationMs, () => {
+			this.resetStatus();
+		}, {
+			event: 'ball:resetStatus',
+			args: [this],
+			onTick: (timer) => {
+				this.statusTime = Math.ceil(timer.remaining / (1000 / fps));
+			}
+		});
 	}
 
 	//--------------------------------------------------
@@ -162,12 +152,12 @@ export default class Ball
 		return this.game || null;
 	}
 
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
-	}
-
 	getBalls() {
-		return (this.game && this.game.balls) || [];
+		if (this.game) {
+			if (this.game.objectManage && this.game.objectManage.balls) return this.game.objectManage.balls;
+			if (this.game.balls) return this.game.balls;
+		}
+		return [];
 	}
 
 	getCanvasWidth() {
@@ -223,10 +213,7 @@ export default class Ball
 
 		// 特殊状態のタイマー設定（シミュレート以外で特殊状態の場合）
 		if (obj.simulate === 0 && this.status !== BALL_STATUS.NORMAL) {
-			const bus = this.getEventBus();
-			const timer = bus && typeof bus.getTimer === 'function'
-				? bus.getTimer(`ball:${this.ballId}:status`)
-				: null;
+			const timer = EventBus.getTimer(`ball:${this.ballId}:status`);
 			const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 			let remainingSec = null;
 			if (timer) {
@@ -275,15 +262,14 @@ export default class Ball
 	//--------------------------------------------------
 	fall()
 	{
-		const bus = this.getEventBus();
 		const game = this.game;
 		const bar = (game && game.bar) || null;
 
 		// 落下音（EventBus経由で通知）
-		bus?.emitEvent('sound:play', 'fall');
+		EventBus.emitEvent('sound:play', 'fall');
 
 		// 落下数の計算（EventBus経由で通知）
-		bus?.emitEvent('award:add', { key: 'fallBallNum', count: 1 });
+		EventBus.emitEvent('award:add', { key: 'fallBallNum', count: 1 });
 
 		// ボール消去（ballListから自身を削除）
 		this.destructor();
@@ -293,7 +279,7 @@ export default class Ball
 
 		// 全てのボールが落ちた場合のみ、EventBus経由でラウンドリセットを通知
 		if ((!bar || bar.immortalStatusTime <= 0) && remainingBalls.length === 0) {
-			bus?.emitEvent('ball:allLost');
+			EventBus.emitEvent('ball:allLost');
 		}
 	}
 
@@ -419,7 +405,7 @@ export default class Ball
 			this.x = this.radius;
 			this.vx *= -1;
 
-			if( this.simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'wall'); }
+			if( this.simulate == 0 ) { EventBus.emitEvent('sound:play', 'wall'); }
 			return true;
 		}
 		// 右端
@@ -428,7 +414,7 @@ export default class Ball
 			this.x = canvasWidth - this.radius;
 			this.vx *= -1;
 
-			if( this.simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'wall'); }
+			if( this.simulate == 0 ) { EventBus.emitEvent('sound:play', 'wall'); }
 			return true;
 		}
 
@@ -438,7 +424,7 @@ export default class Ball
 			this.y = this.radius + statusBarHeight;
 			this.vy *= -1;
 
-			if( this.simulate == 0 ) { this.getEventBus()?.emitEvent('sound:play', 'wall'); }
+			if( this.simulate == 0 ) { EventBus.emitEvent('sound:play', 'wall'); }
 			return true;
 		}
 		// 下端（落下）
@@ -514,7 +500,7 @@ export default class Ball
 			this.collisionNum = 0;
 
 			// 接触音
-			this.getEventBus()?.emitEvent('sound:play', 'bar');
+			EventBus.emitEvent('sound:play', 'bar');
 			return true;
 		}
 

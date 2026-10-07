@@ -15,7 +15,6 @@ test('AutoPlay class unit tests', async (t) => {
 	setupEnvironment();
 
 	await t.test('constructor initializes properties and getters return bound game properties', () => {
-		const mockEventBus = new EventBus();
 		const mockBar = { x: 100, y: 500, width: 80, height: 7 };
 		const mockBalls = [{ ball: true }];
 		const mockItems = [{ item: true }];
@@ -23,7 +22,6 @@ test('AutoPlay class unit tests', async (t) => {
 		const mockBlockMap = [[1]];
 		const mockCtrl = { autoSwitch: 1 };
 		const mockGame = {
-			eventBus: mockEventBus,
 			bar: mockBar,
 			balls: mockBalls,
 			items: mockItems,
@@ -36,7 +34,6 @@ test('AutoPlay class unit tests', async (t) => {
 
 		const ap = new AutoPlay(mockGame);
 		assert.equal(ap.getGame(), mockGame);
-		assert.equal(ap.getEventBus(), mockEventBus);
 		assert.equal(ap.getBar(), mockBar);
 		assert.equal(ap.getBalls(), mockBalls);
 		assert.equal(ap.getItems(), mockItems);
@@ -52,15 +49,14 @@ test('AutoPlay class unit tests', async (t) => {
 	});
 
 	await t.test('auto() launches ball when balls array is empty', () => {
-		const bus = new EventBus();
+		EventBus.destructor();
 		let launched = false;
 		let closed = false;
-		bus.addOnEvent('ball:launch', () => { launched = true; });
-		bus.addOnEvent('screen:allClose', () => { closed = true; });
+		EventBus.addOnEvent('ball:launch', () => { launched = true; });
+		EventBus.addOnEvent('screen:allClose', () => { closed = true; });
 
 		const mockBar = new Bar();
 		const mockGame = {
-			eventBus: bus,
 			bar: mockBar,
 			balls: [],
 			items: [],
@@ -87,7 +83,6 @@ test('AutoPlay class unit tests', async (t) => {
 		mockBar.relaunch = () => { relaunchedCount++; };
 
 		const mockGame = {
-			eventBus: new EventBus(),
 			bar: mockBar,
 			balls: [new Ball(BALL_CREATE_MODE.OTHER)],
 			items: [],
@@ -104,7 +99,6 @@ test('AutoPlay class unit tests', async (t) => {
 	});
 
 	await t.test('auto computes targetX and positions bar towards falling ball', () => {
-		const bus = new EventBus();
 		const bar = new Bar();
 		bar.x = 200;
 		bar.y = 500;
@@ -137,7 +131,6 @@ test('AutoPlay class unit tests', async (t) => {
 		bar.setPointX = (val) => { setPoint = val; };
 
 		const game = {
-			eventBus: bus,
 			bar,
 			balls: [ball],
 			items: [],
@@ -154,9 +147,9 @@ test('AutoPlay class unit tests', async (t) => {
 	});
 
 	await t.test('auto executes weapon auto-targeting, block mapping, and infinite block avoidance', () => {
-		const bus = new EventBus();
+		EventBus.destructor();
 		let spawnedWeapon = null;
-		bus.addOnEvent('weapon:spawn', (data) => { spawnedWeapon = data; });
+		EventBus.addOnEvent('weapon:spawn', (data) => { spawnedWeapon = data; });
 
 		const bar = new Bar();
 		bar.weapon = 1; // Gun
@@ -169,7 +162,6 @@ test('AutoPlay class unit tests', async (t) => {
 		const blockMap = [[], [], [null, null, null, infBlock, null, targetBlock]];
 
 		const game = {
-			eventBus: bus,
 			bar,
 			balls: [new Ball(BALL_CREATE_MODE.OTHER)],
 			items: [],
@@ -191,7 +183,6 @@ test('AutoPlay class unit tests', async (t) => {
 	});
 
 	await t.test('auto handles combined ball and item tracking with simulation data', () => {
-		const bus = new EventBus();
 		const bar = new Bar();
 		bar.x = 200;
 		bar.y = 500;
@@ -203,7 +194,6 @@ test('AutoPlay class unit tests', async (t) => {
 		ball.vy = 2;
 
 		const game = {
-			eventBus: bus,
 			bar,
 			balls: [ball],
 			items: [testItem],
@@ -325,7 +315,6 @@ test('AutoPlay class unit tests', async (t) => {
 	});
 
 	await t.test('auto does not throw TypeError when stDvx exceeds enDvx and no-collision search triggers', () => {
-		const bus = new EventBus();
 		const bar = new Bar();
 		bar.x = 200;
 		bar.y = 500;
@@ -336,7 +325,6 @@ test('AutoPlay class unit tests', async (t) => {
 		ball.vy = 4;
 
 		const game = {
-			eventBus: bus,
 			bar,
 			balls: [ball],
 			items: [],

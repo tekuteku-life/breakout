@@ -4,6 +4,7 @@
 import Heart from "./Heart.js";
 import MessageBox from "./MessageBox.js";
 import { DEFAULT_CONFIG } from "./const.js";
+import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
 // ステータス計測
@@ -38,20 +39,14 @@ export default class StatusManage
 			}
 		};
 
-		const bus = this.getEventBus();
-		if (bus && typeof bus.addOnEvent === 'function') {
-			bus.addOnEvent('status:addLife', this.onAddLifeHandler);
-			bus.addOnEvent('status:blockBreak', this.onBlockBreakHandler);
-		}
+		EventBus.addOnEvent('status:addLife', this.onAddLifeHandler);
+		EventBus.addOnEvent('status:blockBreak', this.onBlockBreakHandler);
 	}
 
 	destructor()
 	{
-		const bus = this.getEventBus();
-		if (bus && typeof bus.removeOnEvent === 'function') {
-			if (this.onAddLifeHandler) bus.removeOnEvent('status:addLife', this.onAddLifeHandler);
-			if (this.onBlockBreakHandler) bus.removeOnEvent('status:blockBreak', this.onBlockBreakHandler);
-		}
+		if (this.onAddLifeHandler) EventBus.removeOnEvent('status:addLife', this.onAddLifeHandler);
+		if (this.onBlockBreakHandler) EventBus.removeOnEvent('status:blockBreak', this.onBlockBreakHandler);
 		this.onAddLifeHandler = null;
 		this.onBlockBreakHandler = null;
 
@@ -66,10 +61,6 @@ export default class StatusManage
 
 	getGame() {
 		return this.game || null;
-	}
-
-	getEventBus() {
-		return (this.game && this.game.eventBus) || null;
 	}
 
 	getBalls() {
@@ -139,9 +130,8 @@ export default class StatusManage
 				if( this.lowFPSCount > 5 )
 				{
 					// 一時停止（EventBus経由で通知）
-					const bus = this.getEventBus();
-					if (bus && ctrl && ctrl.pauseSwitch == 0) {
-						bus.emitEvent('control:togglePause');
+					if (ctrl && ctrl.pauseSwitch == 0) {
+						EventBus.emitEvent('control:togglePause');
 					}
 
 					// 警告文の表示

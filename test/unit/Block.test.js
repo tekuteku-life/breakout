@@ -117,12 +117,9 @@ test('Block class unit tests', async (t) => {
 
 		// Attack block
 		let spawnedWeapon = null;
-		const mockBus = {
-			emitEvent: (name, data) => {
-				if (name === 'weapon:spawn') spawnedWeapon = data;
-			}
-		};
-		const mockGame = { eventBus: mockBus, FPS: 60, balls: [{}] };
+		EventBus.destructor();
+		EventBus.addOnEvent('weapon:spawn', (data) => { spawnedWeapon = data; });
+		const mockGame = { FPS: 60, balls: [{}] };
 		const bAttack = new Block(1, 1, 1, BLOCK_FUNCTION.ATTACK, 0, 0, 0, mockGame);
 		bAttack.attackInter = 0;
 		bAttack.move();
@@ -148,7 +145,6 @@ test('Block class unit tests', async (t) => {
 
 		// Warp block
 		const mockWarpMap = [];
-		const mockWarpBus = { emitEvent: () => {} };
 		const mockWarpGame = {
 			blockMap: mockWarpMap,
 			FPS: 50,
@@ -157,7 +153,6 @@ test('Block class unit tests', async (t) => {
 			statusBarHeight: 22,
 			canvasWidth: 750,
 			canvasHeight: 530,
-			eventBus: mockWarpBus
 		};
 		const bWarp = new Block(0, 0, 1, BLOCK_FUNCTION.WARP_ENTER, 0, 1, 0, mockWarpGame);
 		const bExit = new Block(5, 5, 1, BLOCK_FUNCTION.WARP_EXIT, 0, 1, 0, mockWarpGame);
@@ -195,13 +190,10 @@ test('Block class unit tests', async (t) => {
 	await t.test('break and decreaseLife update life, spawn item, and clear block', () => {
 		let spawnedItem = null;
 		let blockBreakEmitted = false;
-		const mockBus = {
-			emitEvent: (name, data) => {
-				if (name === 'item:spawn') spawnedItem = data;
-				if (name === 'status:blockBreak') blockBreakEmitted = true;
-			}
-		};
-		const mockGame = { eventBus: mockBus, itemLineColor: [['#fff']], itemColor: [['#000']] };
+		EventBus.destructor();
+		EventBus.addOnEvent('item:spawn', (data) => { spawnedItem = data; });
+		EventBus.addOnEvent('status:blockBreak', () => { blockBreakEmitted = true; });
+		const mockGame = { itemLineColor: [['#fff']], itemColor: [['#000']] };
 		const b = new Block(1, 1, 1, 0, 2, 0, 0, mockGame);
 		b.item = 0; // Spawn item 0
 
@@ -211,6 +203,9 @@ test('Block class unit tests', async (t) => {
 		b.break({ simulate: 0, breakNum: 0 });
 		assert.equal(b.type, 0);
 		assert.ok(spawnedItem !== null);
+		assert.equal(spawnedItem.type, 0);
+		assert.equal(spawnedItem.lineColor, undefined);
+		assert.equal(spawnedItem.color, undefined);
 		assert.equal(blockBreakEmitted, true);
 
 		// Simulation break
@@ -230,7 +225,6 @@ test('Block class unit tests', async (t) => {
 			statusBarHeight: 22,
 			canvasWidth: 750,
 			canvasHeight: 530,
-			eventBus: { emitEvent: () => {} }
 		};
 		const b1 = new Block(1, 1, 2, BLOCK_FUNCTION.EXPLODE, 0, 0, 0, mockExplodeGame);
 		const b2 = new Block(1, 2, 5, BLOCK_FUNCTION.FUEL, 0, 0, 0, mockExplodeGame);
@@ -346,7 +340,6 @@ test('Block class unit tests', async (t) => {
 			canvasHeight: 530,
 			ballInfBoundCancel: 1,
 			ballDefaultSpeed: 3.5,
-			eventBus: { emitEvent: () => {} },
 		};
 		// Explode strength
 		const bExplodeStr = new Block(1, 1, 1, BLOCK_FUNCTION.EXPLODE_STRENGTH, 0, 0, 0, mockActionGame);
@@ -405,9 +398,8 @@ test('Block class unit tests', async (t) => {
 	});
 
 	await t.test('infinite block (infinit=1) cannot be destroyed by Hard (STRONG) ball, only by Fire (ULTIMATE) ball', () => {
-		const bus = new EventBus();
+		EventBus.destructor();
 		const mockGame = {
-			eventBus: bus,
 			FPS: 60,
 			blockMap: [],
 			canvasWidth: 750,

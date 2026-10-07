@@ -6,6 +6,7 @@ import '../../src/main.js';
 import Item from '../../src/Item.js';
 import Block from '../../src/Block.js';
 import Ball from '../../src/Ball.js';
+import EventBus from '../../src/EventBus.js';
 import { BLOCK_FUNCTION, BALL_STATUS, BALL_CREATE_MODE } from '../../src/const.js';
 
 describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', () => {
@@ -231,32 +232,32 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		// Width timer expiration via EventBus
 		bar.applyItemEffect(3); // LONG
 		assert.ok(bar.width > barDefaultWidth);
-		g.eventBus.tickTimers(15000);
+		EventBus.tickTimers(15000);
 		assert.equal(bar.width, barDefaultWidth, 'Width should reset to default');
 
 		// Speed timer expiration via EventBus
 		bar.applyItemEffect(11); // SLOW
 		assert.ok(bar.vxMax < barDefaultSpeed);
-		g.eventBus.tickTimers(15000);
+		EventBus.tickTimers(15000);
 		assert.equal(bar.vxMax, barDefaultSpeed, 'Speed should reset to default');
 		assert.equal(bar.height, barDefaultHeight, 'Height should reset to default');
 
 		// Weapon timer expiration via EventBus
 		bar.applyItemEffect(9); // GUN
 		assert.equal(bar.weapon, 1);
-		g.eventBus.tickTimers(15000);
+		EventBus.tickTimers(15000);
 		assert.equal(bar.weapon, 0, 'Weapon should reset to 0');
 
 		// Immortal timer expiration via EventBus
 		bar.applyItemEffect(14); // IMMORTAL
 		assert.equal(bar.color, barImmortalColor);
-		g.eventBus.tickTimers(15000);
+		EventBus.tickTimers(15000);
 		assert.equal(bar.color, barColor, 'Bar color should reset to default');
 
 		// Disturb timer expiration via EventBus
 		bar.applyItemEffect(15); // DISTURB
 		assert.ok(bar.disturbStatusTime > 0);
-		g.eventBus.tickTimers(15000);
+		EventBus.tickTimers(15000);
 		assert.equal(bar.disturbStatusTime, 0);
 
 		// Absorption timer expiration relaunches absorbed balls
@@ -265,7 +266,7 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		ball.isAbsorption = 1;
 		g.balls = [ball];
 		bar.absorptionNum = 1;
-		g.eventBus.tickTimers(15000);
+		EventBus.tickTimers(15000);
 		assert.equal(bar.absorptionNum, 0, 'Absorbed balls should be relaunched');
 		assert.equal(ball.isAbsorption, 0);
 	});
@@ -332,7 +333,7 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 
 		// Advance timer past status duration
 		const statusDurationMs = (g.ballStatusTime || 10) * 1000 + 100;
-		g.eventBus.tickTimers(statusDurationMs);
+		EventBus.tickTimers(statusDurationMs);
 
 		// Both original and duplicated balls should return to NORMAL
 		assert.equal(g.balls[0].status, BALL_STATUS.NORMAL);
