@@ -56,6 +56,57 @@ test('Ball class unit tests', async (t) => {
 		assert.equal(simClone.simulate, 1);
 	});
 
+	await t.test('copy preserves special status and configures status timer to return to normal', () => {
+		const bus = new EventBus();
+		const game = createMockGame({ eventBus: bus, FPS: 50 });
+		const original = new Ball(BALL_CREATE_MODE.LAUNCH, game);
+		original.setStatus(BALL_STATUS.STRONG, 1.0); // 1.0 second timer
+
+		// Advance 400ms (0.4s elapsed, 0.6s remaining)
+		bus.tickTimers(400);
+		assert.equal(original.status, BALL_STATUS.STRONG);
+
+		// Clone via RAND mode (e.g. ITEM_TYPE.DOUBLE duplication)
+		const cloned = original.copy(BALL_COPY_MODE.RAND);
+		assert.equal(cloned.status, BALL_STATUS.STRONG);
+		assert.ok(cloned.ballId !== original.ballId);
+		assert.equal(bus.hasTimer(`ball:${cloned.ballId}:status`), true);
+
+		// Advance another 400ms (cloned should have ~200ms remaining, still STRONG)
+		bus.tickTimers(400);
+		assert.equal(cloned.status, BALL_STATUS.STRONG);
+		assert.equal(original.status, BALL_STATUS.STRONG);
+
+		// Advance another 300ms (both should expire and return to NORMAL)
+		bus.tickTimers(300);
+		assert.equal(original.status, BALL_STATUS.NORMAL);
+		assert.equal(cloned.status, BALL_STATUS.NORMAL);
+		assert.equal(cloned.statusTime, 0);
+
+		// Simulate mode should not register status timer
+		original.setStatus(BALL_STATUS.ULTIMATE, 2.0);
+		const simClone = original.copy(BALL_COPY_MODE.SIMULATE);
+		assert.equal(simClone.status, BALL_STATUS.ULTIMATE);
+		assert.equal(bus.hasTimer(`ball:${simClone.ballId}:status`), false);
+
+		// Expired original ball copy resets status to NORMAL
+		const expired = new Ball(BALL_CREATE_MODE.LAUNCH, game);
+		expired.status = BALL_STATUS.STRONG;
+		expired.statusTime = 0;
+		const expiredClone = expired.copy(BALL_COPY_MODE.RAND);
+		assert.equal(expiredClone.status, BALL_STATUS.NORMAL);
+
+		// Fallback when timer missing but statusTime > 0
+		const manualStatusBall = new Ball(BALL_CREATE_MODE.LAUNCH, game);
+		manualStatusBall.status = BALL_STATUS.STRONG;
+		manualStatusBall.statusTime = 50; // 50 frames = 1.0s at 50 FPS
+		const manualClone = manualStatusBall.copy(BALL_COPY_MODE.RAND);
+		assert.equal(manualClone.status, BALL_STATUS.STRONG);
+		assert.equal(bus.hasTimer(`ball:${manualClone.ballId}:status`), true);
+		bus.tickTimers(1100);
+		assert.equal(manualClone.status, BALL_STATUS.NORMAL);
+	});
+
 	await t.test('coordinate getters calculate accurate bounding bounds', () => {
 		const ball = new Ball(BALL_CREATE_MODE.OTHER);
 		ball.x = 100;

@@ -312,4 +312,30 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		bar.draw(g.staticCtx);
 		bar.absorptionStatusTime = 0;
 	});
+
+	it('returns duplicated balls to normal state over time when cloned in special status', () => {
+		const g = window.gameManage;
+		const ball = new Ball(BALL_CREATE_MODE.INIT, g);
+		g.balls = [ball];
+
+		// Apply HARD status (type 1)
+		const hardItem = new Item(1, g.bar.x, g.bar.y, '#000', '#fff', g);
+		hardItem.applyEffect();
+		assert.equal(ball.status, BALL_STATUS.STRONG);
+
+		// Duplicate balls (type 0: DOUBLE)
+		const doubleItem = new Item(0, g.bar.x, g.bar.y, '#000', '#fff', g);
+		doubleItem.applyEffect();
+		assert.equal(g.balls.length, 2);
+		assert.equal(g.balls[0].status, BALL_STATUS.STRONG);
+		assert.equal(g.balls[1].status, BALL_STATUS.STRONG);
+
+		// Advance timer past status duration
+		const statusDurationMs = (g.ballStatusTime || 10) * 1000 + 100;
+		g.eventBus.tickTimers(statusDurationMs);
+
+		// Both original and duplicated balls should return to NORMAL
+		assert.equal(g.balls[0].status, BALL_STATUS.NORMAL);
+		assert.equal(g.balls[1].status, BALL_STATUS.NORMAL);
+	});
 });

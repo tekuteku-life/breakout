@@ -221,6 +221,27 @@ export default class Ball
 			obj.simulate = 1;
 		}
 
+		// 特殊状態のタイマー設定（シミュレート以外で特殊状態の場合）
+		if (obj.simulate === 0 && this.status !== BALL_STATUS.NORMAL) {
+			const bus = this.getEventBus();
+			const timer = bus && typeof bus.getTimer === 'function'
+				? bus.getTimer(`ball:${this.ballId}:status`)
+				: null;
+			const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+			let remainingSec = null;
+			if (timer) {
+				remainingSec = Math.max(0, timer.remaining) / 1000;
+			} else if (this.statusTime !== undefined && this.statusTime !== null) {
+				remainingSec = Math.max(0, this.statusTime) / fps;
+			}
+
+			if (remainingSec !== null && remainingSec > 0) {
+				obj.setStatus(this.status, remainingSec);
+			} else {
+				obj.resetStatus();
+			}
+		}
+
 		return obj;
 	}
 
