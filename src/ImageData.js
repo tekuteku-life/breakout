@@ -54,8 +54,8 @@ export default class ImageData
 	//--------------------------------------------------
 	init()
 	{
-		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
-		if (!dynamicCtx) return;
+		var baseCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!baseCtx && typeof document === 'undefined') { return; }
 
 		const g = this.game || {};
 		const ballSize = g.ballSize !== undefined ? g.ballSize : DEFAULT_CONFIG.ballSize;
@@ -69,6 +69,21 @@ export default class ImageData
 		const itemColor = (g.itemColor !== undefined ? g.itemColor : (typeof window !== 'undefined' ? window.itemColor : [])) || [];
 		const heartWidth = g.heartWidth !== undefined ? g.heartWidth : DEFAULT_CONFIG.heartWidth;
 		const heartHeight = g.heartHeight !== undefined ? g.heartHeight : DEFAULT_CONFIG.heartHeight;
+
+		// オフスクリーンキャンバス（willReadFrequently: true）を用意して描画・読み出し
+		let renderCtx = baseCtx;
+		if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+			try {
+				const offscreen = document.createElement('canvas');
+				offscreen.width = canvasWidth;
+				offscreen.height = canvasHeight;
+				const offCtx = offscreen.getContext('2d', { willReadFrequently: true });
+				if (offCtx) {
+					renderCtx = offCtx;
+				}
+			} catch (_) {}
+		}
+		if (!renderCtx) { return; }
 
 		//----------描画イメージを取得----------
 		// ボール
@@ -85,13 +100,13 @@ export default class ImageData
 				if( stat > 0 && i >= 0 ) { dataName += "_tail" + String(i); }
 
 				// ボールを描画
-				this.drawBall(stat, i);
+				this.drawBall(stat, i, renderCtx);
 
 				// イメージデータの取得
-				imgDataBall[dataName] = dynamicCtx.getImageData(0, 0, ballSize * 2, ballSize * 2);
+				imgDataBall[dataName] = renderCtx.getImageData(0, 0, ballSize * 2, ballSize * 2);
 
 				// 描画の削除
-				dynamicCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+				renderCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 
 				if( stat == 0 ) { break; }
 			}
@@ -102,13 +117,13 @@ export default class ImageData
 		for( var i = 0; i < blockColor.length; i++ )
 		{
 			// ブロックを描画
-			this.drawBlock(i);
+			this.drawBlock(i, renderCtx);
 
 			// イメージデータの取得
-			imgDataBlock[i] = dynamicCtx.getImageData(0, 0, blockWidth, blockHeight);
+			imgDataBlock[i] = renderCtx.getImageData(0, 0, blockWidth, blockHeight);
 
 			// 描画の削除
-			dynamicCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+			renderCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 		}
 
 		// アイテム
@@ -117,13 +132,13 @@ export default class ImageData
 		for( var i = 0; i < curItemColor.length; i++ )
 		{
 			// アイテムを描画
-			this.drawItem(i);
+			this.drawItem(i, renderCtx);
 
 			// イメージデータの取得
-			imgDataItem[i] = dynamicCtx.getImageData(0, 0, blockWidth, blockHeight);
+			imgDataItem[i] = renderCtx.getImageData(0, 0, blockWidth, blockHeight);
 
 			// 描画の削除
-			dynamicCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+			renderCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 		}
 
 		// ハート
@@ -131,13 +146,13 @@ export default class ImageData
 		for( var i = 0; i < 2; i++ )
 		{
 			// ハートを描画
-			this.drawHeart(i);
+			this.drawHeart(i, renderCtx);
 
 			// イメージデータの取得
-			imgDataHeart[i] = dynamicCtx.getImageData(0, 0, heartWidth * 2.3, heartHeight * 2.5);
+			imgDataHeart[i] = renderCtx.getImageData(0, 0, heartWidth * 2.3, heartHeight * 2.5);
 
 			// 描画の削除
-			dynamicCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+			renderCtx.clearRect(0, 0, canvasWidth, canvasHeight);
 		}
 	}
 
@@ -164,10 +179,10 @@ export default class ImageData
 	//--------------------------------------------------
 	// ボールの描画
 	//--------------------------------------------------
-	drawBall(stat, tailNum)
+	drawBall(stat, tailNum, targetCtx = null)
 	{
-		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
-		if (!dynamicCtx) return;
+		var dynamicCtx = targetCtx || this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!dynamicCtx) { return; }
 
 		const g = this.game || {};
 		const ballSize = g.ballSize !== undefined ? g.ballSize : DEFAULT_CONFIG.ballSize;
@@ -197,10 +212,10 @@ export default class ImageData
 	//--------------------------------------------------
 	// ブロックの描画
 	//--------------------------------------------------
-	drawBlock(_type)
+	drawBlock(_type, targetCtx = null)
 	{
-		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
-		if (!dynamicCtx) return;
+		var dynamicCtx = targetCtx || this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!dynamicCtx) { return; }
 
 		const g = this.game || {};
 		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : (typeof window !== 'undefined' && window.blockWidth !== undefined ? window.blockWidth : DEFAULT_CONFIG.blockWidth);
@@ -238,10 +253,10 @@ export default class ImageData
 	//--------------------------------------------------
 	// アイテムの描画
 	//--------------------------------------------------
-	drawItem(_type)
+	drawItem(_type, targetCtx = null)
 	{
-		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
-		if (!dynamicCtx) return;
+		var dynamicCtx = targetCtx || this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!dynamicCtx) { return; }
 
 		const g = this.game || {};
 		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : (typeof window !== 'undefined' && window.blockWidth !== undefined ? window.blockWidth : DEFAULT_CONFIG.blockWidth);
@@ -287,10 +302,10 @@ export default class ImageData
 	//--------------------------------------------------
 	// ハートの描画
 	//--------------------------------------------------
-	drawHeart(stat)
+	drawHeart(stat, targetCtx = null)
 	{
-		var dynamicCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
-		if (!dynamicCtx) return;
+		var dynamicCtx = targetCtx || this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
+		if (!dynamicCtx) { return; }
 
 		const g = this.game || {};
 		const heartColor = g.heartColor !== undefined ? g.heartColor : DEFAULT_CONFIG.heartColor;
