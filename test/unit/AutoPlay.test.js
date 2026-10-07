@@ -121,7 +121,7 @@ test('AutoPlay class unit tests', async (t) => {
 			getBottomY() { return this.y + this.radius; },
 			getCenterX() { return this.x; },
 			getTopY() { return this.y - this.radius; },
-			move() { this.y += this.vy; },
+			movePosition() { this.y += this.vy; },
 			copy() {
 				const c = Object.create(this);
 				c.x = this.x;

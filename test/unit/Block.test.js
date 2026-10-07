@@ -92,11 +92,11 @@ test('Block class unit tests', async (t) => {
 		assert.equal(overlayDrawn, true, 'Damaged block must draw damage overlay');
 	});
 
-	await t.test('move executes movement, blink, and attack routines', () => {
+	await t.test('updateState and movePosition execute movement, blink, and attack routines', () => {
 		// Exploded countdown
 		const bExplode = new Block(1, 1, 1, 0, 0, 0, 0);
 		bExplode.exploded = 2;
-		bExplode.move();
+		bExplode.updateState();
 		assert.equal(bExplode.exploded, 1);
 
 		// Vertical move block
@@ -106,13 +106,13 @@ test('Block class unit tests', async (t) => {
 		bMove.moveInter = 0;
 		bMove.moveVect = 1;
 		mockMoveMap[1] = [null, bMove, null];
-		bMove.move();
+		bMove.movePosition();
 
 		// Blink block
 		const bBlink = new Block(1, 1, 1, BLOCK_FUNCTION.BLINK, 0, 0, 0);
 		bBlink.blinkInter = 0;
 		bBlink.blinkSwitch = 1;
-		bBlink.move();
+		bBlink.updateState();
 		assert.equal(bBlink.blinkSwitch, -1);
 
 		// Attack block
@@ -122,7 +122,7 @@ test('Block class unit tests', async (t) => {
 		const mockGame = { FPS: 60, objectManage: { balls: [{}] } };
 		const bAttack = new Block(1, 1, 1, BLOCK_FUNCTION.ATTACK, 0, 0, 0, mockGame);
 		bAttack.attackInter = 0;
-		bAttack.move();
+		bAttack.updateState();
 		assert.ok(spawnedWeapon !== null);
 	});
 
@@ -250,7 +250,7 @@ test('Block class unit tests', async (t) => {
 		assert.doesNotThrow(() => b.destructor());
 	});
 
-	await t.test('move handles breakLimit countdown, formatting, and expiration', () => {
+	await t.test('updateState handles breakLimit countdown, formatting, and expiration', () => {
 		const mockBreakGame = {
 			objectManage: { balls: [{}] },
 			FPS: 50,
@@ -261,17 +261,17 @@ test('Block class unit tests', async (t) => {
 		};
 		const b = new Block(1, 1, 1, 0, 0, 0, 0, mockBreakGame);
 		b.breakLimit = 50; // 1.0s at 50 FPS
-		b.move();
+		b.updateState(true);
 		assert.equal(b.text, '1.0 s');
 
 		// When balls.length == 0
 		mockBreakGame.objectManage.balls = [];
-		b.move();
+		b.updateState(false);
 		assert.equal(b.breakLimit, 0);
 		assert.equal(b.text, null);
 	});
 
-	await t.test('move handles moving block boundary collisions and direction reversals', () => {
+	await t.test('movePosition handles moving block boundary collisions and direction reversals', () => {
 		const mockBoundMap = [];
 		const mockBoundGame = {
 			objectManage: { blockMap: mockBoundMap },
@@ -286,7 +286,7 @@ test('Block class unit tests', async (t) => {
 		bMove.moveVect = 1;
 		const obstacle = new Block(2, 1, 1, 0, 0, 0, 0, mockBoundGame);
 		mockBoundMap[1] = [null, bMove, obstacle];
-		bMove.move();
+		bMove.movePosition();
 		assert.equal(bMove.moveVect, -1, 'Moving block should reverse when blocked');
 	});
 
@@ -319,11 +319,11 @@ test('Block class unit tests', async (t) => {
 		assert.ok(typeof ball.vy === 'number');
 	});
 
-	await t.test('move handles blink block turning on again', () => {
+	await t.test('updateState handles blink block turning on again', () => {
 		const bBlink = new Block(1, 1, 1, BLOCK_FUNCTION.BLINK, 0, 0, 0);
 		bBlink.blinkInter = 0;
 		bBlink.blinkSwitch = -1;
-		bBlink.move();
+		bBlink.updateState();
 		assert.equal(bBlink.blinkSwitch, 1);
 		assert.equal(bBlink.type, bBlink.blinkType);
 	});
@@ -434,6 +434,40 @@ test('Block class unit tests', async (t) => {
 		infBlock2.action(fireBall, 1);
 		assert.equal(infBlock2.type, 0, 'Infinite block MUST be destroyed by ULTIMATE (Fire) ball');
 		assert.equal(fireBall.breakNum, 1, 'breakNum should increase when destroyed by ULTIMATE ball');
+	});
+
+	await t.test('movePosition moves only vertical move blocks without affecting timers, while updateState updates attack and blink without grid movement', () => {
+		const mockBlockMap = [];
+		const mockGame = {
+			objectManage: { blockMap: mockBlockMap, balls: [{}] },
+			FPS: 50,
+			blockWidth: 50,
+			blockHeight: 20,
+			statusBarHeight: 0,
+			canvasWidth: 750,
+			blockMoveInter: 1,
+			blockAttackInter: 10,
+		};
+		// Vertical move block
+		const bMove = new Block(1, 1, 1, BLOCK_FUNCTION.VERTICAL_MOVE, 0, 0, 0, mockGame);
+		bMove.moveInter = 1;
+		mockBlockMap[1] = [null, bMove, null];
+
+		// Attack block
+		let attackSpawned = false;
+		EventBus.destructor();
+		EventBus.addOnEvent('weapon:spawn', () => { attackSpawned = true; });
+		const bAttack = new Block(1, 1, 1, BLOCK_FUNCTION.ATTACK, 0, 0, 0, mockGame);
+		bAttack.attackInter = 1;
+
+		// updateState updates attack timer without moving vertical block
+		bAttack.updateState(true);
+		assert.equal(attackSpawned, true, 'updateState triggers attack');
+		assert.equal(bMove.moveInter, 1, 'updateState should not decrement moveInter of moving block');
+
+		// movePosition decrements moveInter of moving block
+		bMove.movePosition(mockBlockMap);
+		assert.equal(bMove.moveInter, 0, 'movePosition should decrement moveInter');
 	});
 });
 

@@ -494,7 +494,7 @@ export default class AutoPlay
 	simulateBallStep(ball)
 	{
 		if (!ball) { return; }
-		if (typeof ball.move === 'function') { ball.move(); }
+		if (typeof ball.movePosition === 'function') { ball.movePosition(); }
 		if (typeof ball.checkCollisionWithWall === 'function') {
 			ball.checkCollisionWithWall(
 				this.game?.canvasWidth,

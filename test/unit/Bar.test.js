@@ -78,7 +78,8 @@ test('Bar class unit tests', async (t) => {
 		bar.pointX = bar.getCenterX() + 20;
 		bar.weaponInter = 2;
 
-		bar.move();
+		bar.movePosition();
+		bar.updateState();
 		assert.ok(bar.vx > 0);
 		assert.equal(bar.weaponInter, 1);
 
@@ -132,11 +133,11 @@ test('Bar class unit tests', async (t) => {
 		assert.doesNotThrow(() => bar.destructor());
 	});
 
-	await t.test('move and checkCollision clamp bar within canvas boundary', () => {
+	await t.test('movePosition and checkCollision clamp bar within canvas boundary', () => {
 		const bar = new Bar();
 		bar.x = 10;
 		globalThis.pointX = -100;
-		bar.move();
+		bar.movePosition();
 		assert.ok(bar.getLeftX() >= 0, 'Bar should be clamped at left boundary');
 
 		bar.x = -50;
@@ -180,5 +181,24 @@ test('Bar class unit tests', async (t) => {
 		bar.setPointX(500);
 		assert.equal(pointXSet, 500);
 		assert.equal(bar.getCanvasWidth(), 800);
+	});
+
+	await t.test('movePosition updates coordinates and vibration without touching weaponInter, while updateState updates weaponInter without touching coordinates', () => {
+		const bar = new Bar();
+		bar.x = 200;
+		bar.vx = 0;
+		bar.pointX = 220;
+		bar.weaponInter = 5;
+
+		// movePosition only changes position/velocity
+		bar.movePosition();
+		assert.equal(bar.x, 220);
+		assert.equal(bar.vx, 20);
+		assert.equal(bar.weaponInter, 5, 'movePosition should not modify weaponInter');
+
+		// updateState only decrements weaponInter
+		bar.updateState();
+		assert.equal(bar.weaponInter, 4, 'updateState should decrement weaponInter');
+		assert.equal(bar.x, 220, 'updateState should not modify position');
 	});
 });

@@ -39,7 +39,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		ballUp.vy = -5;
 		ballUp.histX = [ballUp.x];
 		ballUp.histY = [bUp.getBottomY() + 10]; // Below block -> directVectY = 1
-		ballUp.move();
+		ballUp.movePosition();
 
 		// Direction 2: Right through (ball moving right from left)
 		const bRight = new Block(5, 4, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 2);
@@ -51,7 +51,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		ballR.vy = 0;
 		ballR.histX = [bRight.getLeftX() - 10]; // Left of block -> directVectX = -1
 		ballR.histY = [ballR.y];
-		ballR.move();
+		ballR.movePosition();
 
 		// Direction 3: Down through (ball moving down from above)
 		const bDown = new Block(5, 4, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 3);
@@ -63,7 +63,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		ballDown.vy = 5;
 		ballDown.histX = [ballDown.x];
 		ballDown.histY = [bDown.getTopY() - 10]; // Above block -> directVectY = -1
-		ballDown.move();
+		ballDown.movePosition();
 
 		// Direction 4: Left through (ball moving left from right)
 		const bLeft = new Block(5, 4, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 4);
@@ -75,7 +75,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		ballL.vy = 0;
 		ballL.histX = [bLeft.getRightX() + 10]; // Right of block -> directVectX = 1
 		ballL.histY = [ballL.y];
-		ballL.move();
+		ballL.movePosition();
 
 		assert.ok(true, 'Through branches executed cleanly');
 	});
@@ -91,7 +91,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		ballSlowX.vy = 6; // vx < vy -> directVectX = 0
 		ballSlowX.histX = [centerBlock.getLeftX() - 10];
 		ballSlowX.histY = [centerBlock.getTopY() - 10];
-		ballSlowX.move();
+		ballSlowX.movePosition();
 
 		// Case 2: vx > vy in diagonal collision with no blocking blocks
 		const ballFastX = new Ball(BALL_CREATE_MODE.OTHER);
@@ -101,7 +101,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		ballFastX.vy = 2; // vx > vy -> directVectY = 0
 		ballFastX.histX = [centerBlock.getLeftX() - 10];
 		ballFastX.histY = [centerBlock.getTopY() - 10];
-		ballFastX.move();
+		ballFastX.movePosition();
 
 		// Case 3: Diagonal collision WITH blocking blocks (directVectX < 0, directVectY < 0)
 		const targetBlock = new Block(5, 4, 1, BLOCK_FUNCTION.NORMAL, 1);
@@ -120,7 +120,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		ballCorner.vy = 5;
 		ballCorner.histX = [4 * globalThis.blockWidth + 10];
 		ballCorner.histY = [3 * globalThis.blockHeight + globalThis.statusBarHeight + 10];
-		ballCorner.move();
+		ballCorner.movePosition();
 
 		// Case 4: Diagonal collision WITH blocking blocks (directVectX > 0, directVectY > 0)
 		const horBlockBR = new Block(6, 4, 1, BLOCK_FUNCTION.NORMAL, 1);
@@ -137,7 +137,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		ballCornerBR.vy = -5;
 		ballCornerBR.histX = [6 * globalThis.blockWidth + 10];
 		ballCornerBR.histY = [5 * globalThis.blockHeight + globalThis.statusBarHeight + 10];
-		ballCornerBR.move();
+		ballCornerBR.movePosition();
 
 		// Case 5: Ultimate ball penetrating block without reflection
 		const uBall = new Ball(BALL_CREATE_MODE.OTHER);
@@ -148,7 +148,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		uBall.vy = 5;
 		uBall.histX = [uBall.x];
 		uBall.histY = [uBall.y - 10];
-		uBall.move();
+		uBall.movePosition();
 
 		assert.ok(true, 'Diagonal corner and ultimate ball branches executed');
 	});
@@ -156,10 +156,10 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 	it('covers Bar.js right bound clamping, auto dodge branches, and speed inversion', () => {
 		const bar = new Bar();
 
-		// 1. Right boundary clamping in Bar.move() (lines 192-194)
+		// 1. Right boundary clamping in Bar.movePosition()
 		bar.x = window.canvasWidth - 10;
 		globalThis.pointX = window.canvasWidth + 200;
-		bar.move();
+		bar.movePosition();
 		assert.ok(bar.getRightX() <= window.canvasWidth, 'Bar should be clamped at right screen boundary');
 
 		// 2. AutoPlay.auto() dodging harmful item to the left
@@ -263,7 +263,7 @@ describe('System & Component Branch Coverage Boost Suite', () => {
 		bCount.breakLimit = 75; // 1.5s
 		window.gameManage.objectManage.balls = [{}];
 		globalThis.balls = window.gameManage.objectManage.balls;
-		bCount.move(true);
+		bCount.updateState(true);
 		assert.equal(bCount.text, '1.5 s');
 
 		// Special block hit sound (spBlock) with strong ball

@@ -86,18 +86,25 @@ export default class Item
 
 
 	//--------------------------------------------------
-	// 移動
+	// 位置移動（物理演算）
 	//--------------------------------------------------
-	move()
+	movePosition()
 	{
 		const ctrl = (this.game && this.game.ctrl) || null;
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
 		const itemSpeedList = (this.game && this.game.itemSpeed) || ITEM_PARAM.DEFAULT_SPEED;
 		const speed = itemSpeedList[stageIdx] !== undefined ? itemSpeedList[stageIdx] : ITEM_PARAM.DEFAULT_SPEED[0];
-		const canvasHeight = this.getCanvasHeight();
 
 		// 位置の決定
 		this.y += speed;
+	}
+
+	//--------------------------------------------------
+	// 状態更新（画面外落下判定・消去）
+	//--------------------------------------------------
+	updateState()
+	{
+		const canvasHeight = this.getCanvasHeight();
 
 		// 未取得のまま画面外へ落下
 		if( this.y > canvasHeight ) {

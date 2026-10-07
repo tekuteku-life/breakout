@@ -42,7 +42,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballL.histX = [ballL.x];
 		ballL.histY = [ballL.y];
 		g.objectManage.balls = [ballL];
-		ballL.move();
+		ballL.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ballL.vx < 0, 'Ball should reflect horizontally from left');
 
@@ -57,7 +57,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballR.histX = [ballR.x];
 		ballR.histY = [ballR.y];
 		g.objectManage.balls = [ballR];
-		ballR.move();
+		ballR.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ballR.vx > 0, 'Ball should reflect horizontally from right');
 
@@ -72,7 +72,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballT.histX = [ballT.x];
 		ballT.histY = [ballT.y];
 		g.objectManage.balls = [ballT];
-		ballT.move();
+		ballT.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ballT.vy < 0, 'Ball should reflect vertically from top');
 
@@ -87,7 +87,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballB.histX = [ballB.x];
 		ballB.histY = [ballB.y];
 		g.objectManage.balls = [ballB];
-		ballB.move();
+		ballB.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ballB.vy > 0, 'Ball should reflect vertically from bottom');
 
@@ -102,7 +102,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballD.histX = [ballD.x];
 		ballD.histY = [ballD.y];
 		g.objectManage.balls = [ballD];
-		ballD.move();
+		ballD.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ballD.vx < 0);
 	});
@@ -130,7 +130,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballUp.histX = [ballUp.x];
 		ballUp.histY = [ballUp.y];
 		g.objectManage.balls = [ballUp];
-		ballUp.move();
+		ballUp.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ballUp.vy < 0, 'Ball should pass through without reflecting');
 
@@ -145,7 +145,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballAccel.histX = [ballAccel.x];
 		ballAccel.histY = [ballAccel.y];
 		g.objectManage.balls = [ballAccel];
-		ballAccel.move();
+		ballAccel.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ballAccel.vx < 0, 'Should reflect after accelerating');
 
@@ -160,7 +160,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballDecel.histX = [ballDecel.x];
 		ballDecel.histY = [ballDecel.y];
 		g.objectManage.balls = [ballDecel];
-		ballDecel.move();
+		ballDecel.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ballDecel.vx < 0, 'Should reflect after decelerating');
 
@@ -178,7 +178,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ballWarp.histX = [ballWarp.x];
 		ballWarp.histY = [ballWarp.y];
 		g.objectManage.balls = [ballWarp];
-		ballWarp.move();
+		ballWarp.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.equal(ballWarp.x, warpOut.getCenterX(), 'Ball should teleport to warp exit block');
 	});
@@ -242,7 +242,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		strongBall.histX = [strongBall.x];
 		strongBall.histY = [strongBall.y];
 		g.objectManage.balls = [strongBall];
-		strongBall.move();
+		strongBall.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.equal(blockPen.type, 0, 'Normal block should be broken by strong ball');
 
@@ -258,7 +258,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		simBall.vy = 0.5;
 		simBall.histX = [simBall.x];
 		simBall.histY = [simBall.y];
-		simBall.move();
+		simBall.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.equal(simBlock.type, 1, 'Real block type should not be destroyed in simulate mode');
 	});
@@ -288,7 +288,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ball1.histY = [ball1.y];
 		g.objectManage.balls = [ball1];
 
-		ball1.move();
+		ball1.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.equal(singleHitBlock.type, 0, 'Standard block should be destroyed (type = 0) on collision');
 		assert.equal(g.statusMng.blockNum, 0, 'statusMng blockNum should decrease to 0');
@@ -309,7 +309,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ball2.histY = [ball2.y];
 		g.objectManage.balls = [ball2];
 
-		ball2.move();
+		ball2.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.equal(durableBlock.type, 1, 'Durable block should survive first hit');
 		assert.equal(durableBlock.life, 0, 'Durable block life should decrement to 0');
@@ -325,7 +325,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ball3.histY = [ball3.y];
 		g.objectManage.balls = [ball3];
 
-		ball3.move();
+		ball3.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.equal(durableBlock.type, 0, 'Durable block should be destroyed on second hit');
 		assert.equal(g.statusMng.blockNum, 0, 'statusMng blockNum should decrement to 0 on final destruction');
@@ -359,7 +359,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		ball.histY = [ball.y];
 		g.objectManage.balls = [ball];
 
-		ball.move();
+		ball.movePosition();
 		g.objectManage.resolveCollisions();
 
 		// Ball should reflect downwards (vy > 0), NOT sideways (side collision was prevented)
@@ -371,7 +371,7 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		assert.equal(remainingBlocks, 1, 'Only one block should be affected, not both simultaneously');
 
 		// In the next frame, ball moves downwards away from the remaining block
-		ball.move();
+		ball.movePosition();
 		g.objectManage.resolveCollisions();
 		const finalRemaining = (blockA.type !== 0 ? 1 : 0) + (blockB.type !== 0 ? 1 : 0);
 		assert.equal(finalRemaining, 1, 'Remaining adjacent block must NOT be destroyed on next frame');

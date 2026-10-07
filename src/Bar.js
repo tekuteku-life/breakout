@@ -257,6 +257,9 @@ export default class Bar
 
 		// 画面端との衝突判定・位置制限
 		this.checkCollision();
+
+		// バーの振動による変位計算
+		this.updateVibration();
 	}
 
 	//--------------------------------------------------
@@ -349,12 +352,10 @@ export default class Bar
 	}
 
 	//--------------------------------------------------
-	// 移動・状態遷移
+	// 状態更新（武器発射間隔等）
 	//--------------------------------------------------
-	move()
+	updateState()
 	{
-		this.movePosition();
-		this.updateVibration();
 		this.updateWeapon();
 	}
 

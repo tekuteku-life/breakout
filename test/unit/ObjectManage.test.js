@@ -226,38 +226,53 @@ test('ObjectManage class unit tests', async (t) => {
 		gm.destructor();
 	});
 
-	await t.test('updateEntities, applyFieldEffects, and resolveCollisions step physics', () => {
+	await t.test('updateEntities, updateStates, updatePositions, applyFieldEffects, and resolveCollisions step physics', () => {
 		const gm = new GameManage();
 		const om = new ObjectManage(gm);
 		om.initBar();
 
-		let barMoved = false;
-		om.bar.move = () => { barMoved = true; };
+		let barStateUpdated = false;
+		let barPositionMoved = false;
+		om.bar.updateState = () => { barStateUpdated = true; };
+		om.bar.movePosition = () => { barPositionMoved = true; };
 
 		const ball = om.launchBall();
-		let ballMoved = false;
-		ball.move = () => { ballMoved = true; };
+		let ballStateUpdated = false;
+		let ballPositionMoved = false;
+		ball.updateState = () => { ballStateUpdated = true; };
+		ball.movePosition = () => { ballPositionMoved = true; };
 
 		const item = om.spawnItem({ type: 0, x: 20, y: 20 });
-		let itemMoved = false;
-		item.move = () => { itemMoved = true; };
+		let itemStateUpdated = false;
+		let itemPositionMoved = false;
+		item.updateState = () => { itemStateUpdated = true; };
+		item.movePosition = () => { itemPositionMoved = true; };
 
 		const weapon = om.spawnWeapon(1, 30, 30);
-		let weaponMoved = false;
-		weapon.move = () => { weaponMoved = true; };
+		let weaponStateUpdated = false;
+		let weaponPositionMoved = false;
+		weapon.updateState = () => { weaponStateUpdated = true; };
+		weapon.movePosition = () => { weaponPositionMoved = true; };
 
 		const block = new Block(1, 1, 1, 0, 1, 0, 0, gm);
-		let blockMoved = false;
-		block.move = () => { blockMoved = true; };
+		let blockStateUpdated = false;
+		let blockPositionMoved = false;
+		block.updateState = () => { blockStateUpdated = true; };
+		block.movePosition = () => { blockPositionMoved = true; };
 		om.blockMap = [[block]];
 
 		// updateEntities
 		om.updateEntities();
-		assert.equal(barMoved, true);
-		assert.equal(ballMoved, true);
-		assert.equal(itemMoved, true);
-		assert.equal(weaponMoved, true);
-		assert.equal(blockMoved, true);
+		assert.equal(barStateUpdated, true);
+		assert.equal(barPositionMoved, true);
+		assert.equal(ballStateUpdated, true);
+		assert.equal(ballPositionMoved, true);
+		assert.equal(itemStateUpdated, true);
+		assert.equal(itemPositionMoved, true);
+		assert.equal(weaponStateUpdated, true);
+		assert.equal(weaponPositionMoved, true);
+		assert.equal(blockStateUpdated, true);
+		assert.equal(blockPositionMoved, true);
 
 		// applyFieldEffects with MAGNET block
 		block.func = BLOCK_FUNCTION.MAGNET;
@@ -342,6 +357,32 @@ test('ObjectManage class unit tests', async (t) => {
 		EventBus.emitEvent('ball:allLost');
 		assert.equal(om.items.length, 0);
 		assert.equal(om.weapons.length, 0);
+
+		om.destructor();
+		gm.destructor();
+	});
+
+	await t.test('updatePositions and updateStates can be called independently without cross-interference', () => {
+		const gm = new GameManage();
+		const om = new ObjectManage(gm);
+		om.initBar();
+
+		let posCalled = false;
+		let stateCalled = false;
+		om.bar.movePosition = () => { posCalled = true; };
+		om.bar.updateState = () => { stateCalled = true; };
+
+		// Call updatePositions only
+		om.updatePositions();
+		assert.equal(posCalled, true);
+		assert.equal(stateCalled, false, 'updatePositions must not call updateState');
+
+		// Reset flags and call updateStates only
+		posCalled = false;
+		stateCalled = false;
+		om.updateStates();
+		assert.equal(posCalled, false, 'updateStates must not call movePosition');
+		assert.equal(stateCalled, true);
 
 		om.destructor();
 		gm.destructor();

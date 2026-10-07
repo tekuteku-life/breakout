@@ -35,7 +35,8 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		const initialY = item.y;
 
 		// Move item
-		item.move();
+		item.movePosition();
+		item.updateState();
 		assert.ok(item.y > initialY, 'Item should fall downwards');
 	});
 
@@ -43,7 +44,8 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 		const g = window.gameManage;
 		const item = new Item(0, 100, g.canvasHeight + 10, '#000', '#fff', g);
 		g.objectManage.items = [item];
-		item.move();
+		item.movePosition();
+		item.updateState();
 		assert.equal(g.objectManage.items.length, 0, 'Item falling below canvas should be removed');
 	});
 
@@ -64,7 +66,8 @@ describe('Integration Test: Item Spawning, Bar Collisions, and Status Effects', 
 
 		// Move should detect collision, apply effect and remove item
 		const initialScoreAward = g.scoreMng.awardNum.getItemNum;
-		item.move();
+		item.movePosition();
+		item.updateState();
 		g.objectManage.resolveCollisions();
 		assert.equal(g.objectManage.items.length, 0, 'Item should be consumed upon bar collision');
 		assert.equal(g.scoreMng.awardNum.getItemNum, initialScoreAward + 1);

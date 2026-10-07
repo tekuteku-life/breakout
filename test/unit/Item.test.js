@@ -79,7 +79,7 @@ test('Item class unit tests', async (t) => {
 		assert.equal(item.checkCollision(customTarget), true);
 	});
 
-	await t.test('move handles fall-out and bar collision life-cycle', () => {
+	await t.test('movePosition and updateState handle fall-out and bar collision life-cycle', () => {
 		let awardAdded = false;
 		EventBus.destructor();
 		EventBus.addOnEvent('award:add', (data) => {
@@ -101,13 +101,15 @@ test('Item class unit tests', async (t) => {
 		// Fall out of canvas
 		const itemFalling = new Item(0, 50, 610, '#fff', '#000', mockGame);
 		mockGame.objectManage.items = [itemFalling];
-		itemFalling.move();
+		itemFalling.movePosition();
+		itemFalling.updateState();
 		assert.equal(mockGame.objectManage.items.length, 0);
 
 		// Collision with bar (上位調停フロー)
 		const itemHit = new Item(0, 100, 495, '#fff', '#000', mockGame);
 		mockGame.objectManage.items = [itemHit];
-		itemHit.move();
+		itemHit.movePosition();
+		itemHit.updateState();
 		if (itemHit.checkCollision(mockBar)) {
 			itemHit.applyEffect();
 			itemHit.destructor();
@@ -178,5 +180,24 @@ test('Item class unit tests', async (t) => {
 		mockGame.objectManage.items = plainArray;
 		item.destructor();
 		assert.equal(plainArray.length, 0);
+	});
+
+	await t.test('movePosition updates position without despawning, updateState handles canvas bound despawning', () => {
+		const mockGame = {
+			canvasHeight: 500,
+			objectManage: { items: [] },
+			itemSpeed: [10],
+		};
+		const item = new Item(0, 100, 495, '#fff', '#000', mockGame);
+		mockGame.objectManage.items.push(item);
+
+		// movePosition moves y past canvasHeight, but does NOT despawn
+		item.movePosition();
+		assert.equal(item.y, 505);
+		assert.equal(mockGame.objectManage.items.length, 1, 'movePosition must not despawn item');
+
+		// updateState checks boundary and despawns item
+		item.updateState();
+		assert.equal(mockGame.objectManage.items.length, 0, 'updateState must despawn off-canvas item');
 	});
 });

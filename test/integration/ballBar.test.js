@@ -38,7 +38,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		g.objectManage.balls = [ball];
 
 		// Collision with moving bar
-		ball.move();
+		ball.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ball.vy < 0, 'Ball should reflect upward');
 		assert.ok(ball.vx !== 0, 'Spin from moving bar should affect ball.vx');
@@ -48,7 +48,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.y = 495;
 		ball.vx = 1;
 		ball.vy = 5;
-		ball.move();
+		ball.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ball.vy < 0);
 
@@ -57,7 +57,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		ball.y = 495;
 		ball.vx = -1;
 		ball.vy = 5;
-		ball.move();
+		ball.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.ok(ball.vy < 0);
 	});
@@ -77,7 +77,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		g.objectManage.balls = [ball];
 
 		// Ball hits bar during absorption
-		ball.move();
+		ball.movePosition();
 		g.objectManage.resolveCollisions();
 		assert.equal(ball.isAbsorption, 1, 'Ball should be absorbed');
 		assert.equal(bar.absorptionNum, 1);
@@ -103,24 +103,24 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 
 		// Left boundary clamping
 		input.pointX = -50;
-		bar.move();
+		bar.movePosition();
 		assert.ok(bar.getLeftX() >= 0);
 
 		// Right boundary clamping
 		input.pointX = g.canvasWidth + 100;
-		bar.move();
+		bar.movePosition();
 		assert.ok(bar.getRightX() <= g.canvasWidth);
 
 		// Vibration at left edge
 		input.pointX = 10;
 		bar.vibrationTime = 10;
-		bar.move();
+		bar.movePosition();
 		assert.ok(bar.vibrationTime > 0);
 
 		// Vibration at right edge
 		input.pointX = g.canvasWidth - 10;
 		bar.vibrationTime = 5;
-		bar.move();
+		bar.movePosition();
 
 		// Width and speed status countdown via EventBus timers
 		bar.applyItemEffect(ITEM_TYPE.LONG);
@@ -220,7 +220,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 		g.objectManage.balls = [ball];
 
 		// Step movement
-		ball.move();
+		ball.movePosition();
 
 		let fallCalled = false;
 		ball.fall = () => { fallCalled = true; };
@@ -236,7 +236,7 @@ describe('Integration Test: Ball-Bar Interaction & Bar AI', () => {
 
 		// Subsequent frames while absorbed: must not fall
 		for (let frame = 0; frame < 5; frame++) {
-			ball.move();
+			ball.movePosition();
 			g.objectManage.resolveCollisions();
 			assert.equal(fallCalled, false, `Ball should not fall during absorbed frame ${frame}`);
 			assert.equal(ball.isAbsorption, 1);

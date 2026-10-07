@@ -191,13 +191,16 @@ export default class ObjectManage {
 	}
 
 	step(currentTime = Date.now(), deltaTime = 0) {
-		// 1. 移動フェーズ
-		this.updateEntities();
+		// 1. 状態更新フェーズ
+		this.updateStates();
 
-		// 2. 場の効果フェーズ
+		// 2. 位置移動フェーズ（物理演算）
+		this.updatePositions();
+
+		// 3. 場の効果フェーズ
 		this.applyFieldEffects();
 
-		// 3. 衝突解決フェーズ
+		// 4. 衝突解決フェーズ
 		this.resolveCollisions();
 	}
 
@@ -238,21 +241,23 @@ export default class ObjectManage {
 	}
 
 	//--------------------------------------------------
-	// 移動フェーズ（全エンティティの位置・状態更新）
+	// 状態更新フェーズ（全エンティティのタイマー・状態更新）
 	//--------------------------------------------------
-	updateEntities() {
-		// バー移動
-		if (this.bar && typeof this.bar.move === 'function') {
-			this.bar.move();
+	updateStates() {
+		// バー状態更新（武器発射間隔等）
+		if (this.bar && typeof this.bar.updateState === 'function') {
+			this.bar.updateState();
 		}
 
-		// アイテム移動
-		for (let i = 0; i < this.items.length; i++) {
+		// アイテム状態更新（画面外落下判定・消去）
+		for (let i = this.items.length - 1; i >= 0; i--) {
 			const it = this.items[i];
-			if (it && typeof it.move === 'function') { it.move(); }
+			if (it && typeof it.updateState === 'function') {
+				it.updateState();
+			}
 		}
 
-		// ブロック移動
+		// ブロック状態更新（爆発カウント、耐久度カウントダウン、点滅、弾発射タイマー等）
 		if (this.blockMap) {
 			const hasBalls = this.balls.length > 0;
 			for (let i = 0, len1 = this.blockMap.length; i < len1; i++) {
@@ -260,8 +265,57 @@ export default class ObjectManage {
 				if (blockLine) {
 					for (let j = 0, len2 = blockLine.length; j < len2; j++) {
 						const block = blockLine[j];
-						if (block && typeof block.move === 'function') {
-							block.move(hasBalls, this.blockMap);
+						if (block && typeof block.updateState === 'function') {
+							block.updateState(hasBalls);
+						}
+					}
+				}
+			}
+		}
+
+		// ボール状態更新
+		for (let i = 0; i < this.balls.length; i++) {
+			const b = this.balls[i];
+			if (b && typeof b.updateState === 'function') {
+				b.updateState();
+			}
+		}
+
+		// 武器状態更新（発射音、画面外アウト判定・消去）
+		for (let i = this.weapons.length - 1; i >= 0; i--) {
+			const w = this.weapons[i];
+			if (w && typeof w.updateState === 'function') {
+				w.updateState();
+			}
+		}
+	}
+
+	//--------------------------------------------------
+	// 位置移動フェーズ（全エンティティの物理座標・速度計算）
+	//--------------------------------------------------
+	updatePositions() {
+		// バー移動
+		if (this.bar && typeof this.bar.movePosition === 'function') {
+			this.bar.movePosition();
+		}
+
+		// アイテム移動
+		for (let i = 0; i < this.items.length; i++) {
+			const it = this.items[i];
+			if (it && typeof it.movePosition === 'function') {
+				it.movePosition();
+			}
+		}
+
+		// ブロック移動（横移動ブロック）
+		if (this.blockMap) {
+			for (let i = 0, len1 = this.blockMap.length; i < len1; i++) {
+				const blockLine = this.blockMap[i];
+				if (blockLine) {
+					for (let j = 0, len2 = blockLine.length; j < len2; j++) {
+						const block = blockLine[j];
+						if (block && typeof block.movePosition === 'function') {
+							block.movePosition(this.blockMap);
 						}
 					}
 				}
@@ -271,14 +325,26 @@ export default class ObjectManage {
 		// ボール移動
 		for (let i = 0; i < this.balls.length; i++) {
 			const b = this.balls[i];
-			if (b && typeof b.move === 'function') { b.move(this.bar); }
+			if (b && typeof b.movePosition === 'function') {
+				b.movePosition(this.bar);
+			}
 		}
 
 		// 武器移動
 		for (let i = 0; i < this.weapons.length; i++) {
 			const w = this.weapons[i];
-			if (w && typeof w.move === 'function') { w.move(); }
+			if (w && typeof w.movePosition === 'function') {
+				w.movePosition();
+			}
 		}
+	}
+
+	//--------------------------------------------------
+	// エンティティ更新（状態更新・位置移動の一括実行）
+	//--------------------------------------------------
+	updateEntities() {
+		this.updateStates();
+		this.updatePositions();
 	}
 
 	//--------------------------------------------------

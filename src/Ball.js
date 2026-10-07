@@ -314,9 +314,9 @@ export default class Ball
 	}
 
 	//--------------------------------------------------
-	// 移動
+	// 位置移動（物理演算）
 	//--------------------------------------------------
-	move(targetBar = null)
+	movePosition(targetBar = null)
 	{
 		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
 		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
@@ -347,6 +347,13 @@ export default class Ball
 		// ボールの速度制限
 		if( Math.abs( this.vx ) > bMaxSpeed ) { this.vx = bMaxSpeed * (this.vx < 0 ? -1 : 1); }
 		if( Math.abs( this.vy ) > bMaxSpeed ) { this.vy = bMaxSpeed * (this.vy < 0 ? -1 : 1); }
+	}
+
+	//--------------------------------------------------
+	// 状態更新
+	//--------------------------------------------------
+	updateState()
+	{
 	}
 
 	//--------------------------------------------------

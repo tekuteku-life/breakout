@@ -31,7 +31,7 @@ test('Weapon class unit tests', async (t) => {
 		assert.equal(gun.getBottomY(), 200 + 0.5);
 	});
 
-	await t.test('move handles launch sound, acceleration, and off-screen bounds', () => {
+	await t.test('movePosition and updateState handle launch sound, acceleration, and off-screen bounds', () => {
 		let soundPlayed = '';
 		EventBus.destructor();
 		EventBus.addOnEvent('sound:play', (data) => {
@@ -41,21 +41,24 @@ test('Weapon class unit tests', async (t) => {
 
 		// Gun launch
 		const gun = new Weapon(1, 100, 200, 1, mockGame);
-		gun.move();
+		gun.movePosition();
+		gun.updateState();
 		assert.equal(soundPlayed, 'gun');
 
 		// Missile launch and acceleration
 		soundPlayed = '';
 		const missile = new Weapon(2, 100, 200, 1, mockGame);
 		missile.vy = 1;
-		missile.move();
+		missile.movePosition();
+		missile.updateState();
 		assert.equal(soundPlayed, 'missile');
 		assert.ok(missile.vy > 1);
 
 		// Offscreen
 		const offscreenWp = new Weapon(1, 100, -100, 1, mockGame);
 		mockGame.objectManage.weapons = [offscreenWp];
-		offscreenWp.move();
+		offscreenWp.movePosition();
+		offscreenWp.updateState();
 		assert.equal(mockGame.objectManage.weapons.length, 0);
 	});
 
@@ -86,7 +89,7 @@ test('Weapon class unit tests', async (t) => {
 		const gun = new Weapon(1, 100, 100, 1, mockGame);
 		gun.setInter = 1;
 		mockGame.objectManage.weapons = [gun];
-		gun.move();
+		gun.movePosition();
 		if (gun.checkCollision(mockBlock)) {
 			if (mockBlock.life >= 1) mockBlock.decreaseLife();
 			gun.destructor();
@@ -99,7 +102,7 @@ test('Weapon class unit tests', async (t) => {
 		const gun2 = new Weapon(1, 100, 100, 1, mockGame);
 		gun2.setInter = 1;
 		mockGame.objectManage.weapons = [gun2];
-		gun2.move();
+		gun2.movePosition();
 		if (gun2.checkCollision(mockBlock)) {
 			mockBlock.action();
 			gun2.destructor();
@@ -112,7 +115,7 @@ test('Weapon class unit tests', async (t) => {
 		const missile = new Weapon(2, 100, 100, 1, mockGame);
 		missile.setInter = 1;
 		mockGame.objectManage.weapons = [missile];
-		missile.move();
+		missile.movePosition();
 		if (missile.checkCollision(mockBlock)) {
 			mockBlock.action();
 			missile.destructor();
@@ -142,7 +145,7 @@ test('Weapon class unit tests', async (t) => {
 		const wpDown = new Weapon(1, 200, 295, -1, mockGame);
 		wpDown.setInter = 1;
 		mockGame.objectManage.weapons = [wpDown];
-		wpDown.move();
+		wpDown.movePosition();
 
 		if (wpDown.checkCollision(mockBar)) {
 			mockBar.endamage(1);
@@ -220,5 +223,29 @@ test('Weapon class unit tests', async (t) => {
 		missile.draw(trackingCtx);
 		assert.equal(saveCalled, true, 'dynamicCtx.save() should be called');
 		assert.equal(restoreCalled, true, 'dynamicCtx.restore() should be called');
+	});
+
+	await t.test('movePosition updates position/acceleration without side effects, updateState emits sound and despawns offscreen', () => {
+		let soundPlayed = false;
+		EventBus.destructor();
+		EventBus.addOnEvent('sound:play', () => { soundPlayed = true; });
+
+		const mockGame = {
+			canvasHeight: 500,
+			objectManage: { weapons: [] },
+			FPS: 50,
+		};
+		const gun = new Weapon(1, 100, -50, 1, mockGame);
+		mockGame.objectManage.weapons.push(gun);
+
+		// movePosition only updates y coordinate and vy
+		gun.movePosition();
+		assert.equal(soundPlayed, false, 'movePosition should not play sound');
+		assert.equal(mockGame.objectManage.weapons.length, 1, 'movePosition should not despawn weapon');
+
+		// updateState plays launch sound and despawns offscreen weapon
+		gun.updateState();
+		assert.equal(soundPlayed, true, 'updateState should play sound');
+		assert.equal(mockGame.objectManage.weapons.length, 0, 'updateState should despawn offscreen weapon');
 	});
 });

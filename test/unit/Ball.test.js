@@ -212,7 +212,8 @@ test('Ball class unit tests', async (t) => {
 		ball.vy = -999;
 		ball.setStatus(BALL_STATUS.STRONG, 0.1);
 
-		ball.move();
+		ball.movePosition();
+		ball.updateState();
 		assert.ok(Math.abs(ball.vx) <= globalThis.ballMaxSpeed);
 		assert.ok(Math.abs(ball.vy) <= globalThis.ballMaxSpeed);
 		assert.equal(ball.status, BALL_STATUS.STRONG);
@@ -229,12 +230,12 @@ test('Ball class unit tests', async (t) => {
 		// Absorption lock
 		ball.isAbsorption = 1;
 		ball.absorptionPoint = [10, 0];
-		ball.move();
+		ball.movePosition();
 		assert.equal(ball.x, 10 + game.objectManage.bar.getCenterX());
 		assert.equal(ball.y, 0 + game.objectManage.bar.getTopY());
 	});
 
-	await t.test('move and collision handlers handle wall bounces and bar reflections', () => {
+	await t.test('movePosition and collision handlers handle wall bounces and bar reflections', () => {
 		const game = createMockGame();
 		const ball = new Ball(BALL_CREATE_MODE.OTHER, game);
 
@@ -243,21 +244,21 @@ test('Ball class unit tests', async (t) => {
 		ball.vx = -3;
 		ball.y = 100;
 		ball.vy = 2;
-		ball.move();
+		ball.movePosition();
 		ball.checkCollisionWithWall(globalThis.canvasWidth, globalThis.canvasHeight, 30);
 		assert.ok(ball.vx > 0);
 
 		// Right wall bounce
 		ball.x = globalThis.canvasWidth + 5;
 		ball.vx = 3;
-		ball.move();
+		ball.movePosition();
 		ball.checkCollisionWithWall(globalThis.canvasWidth, globalThis.canvasHeight, 30);
 		assert.ok(ball.vx < 0);
 
 		// Top wall bounce
 		ball.y = 5;
 		ball.vy = -3;
-		ball.move();
+		ball.movePosition();
 		ball.checkCollisionWithWall(globalThis.canvasWidth, globalThis.canvasHeight, 30);
 		assert.ok(ball.vy > 0);
 
@@ -269,7 +270,7 @@ test('Ball class unit tests', async (t) => {
 		ball.y = 398;
 		ball.vx = 0;
 		ball.vy = 3;
-		ball.move();
+		ball.movePosition();
 		ball.checkCollisionWithBar(game.objectManage.bar);
 		assert.ok(ball.vy < 0);
 	});
@@ -289,7 +290,7 @@ test('Ball class unit tests', async (t) => {
 		ball.x = 200;
 		ball.y = 528;
 		ball.vy = 10;
-		ball.move();
+		ball.movePosition();
 		ball.checkCollisionWithWall(800, mockGame.canvasHeight, 30);
 		assert.equal(mockGame.objectManage.balls.length, 0, 'Ball should fall and be removed');
 	});
@@ -304,7 +305,7 @@ test('Ball class unit tests', async (t) => {
 		ballR.vy = 0;
 		ballR.histX = [ballR.x + 5];
 		ballR.histY = [ballR.y];
-		ballR.move();
+		ballR.movePosition();
 		ballR.checkCollision(blockRight);
 
 		// Direction 3: Bottom through
@@ -316,7 +317,7 @@ test('Ball class unit tests', async (t) => {
 		ballB.vy = -5;
 		ballB.histX = [ballB.x];
 		ballB.histY = [ballB.y + 5];
-		ballB.move();
+		ballB.movePosition();
 		ballB.checkCollision(blockBottom);
 
 		// Direction 4: Left through
@@ -328,7 +329,7 @@ test('Ball class unit tests', async (t) => {
 		ballL.vy = 0;
 		ballL.histX = [ballL.x - 5];
 		ballL.histY = [ballL.y];
-		ballL.move();
+		ballL.movePosition();
 		ballL.checkCollision(blockLeft);
 	});
 
@@ -342,7 +343,7 @@ test('Ball class unit tests', async (t) => {
 		ball.histX = [ball.x + 4, ball.x + 8, ball.x + 12, ball.x + 16];
 		ball.histY = [ball.y + 5, ball.y + 10, ball.y + 15, ball.y + 20];
 
-		ball.move();
+		ball.movePosition();
 		ball.checkCollision(targetBlock);
 		assert.equal(ball.histX.length, SYSTEM_PARAM.BALL_HIST_MAX);
 	});
@@ -459,6 +460,22 @@ test('Ball class unit tests', async (t) => {
 		ball.x = 500;
 		ball.y = 500;
 		assert.equal(ball.checkCollision(mockBlock), false);
+	});
+
+	await t.test('movePosition updates coordinates and velocity, updateState callable without side effects', () => {
+		const ball = new Ball(BALL_CREATE_MODE.OTHER);
+		ball.x = 100;
+		ball.y = 100;
+		ball.vx = 3;
+		ball.vy = 4;
+
+		ball.movePosition();
+		assert.equal(ball.x, 103);
+		assert.equal(ball.y, 104);
+
+		assert.doesNotThrow(() => ball.updateState());
+		assert.equal(ball.x, 103);
+		assert.equal(ball.y, 104);
 	});
 });
 

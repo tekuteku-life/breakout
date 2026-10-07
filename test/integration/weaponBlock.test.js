@@ -38,7 +38,8 @@ describe('Integration Test: Weapon-Block Interactions & Bar Damage', () => {
 		g.objectManage.weapons = [gun];
 
 		// Step movement -> hits block
-		gun.move();
+		gun.movePosition();
+		gun.updateState();
 		g.objectManage.resolveCollisions();
 		assert.equal(targetBlock.life, 1, 'Gun should decrease block life by 1');
 		assert.equal(g.objectManage.weapons.length, 0, 'Gun should despawn after impact');
@@ -63,7 +64,8 @@ describe('Integration Test: Weapon-Block Interactions & Bar Damage', () => {
 		missile.vy = 10;
 		g.objectManage.weapons = [missile];
 
-		missile.move();
+		missile.movePosition();
+		missile.updateState();
 		g.objectManage.resolveCollisions();
 		assert.equal(durableBlock.type, 0, 'Durable block should be destroyed in one hit by missile');
 		assert.equal(g.objectManage.weapons.length, 0, 'Missile should despawn after impact');
@@ -81,7 +83,8 @@ describe('Integration Test: Weapon-Block Interactions & Bar Damage', () => {
 		enemyWeapon.vy = 15;
 		g.objectManage.weapons = [enemyWeapon];
 
-		enemyWeapon.move();
+		enemyWeapon.movePosition();
+		enemyWeapon.updateState();
 		g.objectManage.resolveCollisions();
 		assert.ok(bar.hitPoint < 5, 'Bar should take damage from downward enemy weapon');
 		assert.equal(g.objectManage.weapons.length, 0, 'Enemy weapon should despawn upon hitting bar');
@@ -93,14 +96,16 @@ describe('Integration Test: Weapon-Block Interactions & Bar Damage', () => {
 		const upWeapon = new Weapon(0, 200, 5, 1, g);
 		upWeapon.vy = 20;
 		g.objectManage.weapons = [upWeapon];
-		upWeapon.move();
+		upWeapon.movePosition();
+		upWeapon.updateState();
 		assert.equal(g.objectManage.weapons.length, 0, 'Weapon flying above screen should despawn');
 
 		// Bottom screen exit
 		const downWeapon = new Weapon(0, 200, g.canvasHeight - 5, -1, g);
 		downWeapon.vy = 20;
 		g.objectManage.weapons = [downWeapon];
-		downWeapon.move();
+		downWeapon.movePosition();
+		downWeapon.updateState();
 		assert.equal(g.objectManage.weapons.length, 0, 'Weapon flying below screen should despawn');
 	});
 });

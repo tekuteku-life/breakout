@@ -223,6 +223,10 @@ export default class Block
 			// 描画
 			if (staticCtx) { this.draw(staticCtx); }
 		}
+
+		// 攻撃・点滅の更新
+		this.updateAttack(hasBalls);
+		this.updateBlink();
 	}
 
 	//--------------------------------------------------
@@ -336,19 +340,7 @@ export default class Block
 		}
 	}
 
-	//--------------------------------------------------
-	// 動き・状態遷移
-	//--------------------------------------------------
-	move(hasBalls = null, blockMap = null)
-	{
-		const effectiveHasBalls = hasBalls !== null
-			? hasBalls
-			: (this.game && this.game.objectManage && this.game.objectManage.balls ? this.game.objectManage.balls.length > 0 : true);
-		this.updateState(effectiveHasBalls);
-		this.movePosition(blockMap);
-		this.updateAttack(effectiveHasBalls);
-		this.updateBlink();
-	}
+
 
 
 	//--------------------------------------------------

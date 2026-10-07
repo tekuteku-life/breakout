@@ -66,21 +66,12 @@ export default class Weapon
 
 
 	//--------------------------------------------------
-	// 移動
+	// 位置移動（物理演算）
 	//--------------------------------------------------
-	move() {
-		const canvasHeight = this.getCanvasHeight();
-
+	movePosition() {
 		const weaponSpeedList = (this.game && this.game.weaponSpeed) || WEAPON_PARAM.DEFAULT_SPEED;
 		const wSpeed = (weaponSpeedList[this.type] !== undefined) ? weaponSpeedList[this.type] : (WEAPON_PARAM.DEFAULT_SPEED[this.type] !== undefined ? WEAPON_PARAM.DEFAULT_SPEED[this.type] : 6);
 		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
-
-		// 発射音（EventBus経由で通知）
-		if( this.setInter == 0 ) {
-			this.setInter = 1;
-			const weaponSound = (this.type == WEAPON_TYPE.GUN) ? 'gun' : 'missile';
-			EventBus.emitEvent('sound:play', weaponSound);
-		}
 
 		// 座標を進める
 		this.y -= this.vy * this.vect;
@@ -96,6 +87,20 @@ export default class Weapon
 			} else {
 				this.vy = wSpeed;
 			}
+		}
+	}
+
+	//--------------------------------------------------
+	// 状態更新（発射音、画面外アウト判定・消去）
+	//--------------------------------------------------
+	updateState() {
+		const canvasHeight = this.getCanvasHeight();
+
+		// 発射音（EventBus経由で通知）
+		if( this.setInter == 0 ) {
+			this.setInter = 1;
+			const weaponSound = (this.type == WEAPON_TYPE.GUN) ? 'gun' : 'missile';
+			EventBus.emitEvent('sound:play', weaponSound);
 		}
 
 		// 画面からアウト
