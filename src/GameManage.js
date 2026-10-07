@@ -284,9 +284,6 @@ export default class GameManage {
 		if (this.scoreMng && typeof this.scoreMng.destructor === 'function') {
 			this.scoreMng.destructor();
 		}
-		if (this.sounds && typeof this.sounds.destructor === 'function') {
-			this.sounds.destructor();
-		}
 		if (this.autoPlay && typeof this.autoPlay.destructor === 'function') {
 			this.autoPlay.destructor();
 		}
@@ -409,7 +406,11 @@ export default class GameManage {
 		this.inputManage.bind(this.dynamicCanvas);
 
 		// サウンド
-		this.sounds = new Sound(this);
+		if (!this.sounds || !(this.sounds instanceof Sound)) {
+			this.sounds = new Sound(this);
+		} else {
+			this.sounds.game = this;
+		}
 
 		// 背景
 		if (typeof document !== 'undefined') {
