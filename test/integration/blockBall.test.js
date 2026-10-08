@@ -376,4 +376,213 @@ describe('Integration Test: Block-Ball Collisions & Special Block Actions', () =
 		const finalRemaining = (blockA.type !== 0 ? 1 : 0) + (blockB.type !== 0 ? 1 : 0);
 		assert.equal(finalRemaining, 1, 'Remaining adjacent block must NOT be destroyed on next frame');
 	});
+
+	it('prevents ball from penetrating or getting wedged into horizontal and vertical seams of adjacent blocks', () => {
+		const g = window.gameManage;
+		g.objectManage.blockMap = [];
+		for (let r = 0; r < 10; r++) {
+			g.objectManage.blockMap[r] = [];
+			for (let c = 0; c < 15; c++) {
+				g.objectManage.blockMap[r][c] = null;
+			}
+		}
+
+		// 1. Horizontal seam: block at (row 3, col 4) and (row 3, col 5)
+		const bH1 = new Block(4, 3, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 0, g);
+		const bH2 = new Block(5, 3, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 0, g);
+		g.objectManage.blockMap[3][4] = bH1;
+		g.objectManage.blockMap[3][5] = bH2;
+
+		const seamX = bH1.getRightX();
+		const ballH = new Ball(BALL_CREATE_MODE.OTHER, g);
+		ballH.x = seamX;
+		ballH.y = bH1.getBottomY() + 2;
+		ballH.vx = 2;
+		ballH.vy = -4;
+		ballH.histX = [ballH.x];
+		ballH.histY = [ballH.y];
+		g.objectManage.balls = [ballH];
+
+		ballH.movePosition();
+		g.objectManage.resolveCollisions();
+		assert.ok(ballH.vy > 0, 'Ball must bounce vertically downwards from horizontal seam');
+		assert.ok(ballH.y >= bH1.getBottomY(), 'Ball must stay below the seam line');
+
+		// 2. Vertical seam: block at (row 3, col 4) and (row 4, col 4)
+		g.objectManage.blockMap[3][5] = null;
+		const bV1 = new Block(4, 3, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 0, g);
+		const bV2 = new Block(4, 4, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 0, g);
+		g.objectManage.blockMap[3][4] = bV1;
+		g.objectManage.blockMap[4][4] = bV2;
+
+		const seamY = bV1.getBottomY();
+		const ballV = new Ball(BALL_CREATE_MODE.OTHER, g);
+		ballV.x = bV1.getLeftX() - 2;
+		ballV.y = seamY;
+		ballV.vx = 4;
+		ballV.vy = 2;
+		ballV.histX = [ballV.x];
+		ballV.histY = [ballV.y];
+		g.objectManage.balls = [ballV];
+
+		ballV.movePosition();
+		g.objectManage.resolveCollisions();
+		assert.ok(ballV.vx < 0, 'Ball must bounce horizontally to the left from vertical seam');
+		assert.ok(ballV.x <= bV1.getLeftX(), 'Ball must stay to the left of the seam');
+	});
+
+	it('prevents diagonal pass-through at zero-gap diagonally adjacent blocks and reflects both axes equally', () => {
+		const g = window.gameManage;
+		g.objectManage.blockMap = [];
+		for (let r = 0; r < 10; r++) {
+			g.objectManage.blockMap[r] = [];
+			for (let c = 0; c < 15; c++) {
+				g.objectManage.blockMap[r][c] = null;
+			}
+		}
+
+		// Diagonal configuration:
+		// [b1][  ]
+		// [  ][b2]
+		const b1 = new Block(4, 3, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 0, g);
+		const b2 = new Block(5, 4, 1, BLOCK_FUNCTION.NORMAL, 1, 0, 0, g);
+		g.objectManage.blockMap[3][4] = b1;
+		g.objectManage.blockMap[4][5] = b2;
+
+		const cornerX = b1.getRightX();
+		const cornerY = b1.getBottomY();
+
+		// Ball moving diagonally towards the zero-gap junction (up-right towards bottom-right corner of b1)
+		const ballDiag = new Ball(BALL_CREATE_MODE.OTHER, g);
+		ballDiag.x = cornerX - 1;
+		ballDiag.y = cornerY + 1;
+		ballDiag.vx = 4;
+		ballDiag.vy = -4;
+		ballDiag.histX = [ballDiag.x];
+		ballDiag.histY = [ballDiag.y];
+		g.objectManage.balls = [ballDiag];
+
+		ballDiag.movePosition();
+		g.objectManage.resolveCollisions();
+
+		assert.ok(ballDiag.vx < 0, 'Ball vx must reflect to the left, preventing diagonal penetration');
+		assert.ok(ballDiag.vy > 0, 'Ball vy must reflect downwards, preventing diagonal penetration');
+		assert.equal(ballDiag.lastHitAxis, 'both', 'Collision must treat diagonal equally on both axes');
+		assert.ok(ballDiag.x <= cornerX || ballDiag.y >= cornerY, 'Ball must be positioned outside the blocks');
+	});
+
+	it('L-shape inner corner collision prevents diagonal top-left block destruction and lateral/vertical teleportation', () => {
+		const g = window.gameManage;
+		g.objectManage.blockMap = [];
+		for (let r = 0; r < 10; r++) {
+			g.objectManage.blockMap[r] = [];
+			for (let c = 0; c < 15; c++) {
+				g.objectManage.blockMap[r][c] = null;
+			}
+		}
+
+		// Layout:
+		// [B_TL (col 4, row 3)][B_TR (col 5, row 3)]
+		// [B_BL (col 4, row 4)][here (col 5, row 4)]
+		const bTL = new Block(4, 3, 1, BLOCK_FUNCTION.NORMAL, 0, 0, 0, g);
+		const bTR = new Block(5, 3, 1, BLOCK_FUNCTION.NORMAL, 0, 0, 0, g);
+		const bBL = new Block(4, 4, 1, BLOCK_FUNCTION.NORMAL, 0, 0, 0, g);
+		g.objectManage.blockMap[3][4] = bTL;
+		g.objectManage.blockMap[3][5] = bTR;
+		g.objectManage.blockMap[4][4] = bBL;
+
+		const cornerX = bTL.getRightX(); // 250
+		const cornerY = bTL.getBottomY(); // 102
+
+		// Ball flying towards inner corner (cornerX, cornerY) from bottom-right ("here" space)
+		const ball = new Ball(BALL_CREATE_MODE.OTHER, g);
+		ball.x = cornerX + 3;
+		ball.y = cornerY + 3;
+		ball.vx = -4;
+		ball.vy = -4;
+		ball.histX = [ball.x];
+		ball.histY = [ball.y];
+		g.objectManage.balls = [ball];
+
+		ball.movePosition();
+		g.objectManage.resolveCollisions();
+
+		// 1. Occluded diagonal top-left block must NEVER be destroyed
+		assert.equal(bTL.type, 1, 'Diagonal top-left block must NOT be destroyed');
+
+		// 2. Ball must reflect back into open "here" space (both axes reflected to positive direction)
+		assert.ok(ball.vx > 0, 'Ball vx must reflect to the right into open space');
+		assert.ok(ball.vy > 0, 'Ball vy must reflect downwards into open space');
+		assert.equal(ball.lastHitAxis, 'both', 'Inner corner contact must reflect both axes');
+
+		// 3. Ball must NOT teleport to outside boundaries of TR or BL
+		assert.ok(ball.x >= cornerX, 'Ball x must stay within open space, not teleporting to the far right');
+		assert.ok(ball.x <= bTR.getRightX(), 'Ball x must not warp beyond the right edge of B_TR');
+		assert.ok(ball.y >= cornerY, 'Ball y must stay within open space, not teleporting to the far bottom');
+		assert.ok(ball.y <= bBL.getBottomY(), 'Ball y must not warp beyond the bottom edge of B_BL');
+
+		// 4. Either B_TR or B_BL was hit and destroyed, but not B_TL
+		const remainingBlocks = (bTR.type !== 0 ? 1 : 0) + (bBL.type !== 0 ? 1 : 0);
+		assert.equal(remainingBlocks, 1, 'Exactly one of the front-facing blocks should be hit');
+	});
+
+	it('Single block exposed corner collision reflects on larger velocity component axis', () => {
+		const g = window.gameManage;
+		g.objectManage.blockMap = [];
+		for (let r = 0; r < 10; r++) {
+			g.objectManage.blockMap[r] = [];
+			for (let c = 0; c < 15; c++) {
+				g.objectManage.blockMap[r][c] = null;
+			}
+		}
+
+		// Single block at (col 4, row 3)
+		// Layout:
+		// [Block (col 4, row 3)]
+		//                       [here (col 5, row 4)]
+		const b = new Block(4, 3, 1, BLOCK_FUNCTION.NORMAL, 0, 0, 0, g);
+		g.objectManage.blockMap[3][4] = b;
+
+		const cornerX = b.getRightX();
+		const cornerY = b.getBottomY();
+
+		// Case 1: |vx| > |vy| (vx = -5, vy = -3) -> should reflect along X axis only
+		const ballX = new Ball(BALL_CREATE_MODE.OTHER, g);
+		ballX.x = cornerX + 1;
+		ballX.y = cornerY + 1;
+		ballX.vx = -5;
+		ballX.vy = -3;
+		ballX.histX = [ballX.x];
+		ballX.histY = [ballX.y];
+		g.objectManage.balls = [ballX];
+
+		ballX.movePosition();
+		g.objectManage.resolveCollisions();
+
+		assert.ok(ballX.vx > 0, 'Ball vx must reflect to positive (right)');
+		assert.ok(ballX.vy < 0, 'Ball vy must remain negative (upward)');
+		assert.equal(ballX.lastHitAxis, 'x', 'lastHitAxis must be x when |vx| > |vy|');
+
+		// Reset block
+		const b2 = new Block(4, 3, 1, BLOCK_FUNCTION.NORMAL, 0, 0, 0, g);
+		g.objectManage.blockMap[3][4] = b2;
+
+		// Case 2: |vy| > |vx| (vx = -3, vy = -5) -> should reflect along Y axis only
+		const ballY = new Ball(BALL_CREATE_MODE.OTHER, g);
+		ballY.x = cornerX + 1;
+		ballY.y = cornerY + 1;
+		ballY.vx = -3;
+		ballY.vy = -5;
+		ballY.histX = [ballY.x];
+		ballY.histY = [ballY.y];
+		g.objectManage.balls = [ballY];
+
+		ballY.movePosition();
+		g.objectManage.resolveCollisions();
+
+		assert.ok(ballY.vx < 0, 'Ball vx must remain negative (left)');
+		assert.ok(ballY.vy > 0, 'Ball vy must reflect to positive (downward)');
+		assert.equal(ballY.lastHitAxis, 'y', 'lastHitAxis must be y when |vy| > |vx|');
+	});
 });
+

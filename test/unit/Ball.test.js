@@ -477,5 +477,470 @@ test('Ball class unit tests', async (t) => {
 		assert.equal(ball.x, 103);
 		assert.equal(ball.y, 104);
 	});
+
+	await t.test('checkCollision prevents penetration in horizontal, vertical, and diagonal seamless boundaries', () => {
+		// 1. Horizontal seam: block A at (col 1, row 1) and block B at (col 2, row 1)
+		const blockA = new Block(1, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const blockB = new Block(2, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const seamMapH = [
+			[],
+			[null, blockA, blockB]
+		];
+
+		const ballH = new Ball(BALL_CREATE_MODE.OTHER);
+		const seamX = blockA.getRightX();
+		ballH.x = seamX;
+		ballH.y = blockA.getBottomY() + 2;
+		ballH.vx = 2;
+		ballH.vy = -5;
+		ballH.prevX = seamX - 2;
+		ballH.prevY = blockA.getBottomY() + 7;
+
+		const hitH = ballH.checkCollision(blockA, seamMapH);
+		assert.equal(hitH, true);
+		assert.ok(ballH.vy > 0, 'Ball must reflect vertically downwards, not penetrating horizontal seam');
+		assert.ok(ballH.y >= blockA.getBottomY(), 'Ball y must be pushed below bottom surface');
+
+		// 2. Vertical seam: block Top at (col 1, row 1) and block Bottom at (col 1, row 2)
+		const blockTop = new Block(1, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const blockBottom = new Block(1, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const seamMapV = [
+			[],
+			[null, blockTop],
+			[null, blockBottom]
+		];
+
+		const ballV = new Ball(BALL_CREATE_MODE.OTHER);
+		const seamY = blockTop.getBottomY();
+		ballV.x = blockTop.getLeftX() - 2;
+		ballV.y = seamY;
+		ballV.vx = 5;
+		ballV.vy = 2;
+		ballV.prevX = blockTop.getLeftX() - 7;
+		ballV.prevY = seamY - 2;
+
+		const hitV = ballV.checkCollision(blockTop, seamMapV);
+		assert.equal(hitV, true);
+		assert.ok(ballV.vx < 0, 'Ball must reflect horizontally to the left, not penetrating vertical seam');
+		assert.ok(ballV.x <= blockTop.getLeftX(), 'Ball x must be pushed to the left of the block');
+
+		// 3. Diagonal seamless contact: block1 at (col 1, row 1) and block2 at (col 2, row 2)
+		const bDiag1 = new Block(1, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const bDiag2 = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const diagMap = [
+			[],
+			[null, bDiag1, null],
+			[null, null, bDiag2]
+		];
+
+		const ballDiag = new Ball(BALL_CREATE_MODE.OTHER);
+		const cornerX = bDiag1.getRightX();
+		const cornerY = bDiag1.getBottomY();
+		ballDiag.x = cornerX - 1;
+		ballDiag.y = cornerY + 1;
+		ballDiag.vx = 4;
+		ballDiag.vy = -4;
+		ballDiag.prevX = cornerX - 5;
+		ballDiag.prevY = cornerY + 5;
+
+		const hitDiag = ballDiag.checkCollision(bDiag1, diagMap);
+		assert.equal(hitDiag, true);
+		assert.ok(ballDiag.vx < 0, 'Ball vx must reflect to left, preventing diagonal pass-through');
+		assert.ok(ballDiag.vy > 0, 'Ball vy must reflect downwards, preventing diagonal pass-through');
+		assert.equal(ballDiag.lastHitAxis, 'both', 'Diagonal collision must reflect both axes equally');
+	});
+
+	await t.test('checkCollision handles exposed corners by reflecting on larger velocity component axis', () => {
+		const target = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const emptyMap = [[], [], [null, null, target]];
+
+		// 1. Bottom-Left corner:
+		// 1-a. |vx| > |vy| -> reflects X axis
+		const bBL_X = new Ball(BALL_CREATE_MODE.OTHER);
+		bBL_X.x = target.getLeftX() - 1;
+		bBL_X.y = target.getBottomY() + 1;
+		bBL_X.vx = 5;
+		bBL_X.vy = -3;
+		bBL_X.prevX = target.getLeftX() - 5;
+		bBL_X.prevY = target.getBottomY() + 5;
+		assert.equal(bBL_X.checkCollision(target, emptyMap), true);
+		assert.ok(bBL_X.vx < 0, 'vx should reflect to negative');
+		assert.ok(bBL_X.vy < 0, 'vy should keep moving upward');
+		assert.equal(bBL_X.lastHitAxis, 'x');
+
+		// 1-b. |vy| > |vx| -> reflects Y axis
+		const bBL_Y = new Ball(BALL_CREATE_MODE.OTHER);
+		bBL_Y.x = target.getLeftX() - 1;
+		bBL_Y.y = target.getBottomY() + 1;
+		bBL_Y.vx = 3;
+		bBL_Y.vy = -5;
+		bBL_Y.prevX = target.getLeftX() - 5;
+		bBL_Y.prevY = target.getBottomY() + 5;
+		assert.equal(bBL_Y.checkCollision(target, emptyMap), true);
+		assert.ok(bBL_Y.vx > 0, 'vx should keep moving right');
+		assert.ok(bBL_Y.vy > 0, 'vy should reflect downwards');
+		assert.equal(bBL_Y.lastHitAxis, 'y');
+
+		// 1-c. |vx| === |vy| -> reflects Y axis by default
+		const bBL_Eq = new Ball(BALL_CREATE_MODE.OTHER);
+		bBL_Eq.x = target.getLeftX() - 1;
+		bBL_Eq.y = target.getBottomY() + 1;
+		bBL_Eq.vx = 4;
+		bBL_Eq.vy = -4;
+		bBL_Eq.prevX = target.getLeftX() - 5;
+		bBL_Eq.prevY = target.getBottomY() + 5;
+		assert.equal(bBL_Eq.checkCollision(target, emptyMap), true);
+		assert.ok(bBL_Eq.vx > 0, 'vx should not reflect');
+		assert.ok(bBL_Eq.vy > 0, 'vy should reflect downwards');
+		assert.equal(bBL_Eq.lastHitAxis, 'y');
+
+		// 2. Bottom-Right corner:
+		// 2-a. |vx| > |vy| -> reflects X axis
+		const bBR_X = new Ball(BALL_CREATE_MODE.OTHER);
+		bBR_X.x = target.getRightX() + 1;
+		bBR_X.y = target.getBottomY() + 1;
+		bBR_X.vx = -5;
+		bBR_X.vy = -3;
+		bBR_X.prevX = target.getRightX() + 5;
+		bBR_X.prevY = target.getBottomY() + 5;
+		assert.equal(bBR_X.checkCollision(target, emptyMap), true);
+		assert.ok(bBR_X.vx > 0, 'vx should reflect to positive');
+		assert.ok(bBR_X.vy < 0, 'vy should keep moving upward');
+		assert.equal(bBR_X.lastHitAxis, 'x');
+
+		// 2-b. |vy| > |vx| -> reflects Y axis
+		const bBR_Y = new Ball(BALL_CREATE_MODE.OTHER);
+		bBR_Y.x = target.getRightX() + 1;
+		bBR_Y.y = target.getBottomY() + 1;
+		bBR_Y.vx = -3;
+		bBR_Y.vy = -5;
+		bBR_Y.prevX = target.getRightX() + 5;
+		bBR_Y.prevY = target.getBottomY() + 5;
+		assert.equal(bBR_Y.checkCollision(target, emptyMap), true);
+		assert.ok(bBR_Y.vx < 0, 'vx should keep moving left');
+		assert.ok(bBR_Y.vy > 0, 'vy should reflect downwards');
+		assert.equal(bBR_Y.lastHitAxis, 'y');
+
+		// 3. Top-Left corner:
+		// 3-a. |vx| > |vy| -> reflects X axis
+		const bTL_X = new Ball(BALL_CREATE_MODE.OTHER);
+		bTL_X.x = target.getLeftX() - 1;
+		bTL_X.y = target.getTopY() - 1;
+		bTL_X.vx = 5;
+		bTL_X.vy = 3;
+		bTL_X.prevX = target.getLeftX() - 5;
+		bTL_X.prevY = target.getTopY() - 5;
+		assert.equal(bTL_X.checkCollision(target, emptyMap), true);
+		assert.ok(bTL_X.vx < 0, 'vx should reflect to negative');
+		assert.ok(bTL_X.vy > 0, 'vy should keep moving downward');
+		assert.equal(bTL_X.lastHitAxis, 'x');
+
+		// 3-b. |vy| > |vx| -> reflects Y axis
+		const bTL_Y = new Ball(BALL_CREATE_MODE.OTHER);
+		bTL_Y.x = target.getLeftX() - 1;
+		bTL_Y.y = target.getTopY() - 1;
+		bTL_Y.vx = 3;
+		bTL_Y.vy = 5;
+		bTL_Y.prevX = target.getLeftX() - 5;
+		bTL_Y.prevY = target.getTopY() - 5;
+		assert.equal(bTL_Y.checkCollision(target, emptyMap), true);
+		assert.ok(bTL_Y.vx > 0, 'vx should keep moving right');
+		assert.ok(bTL_Y.vy < 0, 'vy should reflect upwards');
+		assert.equal(bTL_Y.lastHitAxis, 'y');
+
+		// 4. Top-Right corner:
+		// 4-a. |vx| > |vy| -> reflects X axis
+		const bTR_X = new Ball(BALL_CREATE_MODE.OTHER);
+		bTR_X.x = target.getRightX() + 1;
+		bTR_X.y = target.getTopY() - 1;
+		bTR_X.vx = -5;
+		bTR_X.vy = 3;
+		bTR_X.prevX = target.getRightX() + 5;
+		bTR_X.prevY = target.getTopY() - 5;
+		assert.equal(bTR_X.checkCollision(target, emptyMap), true);
+		assert.ok(bTR_X.vx > 0, 'vx should reflect to positive');
+		assert.ok(bTR_X.vy > 0, 'vy should keep moving downward');
+		assert.equal(bTR_X.lastHitAxis, 'x');
+
+		// 4-b. |vy| > |vx| -> reflects Y axis
+		const bTR_Y = new Ball(BALL_CREATE_MODE.OTHER);
+		bTR_Y.x = target.getRightX() + 1;
+		bTR_Y.y = target.getTopY() - 1;
+		bTR_Y.vx = -3;
+		bTR_Y.vy = 5;
+		bTR_Y.prevX = target.getRightX() + 5;
+		bTR_Y.prevY = target.getTopY() - 5;
+		assert.equal(bTR_Y.checkCollision(target, emptyMap), true);
+		assert.ok(bTR_Y.vx < 0, 'vx should keep moving left');
+		assert.ok(bTR_Y.vy < 0, 'vy should reflect upwards');
+		assert.equal(bTR_Y.lastHitAxis, 'y');
+	});
+
+	await t.test('applySpeedDelta correctly adjusts both axes when lastHitAxis is both', () => {
+		const ball = new Ball(BALL_CREATE_MODE.OTHER);
+		ball.lastHitAxis = 'both';
+		ball.vx = 4;
+		ball.vy = -4;
+		ball.applySpeedDelta(1);
+		assert.equal(ball.vx, 5);
+		assert.equal(ball.vy, -5);
+
+		ball.vx = -4;
+		ball.vy = 4;
+		ball.applySpeedDelta(1);
+		assert.equal(ball.vx, -5);
+		assert.equal(ball.vy, 5);
+
+		// test with y axis
+		ball.lastHitAxis = 'y';
+		ball.vy = 4;
+		ball.applySpeedDelta(1);
+		assert.equal(ball.vy, 5);
+
+		// no-op when delta is 0 or undefined
+		ball.applySpeedDelta(0);
+		assert.equal(ball.vy, 5);
+	});
+
+	await t.test('checkCollision handles all 4 diagonal block junction contacts seamlessly', () => {
+		// 1. Bottom-Left junction: target at (col 2, row 2), diagonal neighbor at (col 1, row 3)
+		const targetBL = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const neighborBL = new Block(1, 3, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const mapBL = [[], [], [null, null, targetBL], [null, neighborBL]];
+
+		// Moving northwest (vx <= 0, vy <= 0) into junction
+		const ballBL1 = new Ball(BALL_CREATE_MODE.OTHER);
+		ballBL1.x = targetBL.getLeftX() + 1;
+		ballBL1.y = targetBL.getBottomY() - 1;
+		ballBL1.vx = -3;
+		ballBL1.vy = -3;
+		assert.equal(ballBL1.checkCollision(targetBL, mapBL), true);
+		assert.ok(ballBL1.vx > 0);
+		assert.ok(ballBL1.vy > 0);
+		assert.equal(ballBL1.lastHitAxis, 'both');
+
+		// Moving southeast (vx >= 0, vy >= 0) into junction
+		const ballBL2 = new Ball(BALL_CREATE_MODE.OTHER);
+		ballBL2.x = targetBL.getLeftX() - 1;
+		ballBL2.y = targetBL.getBottomY() + 1;
+		ballBL2.vx = 3;
+		ballBL2.vy = 3;
+		assert.equal(ballBL2.checkCollision(targetBL, mapBL), true);
+		assert.ok(ballBL2.vx < 0);
+		assert.ok(ballBL2.vy < 0);
+		assert.equal(ballBL2.lastHitAxis, 'both');
+
+		// 2. Top-Right junction: target at (col 2, row 2), diagonal neighbor at (col 3, row 1)
+		const targetTR = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const neighborTR = new Block(3, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const mapTR = [[], [null, null, null, neighborTR], [null, null, targetTR]];
+
+		// Moving southeast (vx >= 0, vy >= 0) into junction
+		const ballTR1 = new Ball(BALL_CREATE_MODE.OTHER);
+		ballTR1.x = targetTR.getRightX() - 1;
+		ballTR1.y = targetTR.getTopY() + 1;
+		ballTR1.vx = 3;
+		ballTR1.vy = 3;
+		assert.equal(ballTR1.checkCollision(targetTR, mapTR), true);
+		assert.ok(ballTR1.vx < 0);
+		assert.ok(ballTR1.vy < 0);
+		assert.equal(ballTR1.lastHitAxis, 'both');
+
+		// Moving northwest (vx <= 0, vy <= 0) into junction
+		const ballTR2 = new Ball(BALL_CREATE_MODE.OTHER);
+		ballTR2.x = targetTR.getRightX() + 1;
+		ballTR2.y = targetTR.getTopY() - 1;
+		ballTR2.vx = -3;
+		ballTR2.vy = -3;
+		assert.equal(ballTR2.checkCollision(targetTR, mapTR), true);
+		assert.ok(ballTR2.vx > 0);
+		assert.ok(ballTR2.vy > 0);
+		assert.equal(ballTR2.lastHitAxis, 'both');
+
+		// 3. Top-Left junction: target at (col 2, row 2), diagonal neighbor at (col 1, row 1)
+		const targetTL = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const neighborTL = new Block(1, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const mapTL = [[], [null, neighborTL], [null, null, targetTL]];
+
+		// Moving southwest (vx <= 0, vy >= 0) into junction
+		const ballTL1 = new Ball(BALL_CREATE_MODE.OTHER);
+		ballTL1.x = targetTL.getLeftX() + 1;
+		ballTL1.y = targetTL.getTopY() + 1;
+		ballTL1.vx = -3;
+		ballTL1.vy = 3;
+		assert.equal(ballTL1.checkCollision(targetTL, mapTL), true);
+		assert.ok(ballTL1.vx > 0);
+		assert.ok(ballTL1.vy < 0);
+		assert.equal(ballTL1.lastHitAxis, 'both');
+
+		// Moving northeast (vx >= 0, vy <= 0) into junction
+		const ballTL2 = new Ball(BALL_CREATE_MODE.OTHER);
+		ballTL2.x = targetTL.getLeftX() - 1;
+		ballTL2.y = targetTL.getTopY() - 1;
+		ballTL2.vx = 3;
+		ballTL2.vy = -3;
+		assert.equal(ballTL2.checkCollision(targetTL, mapTL), true);
+		assert.ok(ballTL2.vx < 0);
+		assert.ok(ballTL2.vy > 0);
+		assert.equal(ballTL2.lastHitAxis, 'both');
+	});
+
+	await t.test('checkCollision fallback smoothly escapes embedded balls to nearest open faces or corners', () => {
+		const target = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const map = [[], [], [null, null, target]];
+
+		// 1. Embedded inside block center without prior movement
+		const ballCenter = new Ball(BALL_CREATE_MODE.OTHER);
+		ballCenter.x = target.getCenterX();
+		ballCenter.y = target.getCenterY();
+		ballCenter.vx = 2;
+		ballCenter.vy = 4;
+		ballCenter.prevX = ballCenter.x;
+		ballCenter.prevY = ballCenter.y;
+		assert.equal(ballCenter.checkCollision(target, map), true);
+		assert.ok(ballCenter.lastHitAxis === 'y' || ballCenter.lastHitAxis === 'x');
+
+		// 2. Embedded in quadrant regions without crossed trajectory
+		const makeQuadrantBall = (offsetX, offsetY, vx, vy) => {
+			const b = new Ball(BALL_CREATE_MODE.OTHER);
+			b.x = target.getCenterX() + offsetX;
+			b.y = target.getCenterY() + offsetY;
+			b.vx = vx;
+			b.vy = vy;
+			b.prevX = b.x;
+			b.prevY = b.y;
+			return b;
+		};
+
+		// Bottom-Left quadrant escape
+		const bBL = makeQuadrantBall(-15, 6, -1, 1);
+		assert.equal(bBL.checkCollision(target, map), true);
+		assert.ok(bBL.x <= target.getLeftX() || bBL.y >= target.getBottomY());
+
+		// Bottom-Right quadrant escape
+		const bBR = makeQuadrantBall(15, 6, 1, 1);
+		assert.equal(bBR.checkCollision(target, map), true);
+		assert.ok(bBR.x >= target.getRightX() || bBR.y >= target.getBottomY());
+
+		// Top-Left quadrant escape
+		const bTL = makeQuadrantBall(-15, -6, -1, -1);
+		assert.equal(bTL.checkCollision(target, map), true);
+		assert.ok(bTL.x <= target.getLeftX() || bTL.y <= target.getTopY());
+
+		// Top-Right quadrant escape
+		const bTR = makeQuadrantBall(15, -6, 1, -1);
+		assert.equal(bTR.checkCollision(target, map), true);
+		assert.ok(bTR.x >= target.getRightX() || bTR.y <= target.getTopY());
+	});
+
+	await t.test('checkCollision ignores fully occluded inner corner block in L-shape clusters', () => {
+		// 1. Bottom-right occluded corner
+		const bTL = new Block(1, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const bTR = new Block(2, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const bBL = new Block(1, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const map1 = [[], [null, bTL, bTR], [null, bBL, null]];
+
+		const ball1 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball1.x = bTL.getRightX() - 1;
+		ball1.y = bTL.getBottomY() - 1;
+		ball1.vx = -3;
+		ball1.vy = -3;
+		assert.equal(ball1.checkCollision(bTL, map1), false);
+
+		// 2. Bottom-left occluded corner
+		const bBR = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const map2 = [[], [null, bTL, bTR], [null, null, bBR]];
+		const ball2 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball2.x = bTR.getLeftX() + 1;
+		ball2.y = bTR.getBottomY() - 1;
+		ball2.vx = 3;
+		ball2.vy = -3;
+		assert.equal(ball2.checkCollision(bTR, map2), false);
+
+		// 3. Top-left occluded corner (bBR has bBL on left and bTR on top)
+		const map3 = [[], [null, null, bTR], [null, bBL, bBR]];
+		const ball3 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball3.x = bBR.getLeftX() + 1;
+		ball3.y = bBR.getTopY() + 1;
+		ball3.vx = 3;
+		ball3.vy = 3;
+		assert.equal(ball3.checkCollision(bBR, map3), false);
+
+		// 4. Top-right occluded corner (bBL has bTL on top and bBR on right)
+		const map4 = [[], [null, bTL, null], [null, bBL, bBR]];
+		const ball4 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball4.x = bBL.getRightX() - 1;
+		ball4.y = bBL.getTopY() + 1;
+		ball4.vx = -3;
+		ball4.vy = 3;
+		assert.equal(ball4.checkCollision(bBL, map4), false);
+	});
+
+	await t.test('checkCollision reflects smoothly from concave inner corner across all 4 quadrants without teleporting', () => {
+		// 1. Bottom-Left inner corner (B_TR perspective with B_TL on left, B_BL on bottom-left)
+		const bTL = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const bTR = new Block(3, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const bBL = new Block(2, 3, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const map1 = [[], [], [null, null, bTL, bTR], [null, null, bBL, null]];
+
+		const ball1 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball1.x = bTR.getLeftX() - 1;
+		ball1.y = bTR.getBottomY() - 1;
+		ball1.vx = -4;
+		ball1.vy = -4;
+		assert.equal(ball1.checkCollision(bTR, map1), true);
+		assert.ok(ball1.vx > 0, 'vx must reflect rightwards');
+		assert.ok(ball1.vy > 0, 'vy must reflect downwards');
+		assert.equal(ball1.lastHitAxis, 'both');
+		assert.equal(ball1.x, bTR.getLeftX() + ball1.radius + 1, 'x must push right from bLeft, not far-right bRight');
+		assert.equal(ball1.y, bTR.getBottomY() + ball1.radius + 1, 'y must push down from bBottom');
+
+		// 2. Bottom-Right inner corner (B_TL perspective with B_TR on right, B_BR on bottom-right)
+		const bBR = new Block(3, 3, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const map2 = [[], [], [null, null, bTL, bTR], [null, null, null, bBR]];
+
+		const ball2 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball2.x = bTL.getRightX() + 1;
+		ball2.y = bTL.getBottomY() - 1;
+		ball2.vx = 4;
+		ball2.vy = -4;
+		assert.equal(ball2.checkCollision(bTL, map2), true);
+		assert.ok(ball2.vx < 0, 'vx must reflect leftwards');
+		assert.ok(ball2.vy > 0, 'vy must reflect downwards');
+		assert.equal(ball2.lastHitAxis, 'both');
+		assert.equal(ball2.x, bTL.getRightX() - ball2.radius - 1, 'x must push left from bRight');
+		assert.equal(ball2.y, bTL.getBottomY() + ball2.radius + 1, 'y must push down from bBottom');
+
+		// 3. Top-Left inner corner (B_BR perspective with B_BL on left, B_TL on top-left)
+		const map3 = [[], [], [null, null, bTL, null], [null, null, bBL, bBR]];
+
+		const ball3 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball3.x = bBR.getLeftX() - 1;
+		ball3.y = bBR.getTopY() + 1;
+		ball3.vx = -4;
+		ball3.vy = 4;
+		assert.equal(ball3.checkCollision(bBR, map3), true);
+		assert.ok(ball3.vx > 0, 'vx must reflect rightwards');
+		assert.ok(ball3.vy < 0, 'vy must reflect upwards');
+		assert.equal(ball3.lastHitAxis, 'both');
+		assert.equal(ball3.x, bBR.getLeftX() + ball3.radius + 1, 'x must push right from bLeft');
+		assert.equal(ball3.y, bBR.getTopY() - ball3.radius - 1, 'y must push up from bTop');
+
+		// 4. Top-Right inner corner (B_BL perspective with B_BR on right, B_TR on top-right)
+		const map4 = [[], [], [null, null, null, bTR], [null, null, bBL, bBR]];
+
+		const ball4 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball4.x = bBL.getRightX() + 1;
+		ball4.y = bBL.getTopY() + 1;
+		ball4.vx = 4;
+		ball4.vy = 4;
+		assert.equal(ball4.checkCollision(bBL, map4), true);
+		assert.ok(ball4.vx < 0, 'vx must reflect leftwards');
+		assert.ok(ball4.vy < 0, 'vy must reflect upwards');
+		assert.equal(ball4.lastHitAxis, 'both');
+		assert.equal(ball4.x, bBL.getRightX() - ball4.radius - 1, 'x must push left from bRight');
+		assert.equal(ball4.y, bBL.getTopY() - ball4.radius - 1, 'y must push up from bTop');
+	});
 });
+
 

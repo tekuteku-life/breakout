@@ -507,9 +507,9 @@ export default class AutoPlay
 			const nearBlocks = om.getNearbyBlocks(ball.x, ball.y, ball.radius, ball.vx, ball.vy);
 			for (let i = 0; i < nearBlocks.length; i++) {
 				const blk = nearBlocks[i];
-				if (typeof ball.checkCollision === 'function' && ball.checkCollision(blk) === true) {
-					const isChangedVY = (ball.lastHitAxis === 'y') ? 1 : 0;
-					const addSpeed = blk.action(ball, isChangedVY);
+				if (typeof ball.checkCollision === 'function' && ball.checkCollision(blk, om.blockMap) === true) {
+					const isChangedVY = (ball.lastHitAxis === 'y' || ball.lastHitAxis === 'both') ? 1 : 0;
+					const addSpeed = blk.action(ball, isChangedVY, om.blockMap);
 					if (addSpeed && typeof ball.applySpeedDelta === 'function') {
 						ball.applySpeedDelta(addSpeed);
 					}

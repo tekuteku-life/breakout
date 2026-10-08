@@ -413,7 +413,7 @@ export default class ObjectManage {
 				for (let k = 0; k < nearBlocks.length; k++) {
 					const blk = nearBlocks[k];
 					if (ball.checkCollision(blk, this.blockMap) === true) {
-						const isChangedVY = (ball.lastHitAxis === 'y') ? 1 : 0;
+						const isChangedVY = (ball.lastHitAxis === 'y' || ball.lastHitAxis === 'both') ? 1 : 0;
 						const addSpeed = blk.action(ball, isChangedVY, this.blockMap);
 						if (addSpeed && typeof ball.applySpeedDelta === 'function') {
 							ball.applySpeedDelta(addSpeed);

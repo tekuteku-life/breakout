@@ -28,6 +28,8 @@ export default class Block
 
 		this.width = blkWidth;									// ブロックの横幅
 		this.height = blkHeight;								// ブロックの縦幅
+		this.col = x;											// マップ列インデックス
+		this.row = y;											// マップ行インデックス
 		this.x = x * this.width;								// ブロックの横軸座標
 		this.y = y * this.height + sBarHeight;					// ブロックの縦軸座標
 		this.type = type;										// ブロックの種類
