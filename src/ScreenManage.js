@@ -8,6 +8,7 @@ import StageClearScreenControl from "./screens/StageClearScreenControl.js";
 import AllClearScreenControl from "./screens/AllClearScreenControl.js";
 import GameOverScreenControl from "./screens/GameOverScreenControl.js";
 import AboutScreenControl from "./screens/AboutScreenControl.js";
+import LoadingScreenControl from "./screens/LoadingScreenControl.js";
 import { DEFAULT_CONFIG } from "./const.js";
 import EventBus from "./EventBus.js";
 
@@ -25,6 +26,7 @@ export default class ScreenManage {
 		this.registerController('screen_allClear', new AllClearScreenControl(this, 'screen_allClear'));
 		this.registerController('screen_gameOver', new GameOverScreenControl(this, 'screen_gameOver'));
 		this.registerController('screen_about', new AboutScreenControl(this, 'screen_about'));
+		this.registerController('screen_loading', new LoadingScreenControl(this, 'screen_loading'));
 
 		// EventBus経由で画面操作要求を購読
 		this.onOpenHandler = (screenName) => this.openScreen(screenName);
@@ -35,11 +37,17 @@ export default class ScreenManage {
 			const stage = data ? data.stage : null;
 			this.printRecordScreen(type, stage);
 		};
+		this.onLoadingMessageHandler = (message) => {
+			if (typeof message === 'string') {
+				this.setLoadingMessage(message);
+			}
+		};
 
 		EventBus.addOnEvent('screen:open', this.onOpenHandler);
 		EventBus.addOnEvent('screen:close', this.onCloseHandler);
 		EventBus.addOnEvent('screen:allClose', this.onAllCloseHandler);
 		EventBus.addOnEvent('screen:printRecord', this.onPrintRecordHandler);
+		EventBus.addOnEvent('loading:message', this.onLoadingMessageHandler);
 	}
 
 	destructor() {
@@ -47,10 +55,12 @@ export default class ScreenManage {
 		if (this.onCloseHandler) { EventBus.removeOnEvent('screen:close', this.onCloseHandler); }
 		if (this.onAllCloseHandler) { EventBus.removeOnEvent('screen:allClose', this.onAllCloseHandler); }
 		if (this.onPrintRecordHandler) { EventBus.removeOnEvent('screen:printRecord', this.onPrintRecordHandler); }
+		if (this.onLoadingMessageHandler) { EventBus.removeOnEvent('loading:message', this.onLoadingMessageHandler); }
 		this.onOpenHandler = null;
 		this.onCloseHandler = null;
 		this.onAllCloseHandler = null;
 		this.onPrintRecordHandler = null;
+		this.onLoadingMessageHandler = null;
 
 		for (const ctrl of this.controllers.values()) {
 			if (ctrl && typeof ctrl.destructor === 'function') {
@@ -240,6 +250,13 @@ export default class ScreenManage {
 		const ctrl = this.getController('screen_start');
 		if (ctrl && typeof ctrl.setupButtonSounds === 'function') {
 			ctrl.setupButtonSounds();
+		}
+	}
+
+	setLoadingMessage(text) {
+		const ctrl = this.getController('screen_loading');
+		if (ctrl && typeof ctrl.setMessage === 'function') {
+			ctrl.setMessage(text);
 		}
 	}
 }

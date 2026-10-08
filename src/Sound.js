@@ -71,22 +71,35 @@ export default class Sound
 
 	/**
 	 * Web Audio API 用に音声バッファを事前ロード・デコード
+	 * @param {Function} [onProgress] - 進捗コールバック (ratio: 0.0 ~ 1.0)
 	 */
-	async preloadAudioBuffers() {
-		if (!this.audioCtx || typeof fetch === 'undefined') { return; }
+	async preloadAudioBuffers(onProgress = null) {
+		const total = this.soundKeys.length;
+		if (total === 0 || !this.audioCtx || typeof fetch === 'undefined') {
+			if (typeof onProgress === 'function') onProgress(1.0);
+			return;
+		}
+
+		let processed = 0;
 		for (const key of this.soundKeys) {
 			const url = this.soundFiles[key];
-			if (!url || this.audioBuffers.has(key)) { continue; }
-			try {
-				const response = await fetch(url);
-				if (!response.ok) { continue; }
-				const arrayBuffer = await response.arrayBuffer();
-				if (this.audioCtx && typeof this.audioCtx.decodeAudioData === 'function') {
-					const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
-					this.audioBuffers.set(key, audioBuffer);
+			if (url && !this.audioBuffers.has(key)) {
+				try {
+					const response = await fetch(url);
+					if (response.ok) {
+						const arrayBuffer = await response.arrayBuffer();
+						if (this.audioCtx && typeof this.audioCtx.decodeAudioData === 'function') {
+							const audioBuffer = await this.audioCtx.decodeAudioData(arrayBuffer);
+							this.audioBuffers.set(key, audioBuffer);
+						}
+					}
+				} catch (_) {
+					// CORS制限やネットワーク失敗時はHTML Audioフォールバックを使用
 				}
-			} catch (_) {
-				// CORS制限やネットワーク失敗時はHTML Audioフォールバックを使用
+			}
+			processed++;
+			if (typeof onProgress === 'function') {
+				onProgress(processed / total);
 			}
 		}
 	}

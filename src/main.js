@@ -120,7 +120,7 @@ Array.prototype.copy = function()
 //--------------------------------------------------
 // onloadの動作設定（ゲーム管理インスタンスの生成と初期化）
 //--------------------------------------------------
-window.onload = function()
+window.onload = async function()
 {
 	if (typeof window !== 'undefined' && window.gameManage && typeof window.gameManage.destructor === 'function') {
 		window.gameManage.destructor();
@@ -132,12 +132,6 @@ window.onload = function()
 	window.screenManage = gameManage.screenManage;
 	window.inputManage = gameManage.inputManage;
 	window.eventBus = EventBus;
-
-	// ゲームの初期化
-	gameManage.init(0);
-
-	// スタート画面の設定
-	gameManage.screenManage.openScreen('screen_start');
 
 	// 画面内容の保存
 	gameManage.screenManage.saveScreenData('screen_stageClear');
@@ -156,6 +150,18 @@ window.onload = function()
 	var screenData = String(gameManage.screenManage.getScreenData('screen_about'));
 	screenData = screenData.replace('<!--version-->', APP_VER);
 	gameManage.screenManage.replaceScreenData('screen_about', screenData);
+
+	const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
+	if (isNode) {
+		gameManage.init(0);
+		gameManage.screenManage.openScreen('screen_start');
+		return;
+	}
+
+	// ブラウザ環境：プレイ準備完了までのロード画面を表示しつつ非同期初期化
+	return gameManage.initAsync(0).then(() => {
+		gameManage.screenManage.openScreen('screen_start');
+	});
 };
 
 // 右クリックメニューの無効化（一時停止処理の呼出）

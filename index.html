@@ -10,7 +10,7 @@
 
 		<link rel="shortcut icon" href="./icon/128icon.ico" />
 		<link rel="stylesheet" href="./style.css" type="text/css" />
-		<script type="text/javascript" src="./setup/default.js" id="setup"></script>
+		<script type="text/javascript" src="./setup/default.js" id="setup" defer></script>
 		<script type="module" src="./src/main.js"></script>
 	</head>
 
@@ -32,7 +32,7 @@
 				<a href="javascript:screenManage.openScreen('screen_setting');" class="barButton">Setting</a>
 			</div>
 
-			<div id="screen_pause" style="opacity: 0.9;">
+			<div id="screen_pause">
 				<h2 class="little_title">Pause...</h2>
 				<div style="margin-top: 6em;">&nbsp;</div>
 				<a href="javascript:gameManage.ctrl.pauseSwitchOff();" class="barButton">Continue</a>
@@ -42,7 +42,12 @@
 			</div>
 
 			<div id="screen_loading">
-				<h2 class="little_title" style="margin-top: 3.5em; padding: 0.2em; background-color: #bcbcbc;">Loading...</h2>
+				<div style="margin-top: 10em;">&nbsp;</div>
+				<h2 class="little_title">Now Loading...</h2>
+				<div class="loading_progress_container" role="progressbar" aria-label="Loading indicator">
+					<div id="loading_progress_bar" class="loading_progress_bar"></div>
+				</div>
+				<div id="loading_progress_text" class="loading_progress_text">Loading...</div>
 			</div>
 
 			<div id="screen_setting">

@@ -92,6 +92,10 @@ export class MockElement {
 		return this.attributes[name] || null;
 	}
 
+	removeAttribute(name) {
+		delete this.attributes[name];
+	}
+
 	focus() {}
 
 	getContext(type) {
@@ -280,6 +284,22 @@ export function setupEnvironment() {
 		sc.innerHTML = innerContent;
 		screenStock.appendChild(sc);
 	}
+
+	// Loading screen progress elements
+	const screenLoading = getOrCreate('screen_loading', 'div');
+	screenLoading.style.display = 'block';
+	screenLoading.style.top = '0px';
+	screenLoading.style.left = '0px';
+	screenLoading.style.width = '768px';
+	screenLoading.style.height = '570px';
+	screenLoading.style.zIndex = 100;
+	const loadingContainer = getOrCreate('loading_progress_container', 'div');
+	const loadingBar = getOrCreate('loading_progress_bar', 'div');
+	const loadingText = getOrCreate('loading_progress_text', 'div');
+	loadingText.textContent = 'Loading...';
+	loadingContainer.appendChild(loadingBar);
+	screenLoading.appendChild(loadingContainer);
+	screenLoading.appendChild(loadingText);
 
 	// Add anchors with class barButton for screenStock
 	for (let i = 0; i < 5; i++) {

@@ -402,6 +402,7 @@ test('Ball class unit tests', async (t) => {
 		EventBus.destructor();
 		EventBus.addOnEvent('sound:play', (evt) => { if (evt === 'fall') fallEmitted = true; });
 		const ballFall = new Ball(BALL_CREATE_MODE.OTHER, { balls: [] });
+		ballFall.x = 400;
 		ballFall.y = 650;
 		assert.equal(ballFall.checkCollisionWithWall(800, 600, 30), true);
 		assert.equal(fallEmitted, true);

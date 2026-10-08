@@ -197,6 +197,28 @@ export default class GameManage {
 			this.imgData.destructor();
 		}
 
+		this.screenManage.openScreen("screen_loading");
+		this.screenManage.setLoadingMessage("Initializing...");
+		this.setupBasics(offsetStage);
+		this.setupSound();
+		this.screenManage.setLoadingMessage("Generating graphics...");
+		this.setupImageData();
+		this.screenManage.setLoadingMessage("Preparing stage data...");
+		this.setupEntities();
+		this.screenManage.setLoadingMessage("Preparing game screen...");
+		this.setupDrawAndLoop();
+		this.screenManage.setLoadingMessage("Setup complete");
+		this.screenManage.closeScreen("screen_loading");
+	}
+
+	setupBasics(offsetStage) {
+		if (this.statusMng && typeof this.statusMng.destructor === 'function') {
+			this.statusMng.destructor();
+		}
+		if (this.imgData && typeof this.imgData.destructor === 'function') {
+			this.imgData.destructor();
+		}
+
 		if (!this.eventBusSetup) {
 			this.setupEventBus();
 			this.eventBusSetup = true;
@@ -253,15 +275,24 @@ export default class GameManage {
 		}
 
 		this.ctrl.fixSize();
+	}
 
-		// 描画イメージの準備
-		this.screenManage.openScreen("screen_loading");
+	setupSound() {
+		if (!this.sounds || !(this.sounds instanceof Sound)) {
+			this.sounds = new Sound(this);
+		} else {
+			this.sounds.game = this;
+		}
+	}
+
+	setupImageData() {
 		if (this.dynamicCtx) {
 			this.imgData = new ImageData(this.dynamicCtx, this);
 			this.imgData.init();
 		}
-		this.screenManage.closeScreen("screen_loading");
+	}
 
+	setupEntities() {
 		// オブジェクト管理の初期化（ブロック配置の読み込み、Barの生成、エンティティクリア）
 		this.objectManage.init(this.ctrl.stageIndex);
 
@@ -305,13 +336,6 @@ export default class GameManage {
 		this.inputManage.pointX = this.canvasWidth / 2;
 		this.inputManage.bind(this.dynamicCanvas);
 
-		// サウンド
-		if (!this.sounds || !(this.sounds instanceof Sound)) {
-			this.sounds = new Sound(this);
-		} else {
-			this.sounds.game = this;
-		}
-
 		// 背景
 		if (typeof document !== 'undefined') {
 			this.canvasBg = document.getElementById('canvas_background');
@@ -324,13 +348,62 @@ export default class GameManage {
 				}
 			}
 		}
+	}
 
+	setupDrawAndLoop() {
 		// 初回描画
 		if (this.staticCtx) this.drawOnce(this.staticCtx);
 		if (this.dynamicCtx) this.drawAll(this.dynamicCtx);
 
 		// ゲームループの開始
 		this.start();
+	}
+
+	async initAsync(offsetStage = 0, onProgress = null) {
+		const updateProgress = (ratio, text) => {
+			this.screenManage.setLoadingMessage(text);
+			if (typeof onProgress === 'function') {
+				onProgress(ratio, text);
+			}
+		};
+
+		this.screenManage.openScreen("screen_loading");
+		updateProgress(0.05, "Initializing...");
+		await new Promise(resolve => setTimeout(resolve, 10));
+
+		this.setupBasics(offsetStage);
+		this.setupSound();
+
+		updateProgress(0.15, "Loading audio data...");
+		await new Promise(resolve => setTimeout(resolve, 10));
+
+		// サウンドの非同期プリロード（進捗 15% -> 55%）
+		if (this.sounds && typeof this.sounds.preloadAudioBuffers === 'function') {
+			await this.sounds.preloadAudioBuffers((soundRatio) => {
+				const current = 0.15 + soundRatio * 0.40;
+				updateProgress(current, "Loading audio data...");
+			});
+		}
+
+		updateProgress(0.55, "Generating graphics...");
+		await new Promise(resolve => setTimeout(resolve, 10));
+
+		// 画像データの初期化（進捗 55% -> 75%）
+		this.setupImageData();
+		updateProgress(0.75, "Preparing stage data...");
+		await new Promise(resolve => setTimeout(resolve, 10));
+
+		// オブジェクト管理・エンティティの初期化（進捗 75% -> 90%）
+		this.setupEntities();
+		updateProgress(0.90, "Preparing game screen...");
+		await new Promise(resolve => setTimeout(resolve, 10));
+
+		// 描画とゲームループの開始（進捗 90% -> 100%）
+		this.setupDrawAndLoop();
+		updateProgress(1.0, "Setup complete");
+		await new Promise(resolve => setTimeout(resolve, 50));
+
+		this.screenManage.closeScreen("screen_loading");
 	}
 
 
@@ -600,6 +673,10 @@ export default class GameManage {
 
 	changeSetting(file) {
 		if (typeof document === 'undefined') { return; }
+		if (this.screenManage) {
+			this.screenManage.openScreen('screen_loading');
+			this.screenManage.setLoadingMessage('Loading script...');
+		}
 		const oldScr = document.getElementById('setup');
 		if (oldScr && oldScr.parentNode) {
 			oldScr.parentNode.removeChild(oldScr);
@@ -614,7 +691,7 @@ export default class GameManage {
 			head.appendChild(newScr);
 		}
 		newScr.onload = () => {
-			this.init(0);
+			this.initAsync(0);
 		};
 	}
 

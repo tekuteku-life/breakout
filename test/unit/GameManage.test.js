@@ -187,6 +187,24 @@ test('GameManage class unit tests', async (t) => {
 		assert.equal(gm.inputManage.pointX, 300);
 	});
 
+	await t.test('initAsync displays loading screen and updates progress through phases until completion', async () => {
+		const gm = new GameManage();
+		const progressUpdates = [];
+
+		await gm.initAsync(0, (ratio, text) => {
+			progressUpdates.push({ ratio, text });
+		});
+
+		assert.ok(progressUpdates.length > 0, 'Progress updates should have been reported');
+		assert.equal(progressUpdates[progressUpdates.length - 1].ratio, 1.0, 'Final progress should reach 100%');
+		assert.ok(gm.ctrl, 'Control should be initialized');
+		assert.ok(gm.objectManage, 'ObjectManage should be initialized');
+		assert.ok(gm.statusMng, 'StatusManage should be initialized');
+		assert.ok(gm.scoreMng, 'ScoreManage should be initialized');
+
+		gm.destructor();
+	});
+
 	await t.test('cleans up all resources, child entities, listeners, and references on destructor()', () => {
 		const gm = new GameManage();
 		gm.init(0);

@@ -149,6 +149,16 @@ test('Sound class unit tests', async (t) => {
 		await sound.preloadAudioBuffers();
 		assert.equal(sound.audioBuffers.size, 0);
 
+		// With onProgress callback
+		globalThis.fetch = async (url) => ({
+			ok: true,
+			arrayBuffer: async () => new ArrayBuffer(8),
+		});
+		const progressList = [];
+		await sound.preloadAudioBuffers((p) => { progressList.push(p); });
+		assert.ok(progressList.length > 0);
+		assert.equal(progressList[progressList.length - 1], 1.0);
+
 		globalThis.fetch = origFetch;
 	});
 

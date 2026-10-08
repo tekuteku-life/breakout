@@ -26,13 +26,12 @@ export default class Ball
 		const imgSource = (this.game && this.game.imgData) ? this.game.imgData : null;
 
 		this.radius = bSize;									// ボールの半径
-		this.x;													// ボール横方向位置
-		this.y;													// ボール縦方向位置
-		this.vx;												// ボール横方向速度
-		this.vy;												// ボール縦方向速度
-		this.prevX = this.x;									// 前フレーム横方向座標
-		this.prevY = this.y;									// 前フレーム縦方向座標
-		this.lastHitAxis = null;								// 直前の衝突軸 ('x' | 'y')
+		this.x = 0;												// ボール横方向位置
+		this.y = 0;												// ボール縦方向位置
+		this.vx = 0;											// ボール横方向速度
+		this.vy = 0;											// ボール縦方向速度
+		this.prevX = 0;											// 前フレーム横方向座標
+		this.prevY = 0;											// 前フレーム縦方向座標
 		this.histX = new Array();								// ボール横方向位置履歴
 		this.histY = new Array();								// ボール縦方向位置履歴
 		this.pointIncr = defPoint;								// ポイント増分

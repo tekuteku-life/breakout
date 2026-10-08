@@ -2,6 +2,7 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { setupEnvironment } from '../helpers/setupEnv.js';
+import EventBus from '../../src/EventBus.js';
 import ScreenManage from '../../src/ScreenManage.js';
 import ScreenControl from '../../src/screens/ScreenControl.js';
 import StartScreenControl from '../../src/screens/StartScreenControl.js';
@@ -11,6 +12,7 @@ import StageClearScreenControl from '../../src/screens/StageClearScreenControl.j
 import AllClearScreenControl from '../../src/screens/AllClearScreenControl.js';
 import GameOverScreenControl from '../../src/screens/GameOverScreenControl.js';
 import AboutScreenControl from '../../src/screens/AboutScreenControl.js';
+import LoadingScreenControl from '../../src/screens/LoadingScreenControl.js';
 
 describe('ScreenManage and ScreenControllers unit tests', () => {
 	beforeEach(() => {
@@ -26,6 +28,7 @@ describe('ScreenManage and ScreenControllers unit tests', () => {
 		assert.ok(sm.getController('screen_allClear') instanceof AllClearScreenControl);
 		assert.ok(sm.getController('screen_gameOver') instanceof GameOverScreenControl);
 		assert.ok(sm.getController('screen_about') instanceof AboutScreenControl);
+		assert.ok(sm.getController('screen_loading') instanceof LoadingScreenControl);
 
 		// Custom controller registration
 		const custom = new ScreenControl(sm, 'custom_screen');
@@ -35,6 +38,26 @@ describe('ScreenManage and ScreenControllers unit tests', () => {
 		// Unknown controller returns null
 		assert.equal(sm.getController('unknown_screen'), null);
 	});
+
+	it('handles loading messages via setLoadingMessage and EventBus loading:message', () => {
+		const sm = new ScreenManage();
+		sm.openScreen('screen_loading');
+		const loadingCtrl = sm.getController('screen_loading');
+		assert.equal(loadingCtrl.message, 'Initializing...');
+
+		// setLoadingMessage
+		sm.setLoadingMessage('Loading audio data...');
+		assert.equal(loadingCtrl.message, 'Loading audio data...');
+
+		// via EventBus loading:message
+		EventBus.emitEvent('loading:message', 'Generating graphics...');
+		assert.equal(loadingCtrl.message, 'Generating graphics...');
+
+		// ignore non-string payload
+		EventBus.emitEvent('loading:message', 12345);
+		assert.equal(loadingCtrl.message, 'Generating graphics...');
+	});
+
 
 	it('handles screen lifecycle: openScreen, closeScreen, and toggleScreen', () => {
 		const sm = new ScreenManage();

@@ -53,10 +53,17 @@ describe('System Test SYS-01: Startup and Initialization', () => {
 
 
 	it('executes window.onload setting up start screen, backups, records, and button sounds', () => {
+		// Prior to window.onload (waiting for .js script loading), loading screen is visible
+		const loadingScreen = document.getElementById('screen_loading');
+		assert.equal(loadingScreen.style.display, 'block', 'Loading screen should be visible while waiting for .js scripts');
+		const loadingText = document.getElementById('loading_progress_text');
+		assert.equal(loadingText.textContent, 'Loading...', 'Initial loading text indicates script loading state');
+
 		// Execute window.onload
 		window.onload();
 
-		// Start screen displayed
+		// Loading screen is closed and start screen is displayed
+		assert.equal(loadingScreen.style.display, 'none', 'Loading screen should be closed once ready');
 		const startScreen = document.getElementById('screen_start');
 		assert.equal(startScreen.style.display, 'block', 'Start screen should be open on startup');
 
