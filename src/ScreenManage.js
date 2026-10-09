@@ -240,13 +240,6 @@ export default class ScreenManage {
 		}
 	}
 
-	checkVersion() {
-		const ctrl = this.getController('screen_about');
-		if (ctrl && typeof ctrl.versionCheck === 'function') {
-			ctrl.versionCheck();
-		}
-	}
-
 	setupButtonSounds() {
 		const ctrl = this.getController('screen_start');
 		if (ctrl && typeof ctrl.setupButtonSounds === 'function') {

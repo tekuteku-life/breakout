@@ -8,7 +8,6 @@ import EventBus from "./EventBus.js";
 import AutoPlay from "./AutoPlay.js";
 import ObjectManage from "./ObjectManage.js";
 import Block from "./Block.js";
-import { APP_VER } from "./const.js";
 
 //--------------------------------------------------
 // 配列操作のプロトタイプ拡張
@@ -148,7 +147,6 @@ window.onload = async function()
 
 	// 「ゲームについて」画面でのバージョン表示
 	var screenData = String(gameManage.screenManage.getScreenData('screen_about'));
-	screenData = screenData.replace('<!--version-->', APP_VER);
 	gameManage.screenManage.replaceScreenData('screen_about', screenData);
 
 	const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;

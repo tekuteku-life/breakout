@@ -8,7 +8,7 @@ export default class ScreenControl {
 	}
 
 	getElement() {
-		if (typeof document === 'undefined') return null;
+		if (typeof document === 'undefined') { return null; }
 		return document.getElementById(this.screenId);
 	}
 

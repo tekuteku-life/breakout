@@ -168,19 +168,6 @@ describe('ScreenManage and ScreenControllers unit tests', () => {
 		}
 	});
 
-	it('exercises AboutScreenControl render and versionCheck', () => {
-		const sm = new ScreenManage();
-		sm.saveScreenData('screen_about');
-
-		const ctrl = sm.getController('screen_about');
-		ctrl.render('v2.0.0');
-		assert.ok(document.getElementById('screen_about').innerHTML.includes('v2.0.0'));
-
-		// versionCheck
-		sm.checkVersion();
-		assert.ok(true);
-	});
-
 	it('exercises StartScreenControl setupButtonSounds and onOpen', () => {
 		const sm = new ScreenManage();
 		const ctrl = sm.getController('screen_start');

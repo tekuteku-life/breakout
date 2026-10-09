@@ -3,7 +3,6 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { setupEnvironment } from '../helpers/setupEnv.js';
 import '../../src/main.js';
-import { APP_VER } from '../../src/const.js';
 
 
 describe('System Test SYS-01: Startup and Initialization', () => {
@@ -73,10 +72,6 @@ describe('System Test SYS-01: Startup and Initialization', () => {
 		assert.ok(window.screenManage.getScreenData('screen_gameOver'), 'Game over template saved');
 		assert.ok(window.screenManage.getScreenData('screen_record'), 'Record template saved');
 		assert.ok(window.screenManage.getScreenData('screen_about'), 'About template saved');
-
-		// Version placeholder replaced in about screen
-		const aboutScreen = document.getElementById('screen_about');
-		assert.ok(aboutScreen.innerHTML.includes(APP_VER), 'About screen displays app version');
 
 		// Button mouseover sound
 		const barButtons = document.getElementById('screenStock').getElementsByTagName('a');

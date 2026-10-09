@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { setupEnvironment } from '../helpers/setupEnv.js';
 import '../../src/main.js';
 import Ball from '../../src/Ball.js';
-import { BALL_CREATE_MODE, APP_VER } from '../../src/const.js';
+import { BALL_CREATE_MODE } from '../../src/const.js';
 
 describe('System Test SYS-10: Robustness, Input, and Edge Cases', () => {
 	beforeEach(() => {
@@ -71,17 +71,6 @@ describe('System Test SYS-10: Robustness, Input, and Edge Cases', () => {
 		// simulateReset executes on all blocks
 		g.simulateReset();
 		assert.ok(true, 'simulateReset executed cleanly');
-	});
-
-	it('SYS-10: handles versionCheck updating screen_about', async () => {
-		// Call versionCheck
-		window.screenManage.checkVersion();
-
-		// Wait for microtask / async XHR resolution
-		await new Promise((resolve) => setTimeout(resolve, 10));
-
-		const aboutScreen = document.getElementById('screen_about');
-		assert.ok(aboutScreen.innerHTML.includes(APP_VER));
 	});
 
 	it('SYS-10: handles getMouseMove fallback to window.event and coordinate scaling', () => {

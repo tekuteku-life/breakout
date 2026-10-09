@@ -16,8 +16,6 @@ import {
 	GAME_LOOP_PARAM,
 	SYSTEM_PARAM,
 	AWARD_KEY_LIST,
-	APP_VER,
-	APP_ID,
 } from "./const.js";
 
 export default class GameManage {
@@ -43,8 +41,6 @@ export default class GameManage {
 		this.options = options;
 		this.animFrameId = null;
 		this.isRunning = false;
-		this.appVer = APP_VER;
-		this.appId = APP_ID;
 
 		// 設定変数のロード（options、windowおよびDEFAULT_CONFIG）
 		this.loadSetupVariables(options);

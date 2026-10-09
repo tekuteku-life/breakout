@@ -185,10 +185,6 @@ export const AWARD_KEY_LIST = Object.freeze([
 	'fallBallNum',				// 球の落下回数アワード
 ]);
 
-// アプリケーション情報
-export const APP_VER = 'v1.7.6';
-export const APP_ID = 'breakout';
-
 // デフォルトゲーム定数（setup/default.jsと完全同期）
 export const DEFAULT_CONFIG = Object.freeze({
 	FPS: 50,
