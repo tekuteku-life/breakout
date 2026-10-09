@@ -73,6 +73,14 @@ test('Control class unit tests', async (t) => {
 		ctrl.loadCtrlSwitch();
 		assert.equal(ctrl.ctrlSwitch, '1');
 
+		// PointerLock
+		ctrl.pointerLockSwitch = 1;
+		ctrl.recordPointerLockSwitch();
+		assert.equal(storage.getItem('setting_pointerLockSwitch'), '1');
+		ctrl.pointerLockSwitch = 0;
+		ctrl.loadPointerLockSwitch();
+		assert.equal(ctrl.pointerLockSwitch, 1);
+
 		// StageIndex
 		ctrl.stageIndex = 3;
 		ctrl.recordStageIndex();
@@ -114,6 +122,12 @@ test('Control class unit tests', async (t) => {
 		assert.equal(ctrl.ctrlSwitch, 1);
 		ctrl.ctrlSwitchToggle();
 		assert.equal(ctrl.ctrlSwitch, 0);
+
+		// pointerLockSwitch
+		ctrl.pointerLockSwitchToggle();
+		assert.equal(ctrl.pointerLockSwitch, 0);
+		ctrl.pointerLockSwitchToggle();
+		assert.equal(ctrl.pointerLockSwitch, 1);
 	});
 
 	await t.test('stage navigation methods handle bounds and clear storage', () => {

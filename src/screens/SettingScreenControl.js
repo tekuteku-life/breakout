@@ -143,6 +143,28 @@ export default class SettingScreenControl extends ScreenControl {
 				if (storage != null) ctrl.recordCtrlSwitch();
 			};
 		}
+
+		// マウスロック（Pointer Lock）セレクタのセット
+		if (ctrl.formSelector["pointerlock"]) {
+			const plSel = ctrl.formSelector["pointerlock"];
+			while (plSel.firstChild) {
+				plSel.removeChild(plSel.firstChild);
+			}
+			for (let i = 0; i < 2; i++) {
+				const option = document.createElement('option');
+				option.value = i;
+				option.innerHTML = i === 0 ? 'OFF' : 'ON';
+				if (ctrl.pointerLockSwitch == i) option.selected = 'selected';
+				plSel.appendChild(option);
+			}
+			plSel.onchange = () => {
+				ctrl.pointerLockSwitch = Number(plSel.value);
+				if (storage != null) ctrl.recordPointerLockSwitch();
+				if (ctrl.pointerLockSwitch === 0) {
+					EventBus.emitEvent('input:exitPointerLock');
+				}
+			};
+		}
 	}
 
 	destructor() {

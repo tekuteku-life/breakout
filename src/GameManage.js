@@ -271,6 +271,7 @@ export default class GameManage {
 			this.ctrl.loadSizeFitSwitch();
 			this.ctrl.loadContinueSwitch();
 			this.ctrl.loadCtrlSwitch();
+			this.ctrl.loadPointerLockSwitch();
 			this.ctrl.loadStageIndex();
 		}
 

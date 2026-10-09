@@ -18,6 +18,7 @@ export default class Control
 		this.sizeFitSwitch = 0;							// 画面調整のスイッチ
 		this.continueSwitch = 0;						// ゲーム開始方法スイッチ
 		this.ctrlSwitch = 0;							// 操作方法スイッチ
+		this.pointerLockSwitch = 1;						// マウスロックスイッチ（1: ON, 0: OFF）
 		this.stageIndex = 0;							// ステージインデックス
 		this.stageEnded = 0;							// 全ステージ終了フラグ
 		this.formSelector = new Array();				// 設定用セレクタ
@@ -31,6 +32,7 @@ export default class Control
 			this.formSelector["sound"] = document.getElementById('sound_select');
 			this.formSelector["sizefit"] = document.getElementById('sizefit_select');
 			this.formSelector["ctrl"] = document.getElementById('ctrl_select');
+			this.formSelector["pointerlock"] = document.getElementById('pointerlock_select');
 		}
 
 		// EventBus経由で制御・トグル要求を購読
@@ -45,6 +47,9 @@ export default class Control
 		};
 		this.onToggleCtrlHandler = () => {
 			if (typeof this.ctrlSwitchToggle === 'function') this.ctrlSwitchToggle();
+		};
+		this.onTogglePointerLockHandler = () => {
+			if (typeof this.pointerLockSwitchToggle === 'function') this.pointerLockSwitchToggle();
 		};
 		this.onToggleSizeFitHandler = () => {
 			if (typeof this.sizefitSwitchToggle === 'function') this.sizefitSwitchToggle();
@@ -68,6 +73,7 @@ export default class Control
 		EventBus.addOnEvent('control:toggleSound', this.onToggleSoundHandler);
 		EventBus.addOnEvent('control:toggleAuto', this.onToggleAutoHandler);
 		EventBus.addOnEvent('control:toggleCtrl', this.onToggleCtrlHandler);
+		EventBus.addOnEvent('control:togglePointerLock', this.onTogglePointerLockHandler);
 		EventBus.addOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
 		EventBus.addOnEvent('control:forwardStage', this.onForwardStageHandler);
 		EventBus.addOnEvent('control:backwardStage', this.onBackwardStageHandler);
@@ -79,6 +85,7 @@ export default class Control
 		if (this.onToggleSoundHandler) EventBus.removeOnEvent('control:toggleSound', this.onToggleSoundHandler);
 		if (this.onToggleAutoHandler) EventBus.removeOnEvent('control:toggleAuto', this.onToggleAutoHandler);
 		if (this.onToggleCtrlHandler) EventBus.removeOnEvent('control:toggleCtrl', this.onToggleCtrlHandler);
+		if (this.onTogglePointerLockHandler) EventBus.removeOnEvent('control:togglePointerLock', this.onTogglePointerLockHandler);
 		if (this.onToggleSizeFitHandler) EventBus.removeOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
 		if (this.onForwardStageHandler) EventBus.removeOnEvent('control:forwardStage', this.onForwardStageHandler);
 		if (this.onBackwardStageHandler) EventBus.removeOnEvent('control:backwardStage', this.onBackwardStageHandler);
@@ -86,6 +93,7 @@ export default class Control
 		this.onToggleSoundHandler = null;
 		this.onToggleAutoHandler = null;
 		this.onToggleCtrlHandler = null;
+		this.onTogglePointerLockHandler = null;
 		this.onToggleSizeFitHandler = null;
 		this.onForwardStageHandler = null;
 		this.onBackwardStageHandler = null;
@@ -180,6 +188,23 @@ export default class Control
 	{
 		const storage = this.getStorage();
 		if( storage ) { storage.setItem("setting_ctrlSwitch", this.ctrlSwitch); }
+	}
+
+
+	//--------------------------------------------------
+	// マウスロック（Pointer Lock）設定の読み書き
+	//--------------------------------------------------
+	loadPointerLockSwitch()
+	{
+		const storage = this.getStorage();
+		if( storage && storage.getItem("setting_pointerLockSwitch") != null ) {
+			this.pointerLockSwitch = Number(storage.getItem("setting_pointerLockSwitch"));
+		}
+	}
+	recordPointerLockSwitch()
+	{
+		const storage = this.getStorage();
+		if( storage ) { storage.setItem("setting_pointerLockSwitch", this.pointerLockSwitch); }
 	}
 
 
@@ -344,6 +369,33 @@ export default class Control
 
 		// 設定の記録
 		this.recordCtrlSwitch();
+	}
+
+
+	//--------------------------------------------------
+	// マウスロック（Pointer Lock）のトグル
+	//--------------------------------------------------
+	pointerLockSwitchToggle()
+	{
+		const sel = this.formSelector && this.formSelector["pointerlock"];
+		if( this.pointerLockSwitch == 0 )
+		{
+			this.pointerLockSwitch = 1;
+			if (sel && sel.childNodes && sel.childNodes.length > 1) {
+				sel.childNodes[0].selected = '';
+				sel.childNodes[1].selected = 'selected';
+			}
+		} else
+		{
+			this.pointerLockSwitch = 0;
+			if (sel && sel.childNodes && sel.childNodes.length > 1) {
+				sel.childNodes[0].selected = 'selected';
+				sel.childNodes[1].selected = '';
+			}
+			EventBus.emitEvent('input:exitPointerLock');
+		}
+
+		this.recordPointerLockSwitch();
 	}
 
 

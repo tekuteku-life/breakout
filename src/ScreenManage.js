@@ -87,6 +87,7 @@ export default class ScreenManage {
 		if (typeof document === 'undefined') return;
 		const screen = document.getElementById(screenName);
 		if (screen) {
+			EventBus.emitEvent('input:exitPointerLock');
 			const dynamicCanvas = (this.game && this.game.dynamicCanvas) || (typeof document !== 'undefined' ? document.getElementById('dynamic') : null);
 			const canvasWidth = (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
 			const canvasHeight = (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;

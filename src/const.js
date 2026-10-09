@@ -214,6 +214,7 @@ export const DEFAULT_CONFIG = Object.freeze({
 	barSpin: 0.2,
 	barImmortalColor: '#ffff00',
 	barDefaultHP: 5,
+	pointerLockSwitch: 1,
 	ballSize: 5,
 	ballDefaultSpeed: 3.5,
 	ballMaxSpeed: 5,

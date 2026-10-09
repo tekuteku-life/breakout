@@ -98,6 +98,58 @@ export class MockElement {
 
 	focus() {}
 
+	addEventListener(type, listener) {
+		if (!this._eventListeners) this._eventListeners = new Map();
+		if (!this._eventListeners.has(type)) {
+			this._eventListeners.set(type, new Set());
+		}
+		this._eventListeners.get(type).add(listener);
+	}
+
+	removeEventListener(type, listener) {
+		if (this._eventListeners && this._eventListeners.has(type)) {
+			this._eventListeners.get(type).delete(listener);
+		}
+	}
+
+	dispatchEvent(event) {
+		const type = event && event.type;
+		if (!event.target) event.target = this;
+		if (typeof this['on' + type] === 'function') {
+			this['on' + type](event);
+		}
+		if (this._eventListeners && this._eventListeners.has(type)) {
+			for (const fn of this._eventListeners.get(type)) {
+				fn(event);
+			}
+		}
+	}
+
+	getBoundingClientRect() {
+		return {
+			left: this.offsetLeft || 0,
+			top: this.offsetTop || 0,
+			right: (this.offsetLeft || 0) + (this.offsetWidth || 0),
+			bottom: (this.offsetTop || 0) + (this.offsetHeight || 0),
+			width: this.offsetWidth || 0,
+			height: this.offsetHeight || 0,
+			x: this.offsetLeft || 0,
+			y: this.offsetTop || 0,
+		};
+	}
+
+	requestPointerLock() {
+		if (typeof document !== 'undefined') {
+			document.pointerLockElement = this;
+			if (typeof document.onpointerlockchange === 'function') {
+				document.onpointerlockchange();
+			}
+			if (typeof document.dispatchEvent === 'function') {
+				document.dispatchEvent({ type: 'pointerlockchange' });
+			}
+		}
+	}
+
 	getContext(type) {
 		if (type === '2d') {
 			if (!this._ctx) {
@@ -329,6 +381,7 @@ export function setupEnvironment() {
 		'sound_select',
 		'sizefit_select',
 		'ctrl_select',
+		'pointerlock_select',
 	];
 	for (const selId of selectIds) {
 		const sel = getOrCreate(selId, 'select');
@@ -344,6 +397,34 @@ export function setupEnvironment() {
 		head,
 		documentElement: { clientWidth: 800, clientHeight: 600 },
 		all: null,
+		pointerLockElement: null,
+		_eventListeners: new Map(),
+		addEventListener: (type, listener) => {
+			if (!mockDocument._eventListeners.has(type)) {
+				mockDocument._eventListeners.set(type, new Set());
+			}
+			mockDocument._eventListeners.get(type).add(listener);
+		},
+		removeEventListener: (type, listener) => {
+			if (mockDocument._eventListeners.has(type)) {
+				mockDocument._eventListeners.get(type).delete(listener);
+			}
+		},
+		dispatchEvent: (event) => {
+			const type = event && event.type;
+			if (mockDocument._eventListeners.has(type)) {
+				for (const fn of mockDocument._eventListeners.get(type)) {
+					fn(event);
+				}
+			}
+		},
+		exitPointerLock: () => {
+			mockDocument.pointerLockElement = null;
+			if (typeof mockDocument.onpointerlockchange === 'function') {
+				mockDocument.onpointerlockchange();
+			}
+			mockDocument.dispatchEvent({ type: 'pointerlockchange' });
+		},
 		getElementById: (id) => {
 			let found = null;
 			const search = (node) => {

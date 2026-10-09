@@ -18,6 +18,7 @@ export default class InputManage {
 		this.keyStr = '';
 		this.keyCode = '';
 		this.boundHandlers = {};
+		this.isPointerLocked = false;
 
 		// EventBusへの入力制御リスナーの登録
 		this.onSetPointXHandler = (x) => {
@@ -26,18 +27,71 @@ export default class InputManage {
 		this.onSetMouseDownTimeHandler = (time) => {
 			this.mouseDownTime = time;
 		};
+		this.onExitPointerLockHandler = () => {
+			this.exitPointerLock();
+		};
+		this.onRequestPointerLockHandler = () => {
+			this.requestPointerLock();
+		};
+
 		EventBus.addOnEvent('input:setPointX', this.onSetPointXHandler);
 		EventBus.addOnEvent('input:setMouseDownTime', this.onSetMouseDownTimeHandler);
+		EventBus.addOnEvent('input:exitPointerLock', this.onExitPointerLockHandler);
+		EventBus.addOnEvent('input:requestPointerLock', this.onRequestPointerLockHandler);
+		EventBus.addOnEvent('control:togglePause', this.onExitPointerLockHandler);
+		EventBus.addOnEvent('screen:open', this.onExitPointerLockHandler);
 	}
 
 	destructor() {
 		this.unbind();
+		this.exitPointerLock();
 		if (this.onSetPointXHandler) EventBus.removeOnEvent('input:setPointX', this.onSetPointXHandler);
 		if (this.onSetMouseDownTimeHandler) EventBus.removeOnEvent('input:setMouseDownTime', this.onSetMouseDownTimeHandler);
+		if (this.onExitPointerLockHandler) {
+			EventBus.removeOnEvent('input:exitPointerLock', this.onExitPointerLockHandler);
+			EventBus.removeOnEvent('control:togglePause', this.onExitPointerLockHandler);
+			EventBus.removeOnEvent('screen:open', this.onExitPointerLockHandler);
+		}
+		if (this.onRequestPointerLockHandler) EventBus.removeOnEvent('input:requestPointerLock', this.onRequestPointerLockHandler);
 		this.onSetPointXHandler = null;
 		this.onSetMouseDownTimeHandler = null;
+		this.onExitPointerLockHandler = null;
+		this.onRequestPointerLockHandler = null;
 		this.game = null;
 		this.boundHandlers = {};
+	}
+
+	requestPointerLock(element = null) {
+		if (typeof document === 'undefined') { return; }
+		const c = element || this.boundCanvas || document.getElementById('dynamic');
+		if (!c) { return; }
+
+		const ctrl = this.getCtrl();
+		if (ctrl && (ctrl.ctrlSwitch !== 0 || ctrl.pointerLockSwitch === 0 || ctrl.autoSwitch === 1)) {
+			return;
+		}
+
+		try {
+			const req = c.requestPointerLock || c.mozRequestPointerLock || c.webkitRequestPointerLock;
+			if (typeof req === 'function') {
+				req.call(c);
+			}
+		} catch (_) {}
+	}
+
+	exitPointerLock(doc = null) {
+		if (typeof document === 'undefined') { return; }
+		const d = doc || this.boundDoc || document;
+		try {
+			const isLocked = d && (d.pointerLockElement || d.mozPointerLockElement || d.webkitPointerLockElement);
+			if (isLocked) {
+				const exit = d.exitPointerLock || d.mozExitPointerLock || d.webkitExitPointerLock;
+				if (typeof exit === 'function') {
+					exit.call(d);
+				}
+			}
+		} catch (_) {}
+		this.isPointerLocked = false;
 	}
 
 	getCtrl() {
@@ -82,11 +136,39 @@ export default class InputManage {
 		const targetWin = win || (typeof window !== 'undefined' ? window : null);
 		const targetCanvas = canvas || (targetDoc ? targetDoc.getElementById('dynamic') : null);
 
-		if (!targetCanvas && !targetDoc && !targetWin) return;
+		if (!targetCanvas && !targetDoc && !targetWin) { return; }
 
 		this.boundCanvas = targetCanvas;
 		this.boundDoc = targetDoc;
 		this.boundWin = targetWin;
+
+		// Pointer Lock 状態同期
+		if (targetDoc) {
+			const onPointerLockChange = () => {
+				const currentLock = targetDoc.pointerLockElement || targetDoc.mozPointerLockElement || targetDoc.webkitPointerLockElement;
+				this.isPointerLocked = Boolean(currentLock && targetCanvas && currentLock === targetCanvas);
+				EventBus.emitEvent('input:pointerLockChange', this.isPointerLocked);
+			};
+			const onPointerLockError = () => {
+				this.isPointerLocked = false;
+				EventBus.emitEvent('input:pointerLockError');
+			};
+
+			if (typeof targetDoc.addEventListener === 'function') {
+				targetDoc.addEventListener('pointerlockchange', onPointerLockChange);
+				targetDoc.addEventListener('mozpointerlockchange', onPointerLockChange);
+				targetDoc.addEventListener('webkitpointerlockchange', onPointerLockChange);
+				targetDoc.addEventListener('pointerlockerror', onPointerLockError);
+				targetDoc.addEventListener('mozpointerlockerror', onPointerLockError);
+				targetDoc.addEventListener('webkitpointerlockerror', onPointerLockError);
+			} else {
+				targetDoc.onpointerlockchange = onPointerLockChange;
+				targetDoc.onpointerlockerror = onPointerLockError;
+			}
+
+			this.boundHandlers.docPointerLockChange = onPointerLockChange;
+			this.boundHandlers.docPointerLockError = onPointerLockError;
+		}
 
 		// マウス移動
 		if (targetWin && targetCanvas) {
@@ -99,10 +181,14 @@ export default class InputManage {
 			this.boundHandlers.winMouseMove = onMouseMove;
 		}
 
-		// マウスダウン
+		// キャンバス上のマウスダウン/アップ（Pointer Lock トリガー含む）
 		if (targetCanvas) {
 			const onMouseDown = (e) => {
-				this.handlePointerDown(0);
+				const ctrl = this.getCtrl();
+				if (ctrl && ctrl.ctrlSwitch == 0 && ctrl.pointerLockSwitch == 1) {
+					this.requestPointerLock(targetCanvas);
+				}
+				this.handlePointerDown(e ? e.button : 0);
 			};
 			targetCanvas.onmousedown = onMouseDown;
 			this.boundHandlers.canvasMouseDown = onMouseDown;
@@ -112,6 +198,60 @@ export default class InputManage {
 			};
 			targetCanvas.onmouseup = onMouseUp;
 			this.boundHandlers.canvasMouseUp = onMouseUp;
+		}
+
+		// グローバルマウスダウン/アップ（画面外に出て行った場合でもクリックが反応する対策！）
+		const globalEventTarget = targetDoc || targetWin;
+		if (globalEventTarget) {
+			const isInteractiveUiElement = (el) => {
+				if (!el) { return false; }
+				let curr = el;
+				while (curr && curr !== targetDoc && curr !== targetDoc?.body) {
+					const tag = (curr.tagName || '').toUpperCase();
+					if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'LABEL') {
+						return true;
+					}
+					if (curr.id === 'screenStock' || (curr.className && String(curr.className).includes('barButton'))) {
+						return true;
+					}
+					curr = curr.parentNode;
+				}
+				return false;
+			};
+
+			const onGlobalMouseDown = (e) => {
+				// targetCanvas 自身のクリックは canvas.onmousedown で処理済み
+				if (e && e.target === targetCanvas) { return; }
+				// UI要素（ボタン、セレクトボックス等）のクリックは除外
+				if (e && isInteractiveUiElement(e.target)) { return; }
+
+				const ctrl = this.getCtrl();
+				// プレイ中（pauseSwitch == 0 かつ autoSwitch == 0 かつ マウス操作時）
+				if (ctrl && ctrl.ctrlSwitch == 0 && ctrl.pauseSwitch == 0 && ctrl.autoSwitch == 0) {
+					if (ctrl.pointerLockSwitch == 1) {
+						this.requestPointerLock(targetCanvas);
+					}
+					this.handlePointerDown(e ? e.button : 0);
+				}
+			};
+
+			const onGlobalMouseUp = (e) => {
+				if (e && e.target === targetCanvas) { return; }
+				if (e && isInteractiveUiElement(e.target)) { return; }
+
+				const ctrl = this.getCtrl();
+				if (ctrl && ctrl.ctrlSwitch == 0 && ctrl.pauseSwitch == 0 && ctrl.autoSwitch == 0) {
+					this.handlePointerUp(e ? e.button : 0);
+				}
+			};
+
+			if (typeof globalEventTarget.addEventListener === 'function') {
+				globalEventTarget.addEventListener('mousedown', onGlobalMouseDown);
+				globalEventTarget.addEventListener('mouseup', onGlobalMouseUp);
+			}
+			this.boundHandlers.globalMouseDown = onGlobalMouseDown;
+			this.boundHandlers.globalMouseUp = onGlobalMouseUp;
+			this.boundHandlers.globalEventTarget = globalEventTarget;
 		}
 
 		// コンテキストメニュー、クリック、リサイズ
@@ -205,7 +345,30 @@ export default class InputManage {
 		if (this.boundDoc) {
 			if (this.boundDoc.onkeydown === this.boundHandlers.docKeyDown) this.boundDoc.onkeydown = null;
 			if (this.boundDoc.onkeyup === this.boundHandlers.docKeyUp) this.boundDoc.onkeyup = null;
+
+			if (this.boundHandlers.docPointerLockChange) {
+				if (typeof this.boundDoc.removeEventListener === 'function') {
+					this.boundDoc.removeEventListener('pointerlockchange', this.boundHandlers.docPointerLockChange);
+					this.boundDoc.removeEventListener('mozpointerlockchange', this.boundHandlers.docPointerLockChange);
+					this.boundDoc.removeEventListener('webkitpointerlockchange', this.boundHandlers.docPointerLockChange);
+					this.boundDoc.removeEventListener('pointerlockerror', this.boundHandlers.docPointerLockError);
+					this.boundDoc.removeEventListener('mozpointerlockerror', this.boundHandlers.docPointerLockError);
+					this.boundDoc.removeEventListener('webkitpointerlockerror', this.boundHandlers.docPointerLockError);
+				} else {
+					if (this.boundDoc.onpointerlockchange === this.boundHandlers.docPointerLockChange) this.boundDoc.onpointerlockchange = null;
+					if (this.boundDoc.onpointerlockerror === this.boundHandlers.docPointerLockError) this.boundDoc.onpointerlockerror = null;
+				}
+			}
 		}
+		if (this.boundHandlers.globalEventTarget && typeof this.boundHandlers.globalEventTarget.removeEventListener === 'function') {
+			if (this.boundHandlers.globalMouseDown) {
+				this.boundHandlers.globalEventTarget.removeEventListener('mousedown', this.boundHandlers.globalMouseDown);
+			}
+			if (this.boundHandlers.globalMouseUp) {
+				this.boundHandlers.globalEventTarget.removeEventListener('mouseup', this.boundHandlers.globalMouseUp);
+			}
+		}
+		this.exitPointerLock();
 		this.boundHandlers = {};
 		this.boundCanvas = null;
 		this.boundDoc = null;
@@ -270,24 +433,79 @@ export default class InputManage {
 		const cHeight = this.getCanvasHeight();
 		const sc = Number(scale) || 1;
 
-		if (event != null) {
+		const isLocked = Boolean(this.isPointerLocked || (typeof document !== 'undefined' && (document.pointerLockElement === c || document.mozPointerLockElement === c)));
+
+		if (isLocked && event && touch === 0) {
+			// --- Pointer Lock 中: 相対移動（カーソルが絶対に範囲外に出ない！） ---
+			const movementX = (event.movementX !== undefined) ? event.movementX
+				: ((event.mozMovementX !== undefined) ? event.mozMovementX
+				: ((event.webkitMovementX !== undefined) ? event.webkitMovementX : 0));
+			const movementY = (event.movementY !== undefined) ? event.movementY
+				: ((event.mozMovementY !== undefined) ? event.mozMovementY
+				: ((event.webkitMovementY !== undefined) ? event.webkitMovementY : 0));
+
+			const offW = c.offsetWidth || cWidth;
+			const offH = c.offsetHeight || cHeight;
+			const deltaX = movementX * (cWidth / offW) / sc;
+			const deltaY = movementY * (cHeight / offH) / sc;
+
+			this.pointX = Math.max(0, Math.min(cWidth, (this.pointX !== undefined ? this.pointX : cWidth / 2) + deltaX));
+			this.pointY = Math.max(0, Math.min(cHeight, (this.pointY !== undefined ? this.pointY : cHeight / 2) + deltaY));
+		} else if (event != null) {
+			// --- Pointer Lock 外: 画面外に出ても正確に端まで追従するクランプ処理 ---
 			if (touch == 0) {
-				this.pointX = (event.pageX !== undefined ? event.pageX : (event.offsetX || 0)) - (c.offsetLeft || 0);
-				this.pointY = (event.pageY !== undefined ? event.pageY : (event.offsetY || 0)) - (c.offsetTop || 0);
+				if (typeof c.getBoundingClientRect === 'function') {
+					const rect = c.getBoundingClientRect();
+					const clientX = (event.clientX !== undefined) ? event.clientX : (event.pageX || 0);
+					const clientY = (event.clientY !== undefined) ? event.clientY : (event.pageY || 0);
+					const rawX = clientX - rect.left;
+					const rawY = clientY - rect.top;
+					const clampedRawX = Math.max(0, Math.min(rect.width, rawX));
+					const clampedRawY = Math.max(0, Math.min(rect.height, rawY));
+					this.pointX = clampedRawX * (cWidth / (rect.width || cWidth));
+					this.pointY = clampedRawY * (cHeight / (rect.height || cHeight));
+				} else {
+					this.pointX = (event.pageX !== undefined ? event.pageX : (event.offsetX || 0)) - (c.offsetLeft || 0);
+					this.pointY = (event.pageY !== undefined ? event.pageY : (event.offsetY || 0)) - (c.offsetTop || 0);
+					const offW = c.offsetWidth || cWidth;
+					const offH = c.offsetHeight || cHeight;
+					this.pointX *= (cWidth / offW) / sc;
+					this.pointY *= (cHeight / offH) / sc;
+					this.pointX = Math.max(0, Math.min(cWidth, this.pointX));
+					this.pointY = Math.max(0, Math.min(cHeight, this.pointY));
+				}
 			} else if (event.touches && event.touches[0]) {
-				this.pointX = event.touches[0].pageX - (c.offsetLeft || 0);
-				this.pointY = event.touches[0].pageY - (c.offsetTop || 0);
+				if (typeof c.getBoundingClientRect === 'function') {
+					const rect = c.getBoundingClientRect();
+					const clientX = event.touches[0].clientX !== undefined ? event.touches[0].clientX : event.touches[0].pageX;
+					const clientY = event.touches[0].clientY !== undefined ? event.touches[0].clientY : event.touches[0].pageY;
+					const rawX = clientX - rect.left;
+					const rawY = clientY - rect.top;
+					const clampedRawX = Math.max(0, Math.min(rect.width, rawX));
+					const clampedRawY = Math.max(0, Math.min(rect.height, rawY));
+					this.pointX = clampedRawX * (cWidth / (rect.width || cWidth));
+					this.pointY = clampedRawY * (cHeight / (rect.height || cHeight));
+				} else {
+					this.pointX = event.touches[0].pageX - (c.offsetLeft || 0);
+					this.pointY = event.touches[0].pageY - (c.offsetTop || 0);
+					const offW = c.offsetWidth || cWidth;
+					const offH = c.offsetHeight || cHeight;
+					this.pointX *= (cWidth / offW) / sc;
+					this.pointY *= (cHeight / offH) / sc;
+					this.pointX = Math.max(0, Math.min(cWidth, this.pointX));
+					this.pointY = Math.max(0, Math.min(cHeight, this.pointY));
+				}
 			}
 		} else {
 			this.pointX = event.offsetX - (c.offsetLeft || 0);
 			this.pointY = event.offsetY - (c.offsetTop || 0);
+			const offW = c.offsetWidth || cWidth;
+			const offH = c.offsetHeight || cHeight;
+			this.pointX *= (cWidth / offW) / sc;
+			this.pointY *= (cHeight / offH) / sc;
+			this.pointX = Math.max(0, Math.min(cWidth, this.pointX));
+			this.pointY = Math.max(0, Math.min(cHeight, this.pointY));
 		}
-
-		// 座標修正
-		const offW = c.offsetWidth || cWidth;
-		const offH = c.offsetHeight || cHeight;
-		this.pointX *= (cWidth / offW) / sc;
-		this.pointY *= (cHeight / offH) / sc;
 
 		// EventBusへの入力通知
 		EventBus.emitEvent('input:pointX', this.pointX);
@@ -297,6 +515,7 @@ export default class InputManage {
 			pointY: this.pointY,
 			touch,
 			scale: sc,
+			isLocked,
 		});
 	}
 
