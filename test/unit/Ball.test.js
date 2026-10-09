@@ -942,6 +942,41 @@ test('Ball class unit tests', async (t) => {
 		assert.equal(ball4.x, bBL.getRightX() - ball4.radius - 1, 'x must push left from bRight');
 		assert.equal(ball4.y, bBL.getTopY() - ball4.radius - 1, 'y must push up from bTop');
 	});
+
+	await t.test('clone accurately duplicates ball state and physics properties', () => {
+		const ball = new Ball(BALL_CREATE_MODE.OTHER);
+		ball.x = 120;
+		ball.y = 230;
+		ball.vx = 3.5;
+		ball.vy = -4.2;
+		ball.radius = 6;
+		ball.status = BALL_STATUS.STRONG;
+		ball.statusTime = 40;
+		ball.pointIncr = 20;
+		ball.breakNum = 3;
+		ball.collisionNum = 5;
+		ball.isAbsorption = 1;
+		ball.absorptionPoint = [10, -5];
+		ball.histX = [118, 115];
+		ball.histY = [234, 238];
+
+		const cloned = ball.clone();
+		assert.notEqual(cloned, ball);
+		assert.equal(cloned.x, 120);
+		assert.equal(cloned.y, 230);
+		assert.equal(cloned.vx, 3.5);
+		assert.equal(cloned.vy, -4.2);
+		assert.equal(cloned.radius, 6);
+		assert.equal(cloned.status, BALL_STATUS.STRONG);
+		assert.equal(cloned.statusTime, 40);
+		assert.equal(cloned.pointIncr, 20);
+		assert.equal(cloned.breakNum, 3);
+		assert.equal(cloned.collisionNum, 5);
+		assert.equal(cloned.isAbsorption, 1);
+		assert.deepEqual(cloned.absorptionPoint, [10, -5]);
+		assert.deepEqual(cloned.histX, [118, 115]);
+		assert.deepEqual(cloned.histY, [234, 238]);
+	});
 });
 
 

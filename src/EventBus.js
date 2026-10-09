@@ -2,19 +2,50 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 export default class EventBus {
-	static listeners = new Map();       // eventName -> Set<handler>
-	static cycleEvents = new Map();     // id -> { handler, intervalMs, lastRunTime }
-	static orderHandlers = new Map();   // orderName -> handler
-	static timers = new Map();          // id -> TimerEntry
+	static #defaultInstance = null;
+
+	static get defaultInstance() {
+		if (!EventBus.#defaultInstance) {
+			EventBus.#defaultInstance = new EventBus();
+		}
+		return EventBus.#defaultInstance;
+	}
+
+	static get listeners() {
+		return EventBus.defaultInstance.listeners;
+	}
+
+	static get cycleEvents() {
+		return EventBus.defaultInstance.cycleEvents;
+	}
+
+	static get orderHandlers() {
+		return EventBus.defaultInstance.orderHandlers;
+	}
+
+	static get timers() {
+		return EventBus.defaultInstance.timers;
+	}
+
+	constructor() {
+		this.listeners = new Map();       // eventName -> Set<handler>
+		this.cycleEvents = new Map();     // id -> { handler, intervalMs, lastRunTime }
+		this.orderHandlers = new Map();   // orderName -> handler
+		this.timers = new Map();          // id -> TimerEntry
+	}
 
 	/**
 	 * 全リスナー、サイクルイベント、オーダー、タイマーをリセット
 	 */
+	destructor() {
+		this.listeners.clear();
+		this.cycleEvents.clear();
+		this.orderHandlers.clear();
+		this.timers.clear();
+	}
+
 	static destructor() {
-		EventBus.listeners.clear();
-		EventBus.cycleEvents.clear();
-		EventBus.orderHandlers.clear();
-		EventBus.timers.clear();
+		EventBus.defaultInstance.destructor();
 	}
 
 	/**
@@ -23,13 +54,17 @@ export default class EventBus {
 	 * @param {Function} handler - コールバック関数
 	 * @returns {Function} 解除関数
 	 */
-	static addOnEvent(event, handler) {
+	addOnEvent(event, handler) {
 		if (typeof handler !== 'function') { return () => {}; }
-		if (!EventBus.listeners.has(event)) {
-			EventBus.listeners.set(event, new Set());
+		if (!this.listeners.has(event)) {
+			this.listeners.set(event, new Set());
 		}
-		EventBus.listeners.get(event).add(handler);
-		return () => EventBus.removeOnEvent(event, handler);
+		this.listeners.get(event).add(handler);
+		return () => this.removeOnEvent(event, handler);
+	}
+
+	static addOnEvent(event, handler) {
+		return EventBus.defaultInstance.addOnEvent(event, handler);
 	}
 
 	/**
@@ -37,14 +72,18 @@ export default class EventBus {
 	 * @param {string} event - イベント名
 	 * @param {Function} handler - コールバック関数
 	 */
-	static removeOnEvent(event, handler) {
-		const set = EventBus.listeners.get(event);
+	removeOnEvent(event, handler) {
+		const set = this.listeners.get(event);
 		if (set) {
 			set.delete(handler);
 			if (set.size === 0) {
-				EventBus.listeners.delete(event);
+				this.listeners.delete(event);
 			}
 		}
+	}
+
+	static removeOnEvent(event, handler) {
+		EventBus.defaultInstance.removeOnEvent(event, handler);
 	}
 
 	/**
@@ -53,8 +92,8 @@ export default class EventBus {
 	 * @param {...any} args - 引数
 	 * @returns {Array} 各ハンドラーの戻り値配列
 	 */
-	static emitEvent(event, ...args) {
-		const set = EventBus.listeners.get(event);
+	emitEvent(event, ...args) {
+		const set = this.listeners.get(event);
 		if (!set || set.size === 0) { return []; }
 		const results = [];
 		for (const handler of Array.from(set)) {
@@ -67,44 +106,45 @@ export default class EventBus {
 		return results;
 	}
 
+	static emitEvent(event, ...args) {
+		return EventBus.defaultInstance.emitEvent(event, ...args);
+	}
+
 	/**
 	 * 周期/定期イベントを登録
 	 * @param {string} id - 一意の識別子
 	 * @param {Function} handler - 実行関数
 	 * @param {number} intervalMs - 実行間隔(ミリ秒)。0の場合は毎フレーム実行
 	 */
-	static addCycleEvent(id, handler, intervalMs = 0) {
+	addCycleEvent(id, handler, intervalMs = 0) {
 		if (typeof handler !== 'function') { return; }
-		EventBus.cycleEvents.set(id, {
+		this.cycleEvents.set(id, {
 			handler,
 			intervalMs: Number(intervalMs) || 0,
 			lastRunTime: -Infinity,
 		});
 	}
 
+	static addCycleEvent(id, handler, intervalMs = 0) {
+		EventBus.defaultInstance.addCycleEvent(id, handler, intervalMs);
+	}
+
 	/**
 	 * 周期/定期イベントを解除
 	 * @param {string} id - 識別子
 	 */
+	removeCycleEvent(id) {
+		this.cycleEvents.delete(id);
+	}
+
 	static removeCycleEvent(id) {
-		EventBus.cycleEvents.delete(id);
+		EventBus.defaultInstance.removeCycleEvent(id);
 	}
 
 	/**
-	 * 遅延タイマー（指定時間後に処理またはイベントを実行）を登録
-	 * @param {string|number} id - タイマーの一意の識別子
-	 * @param {number} delayMs - 遅延時間（ミリ秒）
-	 * @param {Function|string} [callbackOrEvent] - 完了時のコールバック関数、または発火するイベント名
-	 * @param {Object} [options={}] - オプション設定
-	 * @param {Function} [options.callback] - 完了時コールバック
-	 * @param {string} [options.event] - 発火イベント名
-	 * @param {Array} [options.args=[]] - コールバックまたはイベントに渡す引数配列
-	 * @param {boolean} [options.repeat=false] - 繰り返し実行するかどうか
-	 * @param {Function} [options.onTick] - 毎フレーム呼び出されるハンドラ (timer, deltaTime) => {}
-	 * @param {boolean} [options.pauseable=true] - ポーズ時にタイマー進行を停止するか
-	 * @returns {Object|null} 登録されたタイマーオブジェクト
+	 * 遅延タイマーを登録
 	 */
-	static addTimer(id, delayMs, callbackOrEvent, options = {}) {
+	addTimer(id, delayMs, callbackOrEvent, options = {}) {
 		if (id === undefined || id === null) { return null; }
 		const strId = String(id);
 		const delay = Math.max(0, Number(delayMs) || 0);
@@ -129,55 +169,63 @@ export default class EventBus {
 			onTick: typeof options.onTick === 'function' ? options.onTick : null,
 			pauseable: options.pauseable !== false,
 			isPaused: false,
-			cancel: () => EventBus.removeTimer(strId),
-			pause: () => EventBus.pauseTimer(strId),
-			resume: () => EventBus.resumeTimer(strId),
+			cancel: () => this.removeTimer(strId),
+			pause: () => this.pauseTimer(strId),
+			resume: () => this.resumeTimer(strId),
 			get progress() {
 				return this.delay > 0 ? Math.min(1, Math.max(0, this.elapsed / this.delay)) : 1;
 			}
 		};
 
-		EventBus.timers.set(strId, timer);
+		this.timers.set(strId, timer);
 		return timer;
+	}
+
+	static addTimer(id, delayMs, callbackOrEvent, options = {}) {
+		return EventBus.defaultInstance.addTimer(id, delayMs, callbackOrEvent, options);
 	}
 
 	/**
 	 * タイマーを解除
-	 * @param {string|number} id - タイマー識別子
-	 * @returns {boolean} 削除できたかどうか
 	 */
-	static removeTimer(id) {
+	removeTimer(id) {
 		if (id === undefined || id === null) { return false; }
-		return EventBus.timers.delete(String(id));
+		return this.timers.delete(String(id));
+	}
+
+	static removeTimer(id) {
+		return EventBus.defaultInstance.removeTimer(id);
 	}
 
 	/**
 	 * タイマーの存在確認
-	 * @param {string|number} id - タイマー識別子
-	 * @returns {boolean}
 	 */
-	static hasTimer(id) {
+	hasTimer(id) {
 		if (id === undefined || id === null) { return false; }
-		return EventBus.timers.has(String(id));
+		return this.timers.has(String(id));
+	}
+
+	static hasTimer(id) {
+		return EventBus.defaultInstance.hasTimer(id);
 	}
 
 	/**
 	 * タイマー情報の取得
-	 * @param {string|number} id - タイマー識別子
-	 * @returns {Object|null}
 	 */
-	static getTimer(id) {
+	getTimer(id) {
 		if (id === undefined || id === null) { return null; }
-		return EventBus.timers.get(String(id)) || null;
+		return this.timers.get(String(id)) || null;
+	}
+
+	static getTimer(id) {
+		return EventBus.defaultInstance.getTimer(id);
 	}
 
 	/**
 	 * タイマーの一時停止
-	 * @param {string|number} id - タイマー識別子
-	 * @returns {boolean}
 	 */
-	static pauseTimer(id) {
-		const t = EventBus.getTimer(id);
+	pauseTimer(id) {
+		const t = this.getTimer(id);
 		if (t) {
 			t.isPaused = true;
 			return true;
@@ -185,13 +233,15 @@ export default class EventBus {
 		return false;
 	}
 
+	static pauseTimer(id) {
+		return EventBus.defaultInstance.pauseTimer(id);
+	}
+
 	/**
 	 * タイマーの再開
-	 * @param {string|number} id - タイマー識別子
-	 * @returns {boolean}
 	 */
-	static resumeTimer(id) {
-		const t = EventBus.getTimer(id);
+	resumeTimer(id) {
+		const t = this.getTimer(id);
 		if (t) {
 			t.isPaused = false;
 			return true;
@@ -199,25 +249,31 @@ export default class EventBus {
 		return false;
 	}
 
+	static resumeTimer(id) {
+		return EventBus.defaultInstance.resumeTimer(id);
+	}
+
 	/**
 	 * 全タイマーの解除
 	 */
+	clearAllTimers() {
+		this.timers.clear();
+	}
+
 	static clearAllTimers() {
-		EventBus.timers.clear();
+		EventBus.defaultInstance.clearAllTimers();
 	}
 
 	/**
 	 * タイマーの時間を進め、完了したタイマーの処理またはイベントを実行
-	 * @param {number} deltaTime - 経過時間（ミリ秒）
-	 * @param {boolean} [isPaused=false] - ゲーム全体が一時停止中かどうか
 	 */
-	static tickTimers(deltaTime = 0, isPaused = false) {
+	tickTimers(deltaTime = 0, isPaused = false) {
 		const dt = Number(deltaTime) || 0;
-		if (dt <= 0 || EventBus.timers.size === 0) { return; }
+		if (dt <= 0 || this.timers.size === 0) { return; }
 
-		const entries = Array.from(EventBus.timers.values());
+		const entries = Array.from(this.timers.values());
 		for (const timer of entries) {
-			if (!EventBus.timers.has(timer.id)) { continue; }
+			if (!this.timers.has(timer.id)) { continue; }
 			if (timer.isPaused || (isPaused && timer.pauseable)) { continue; }
 
 			timer.remaining -= dt;
@@ -238,7 +294,7 @@ export default class EventBus {
 					timer.remaining = Math.max(0, timer.remaining + delay);
 					timer.elapsed = 0;
 				} else {
-					EventBus.timers.delete(timer.id);
+					this.timers.delete(timer.id);
 				}
 
 				if (callback) {
@@ -250,22 +306,23 @@ export default class EventBus {
 				}
 
 				if (event) {
-					EventBus.emitEvent(event, ...args);
+					this.emitEvent(event, ...args);
 				}
 			}
 		}
 	}
 
+	static tickTimers(deltaTime = 0, isPaused = false) {
+		EventBus.defaultInstance.tickTimers(deltaTime, isPaused);
+	}
+
 	/**
 	 * フレームごとの周期イベント実行およびタイマー更新
-	 * @param {number} currentTime - 現在時刻(ミリ秒)
-	 * @param {number} deltaTime - 前フレームからの差分時間
-	 * @param {boolean} [isPaused=false] - 一時停止中かどうか
 	 */
-	static tickCycleEvents(currentTime = Date.now(), deltaTime = 0, isPaused = false) {
-		EventBus.tickTimers(deltaTime, isPaused);
+	tickCycleEvents(currentTime = Date.now(), deltaTime = 0, isPaused = false) {
+		this.tickTimers(deltaTime, isPaused);
 
-		for (const [id, entry] of EventBus.cycleEvents.entries()) {
+		for (const [id, entry] of this.cycleEvents.entries()) {
 			const { handler, intervalMs, lastRunTime } = entry;
 			if (intervalMs <= 0 || currentTime - lastRunTime >= intervalMs) {
 				try {
@@ -278,33 +335,39 @@ export default class EventBus {
 		}
 	}
 
+	static tickCycleEvents(currentTime = Date.now(), deltaTime = 0, isPaused = false) {
+		EventBus.defaultInstance.tickCycleEvents(currentTime, deltaTime, isPaused);
+	}
+
 	/**
 	 * 単発命令ハンドラを登録
-	 * @param {string} orderName - 命令名
-	 * @param {Function} handler - ハンドラ関数
 	 */
-	static registerOrder(orderName, handler) {
+	registerOrder(orderName, handler) {
 		if (typeof handler === 'function') {
-			EventBus.orderHandlers.set(orderName, handler);
+			this.orderHandlers.set(orderName, handler);
 		}
+	}
+
+	static registerOrder(orderName, handler) {
+		EventBus.defaultInstance.registerOrder(orderName, handler);
 	}
 
 	/**
 	 * 単発命令ハンドラを解除
-	 * @param {string} orderName - 命令名
 	 */
+	unregisterOrder(orderName) {
+		this.orderHandlers.delete(orderName);
+	}
+
 	static unregisterOrder(orderName) {
-		EventBus.orderHandlers.delete(orderName);
+		EventBus.defaultInstance.unregisterOrder(orderName);
 	}
 
 	/**
 	 * 単発命令の呼び出し
-	 * @param {string} orderName - 命令名
-	 * @param {...any} args - 引数
-	 * @returns {any} ハンドラの実行結果
 	 */
-	static callSingleOrder(orderName, ...args) {
-		const handler = EventBus.orderHandlers.get(orderName);
+	callSingleOrder(orderName, ...args) {
+		const handler = this.orderHandlers.get(orderName);
 		if (typeof handler === 'function') {
 			try {
 				return handler(...args);
@@ -313,5 +376,9 @@ export default class EventBus {
 			}
 		}
 		return undefined;
+	}
+
+	static callSingleOrder(orderName, ...args) {
+		return EventBus.defaultInstance.callSingleOrder(orderName, ...args);
 	}
 }

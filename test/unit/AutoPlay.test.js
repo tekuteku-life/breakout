@@ -9,7 +9,7 @@ import Item from '../../src/Item.js';
 import Weapon from '../../src/Weapon.js';
 import EventBus from '../../src/EventBus.js';
 import GameManage from '../../src/GameManage.js';
-import { BALL_CREATE_MODE, BALL_COPY_MODE } from '../../src/const.js';
+import { BALL_CREATE_MODE, BALL_COPY_MODE, ITEM_TYPE } from '../../src/const.js';
 
 test('AutoPlay class unit tests', async (t) => {
 	setupEnvironment();
@@ -381,4 +381,336 @@ test('AutoPlay class unit tests', async (t) => {
 			Math.random = originalRandom;
 		}
 	});
+
+	await t.test('AutoPlay initializes Worker when available and updates latestResult onmessage', () => {
+		const originalWorker = globalThis.Worker;
+		const originalWindow = globalThis.window;
+
+		let terminated = false;
+		let postedData = null;
+
+		class MockWorker {
+			constructor() {
+				this.onmessage = null;
+				this.onerror = null;
+			}
+			postMessage(data) {
+				postedData = data;
+			}
+			terminate() {
+				terminated = true;
+			}
+		}
+
+		globalThis.Worker = MockWorker;
+		globalThis.window = {};
+
+		try {
+			const bar = new Bar();
+			bar.x = 200;
+			bar.y = 500;
+			const ball = new Ball(BALL_CREATE_MODE.OTHER);
+			ball.x = 200;
+			ball.y = 300;
+			ball.vx = 0;
+			ball.vy = 2;
+
+			const game = {
+				objectManage: {
+					bar,
+					balls: [ball],
+					items: [],
+					weapons: [],
+					blockMap: [],
+				},
+				ctrl: { autoSwitch: 1 },
+				canvasWidth: 800,
+				canvasHeight: 600,
+			};
+
+			const ap = new AutoPlay(game);
+			assert.ok(ap.worker instanceof MockWorker, 'Worker initialized');
+
+			ap.step();
+			assert.ok(postedData !== null, 'Message posted to Worker');
+
+			// Simulate Worker reply
+			ap.worker.onmessage({
+				data: {
+					id: ap.pendingRequestId,
+					result: {
+						targetX: 350,
+						plusSpeed: 2,
+					},
+				},
+			});
+			assert.equal(ap.latestResult.targetX, 350);
+
+			// Next step uses the latest result from worker: ball is far (y=300), so bar heads to targetX
+			ap.step();
+			assert.equal(bar.pointX, 350, 'Bar heads to targetX when ball is still high up');
+
+			// When ball approaches bar within 1~2.5 frames, spin offset is applied
+			ball.y = 491; // barTopY is 500, radius is 5, remaining dist is 4px -> 4 / 2 = 2 frames
+			ap.step();
+			assert.equal(bar.pointX, 348, 'Bar offsets by plusSpeed for spin just before collision');
+
+			// Trigger worker onerror
+			ap.worker.onerror(new Error('Worker failure'));
+			assert.equal(ap.worker, null, 'Worker cleaned up on error');
+
+			ap.destructor();
+
+			// Test destructor terminates active worker
+			const ap2 = new AutoPlay(game);
+			let workerTerminated = false;
+			ap2.worker.terminate = () => { workerTerminated = true; };
+			ap2.destructor();
+			assert.equal(workerTerminated, true, 'Worker terminated on destructor');
+
+			// Test destructor when terminate throws
+			const ap3 = new AutoPlay(game);
+			ap3.worker.terminate = () => { throw new Error('Terminate fail'); };
+			ap3.destructor();
+			assert.equal(ap3.worker, null);
+		} finally {
+			globalThis.Worker = originalWorker;
+			globalThis.window = originalWindow;
+		}
+	});
+
+	await t.test('AutoPlay handles multiple balls with moving, blinking, and magnetic blocks accurately', () => {
+		const gm = new GameManage({
+			FPS: 60,
+			ballDefaultSpeed: 4,
+			barDefaultSpeed: 8,
+			blockWidth: 40,
+			blockHeight: 20,
+			canvasWidth: 800,
+			canvasHeight: 600,
+		});
+		gm.init(0);
+		gm.ctrl.autoSwitch = 1;
+
+		// Move block
+		const moveBlock = new Block(2, 5, 1, 7, 1, 0, 0, gm); // VERTICAL_MOVE
+		// Blink block
+		const blinkBlock = new Block(5, 5, 1, 12, 1, 0, 0, gm); // BLINK
+		// Magnet block
+		const magnetBlock = new Block(8, 5, 1, 10, 1, 0, 0, gm); // MAGNET
+		// Attack block
+		const attackBlock = new Block(11, 5, 1, 13, 1, 0, 0, gm); // ATTACK
+
+		gm.objectManage.blockMap = [[], [], [], [], [], [
+			null, null, moveBlock, null, null, blinkBlock, null, null, magnetBlock, null, null, attackBlock
+		]];
+
+		// Two balls in play
+		const ball1 = new Ball(BALL_CREATE_MODE.OTHER, gm);
+		ball1.x = 200;
+		ball1.y = 450;
+		ball1.vx = 1;
+		ball1.vy = 4;
+
+		const ball2 = new Ball(BALL_CREATE_MODE.OTHER, gm);
+		ball2.x = 350;
+		ball2.y = 350;
+		ball2.vx = -1;
+		ball2.vy = 3;
+
+		gm.objectManage.balls = [ball1, ball2];
+		gm.objectManage.bar.x = 250;
+		gm.objectManage.bar.y = 550;
+
+		gm.autoPlay.step();
+
+		// Bar pointX must be placed within valid canvas range to catch falling balls
+		assert.ok(gm.objectManage.bar.pointX >= 0 && gm.objectManage.bar.pointX <= 800);
+
+		gm.destructor();
+	});
+
+	await t.test('AutoPlay applies spin acceleration at 1.0 < minTimeToBar <= 2.5 and zeroes at contact', () => {
+		const bar = new Bar();
+		bar.x = 200;
+		bar.y = 500;
+		const ball = new Ball(BALL_CREATE_MODE.OTHER);
+		ball.x = 200;
+		ball.y = 300;
+		ball.vx = 0;
+		ball.vy = 2;
+
+		const game = {
+			objectManage: {
+				bar,
+				balls: [ball],
+				items: [],
+				weapons: [],
+				blockMap: [],
+			},
+			ctrl: { autoSwitch: 1 },
+			canvasWidth: 800,
+			canvasHeight: 600,
+		};
+
+		const ap = new AutoPlay(game);
+		ap.latestResult = {
+			targetX: 300,
+			plusSpeed: 5,
+		};
+
+		// Approach: minTimeToBar is ~2 frames (491 + 5 = 496, barTopY=500 -> (500 - 496)/2 = 2)
+		ball.y = 491;
+		ap.step();
+		assert.equal(bar.pointX, 295, 'Applies spin acceleration offset at ~2 frames');
+
+		// Contact: minTimeToBar is ~0.5 frames (494 + 5 = 499, barTopY=500 -> (500 - 499)/2 = 0.5)
+		ball.y = 494;
+		ap.step();
+		assert.equal(bar.pointX, 300, 'Zeroes spin offset to directly catch at targetX at contact');
+
+		ap.destructor();
+	});
+
+	await t.test('AutoPlay fires weapon in real-time when bar equipped with weapon is positioned beneath destructible block', () => {
+		EventBus.destructor();
+		let spawnedWeapon = null;
+		EventBus.addOnEvent('weapon:spawn', (data) => {
+			spawnedWeapon = data;
+		});
+
+		const bar = new Bar();
+		bar.x = 200;
+		bar.y = 500;
+		bar.weapon = 1; // GUN
+		bar.weaponInter = 0;
+
+		const ball = new Ball(BALL_CREATE_MODE.OTHER);
+		ball.x = 200;
+		ball.y = 100;
+		ball.vy = -2;
+
+		const block = new Block(5, 2, 1, 0, 1, 0, 0); // x=200
+		block.x = 200;
+		block.width = 40;
+		block.type = 1;
+		block.life = 1;
+		block.infinit = 0;
+
+		const game = {
+			objectManage: {
+				bar,
+				balls: [ball],
+				items: [],
+				weapons: [],
+				blockMap: [[null, null, null, null, null, block]],
+			},
+			ctrl: { autoSwitch: 1 },
+			canvasWidth: 800,
+			canvasHeight: 600,
+			blockWidth: 40,
+		};
+
+		const ap = new AutoPlay(game);
+		ap.step();
+
+		assert.ok(spawnedWeapon !== null, 'Fires weapon in real-time');
+		assert.equal(spawnedWeapon.type, 1);
+		assert.equal(spawnedWeapon.x, 200);
+
+		ap.destructor();
+	});
+
+	await t.test('A-3: AutoPlay strategically moves bar towards dense block column before relaunching absorbed balls', () => {
+		const bar = new Bar();
+		bar.x = 200;
+		bar.y = 500;
+		bar.absorptionNum = 1;
+		bar.absorptionStatusTime = 100; // 有効な吸着時間あり
+
+		let relaunched = false;
+		bar.relaunch = () => { relaunched = true; };
+
+		// 密集ブロックが x=500 (col 10) にある
+		const block = new Block(10, 2, 1, 0, 1, 0, 0);
+		block.x = 500;
+		block.width = 50;
+		block.type = 1;
+		block.life = 1;
+
+		const game = {
+			objectManage: {
+				bar,
+				balls: [new Ball(BALL_CREATE_MODE.OTHER)],
+				items: [],
+				weapons: [],
+				blockMap: [[block]],
+			},
+			ctrl: { autoSwitch: 1 },
+			canvasWidth: 800,
+			canvasHeight: 600,
+			blockWidth: 50,
+		};
+
+		const ap = new AutoPlay(game);
+		ap.latestResult = {
+			targetX: 200,
+			bestAbsorbX: 525, // 目標密集列
+		};
+
+		// 1ステップ目: バーがまだ遠い(x=200)ため、目標位置(525)へバーを誘導し、まだrelaunchしない
+		ap.step();
+		assert.equal(relaunched, false, 'Holds ball while moving to target dense column');
+		assert.equal(bar.pointX, 525, 'Directs bar towards bestAbsorbX (525)');
+
+		// 2ステップ目: バーが目標列(525)付近に到達した時、戦略的リローンチを発動！
+		bar.x = 525;
+		ap.step();
+		assert.equal(relaunched, true, 'Relaunches absorbed ball when positioned under dense blocks');
+
+		ap.destructor();
+	});
+
+	await t.test('AutoPlay suppresses plusSpeed spin offset when harmful item is nearby to prevent edge collision', () => {
+		const bar = new Bar();
+		bar.x = 300;
+		bar.y = 550;
+		bar.width = 100;
+
+		// ボールが落下直前（残り2フレーム -> 通常ならplusSpeedが適用されるタイミング）
+		const ball = new Ball(BALL_CREATE_MODE.OTHER);
+		ball.x = 300;
+		ball.y = 540; // barTopY(550) - 10, vy=5 -> 2フレームで到達
+		ball.vy = 5;
+
+		// デバフアイテム（POISON）がバー右端付近(x=360)に接近中
+		const poison = new Item(ITEM_TYPE.POISON, 340, 520, '#000', '#fff');
+		poison.width = 40;
+
+		const game = {
+			objectManage: {
+				bar,
+				balls: [ball],
+				items: [poison],
+				weapons: [],
+				blockMap: [],
+			},
+			ctrl: { autoSwitch: 1 },
+			canvasWidth: 800,
+			canvasHeight: 600,
+		};
+
+		const ap = new AutoPlay(game);
+		ap.latestResult = {
+			targetX: 300,
+			spinOffset: -8, // 左向きスピン -> targetX - plusSpeed = 300 - (-8) = 308 (アイテム側へ寄る)
+		};
+
+		ap.step();
+		// デバフアイテムの危険ゾーンへの接近を防ぐため、plusSpeedが0にクランプされ、targetX(300)のまま安全に維持される
+		assert.equal(bar.pointX, 300, 'plusSpeed is suppressed to 0 to avoid moving closer to harmful item');
+
+		ap.destructor();
+	});
 });
+

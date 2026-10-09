@@ -97,17 +97,45 @@ export default class Block
 
 
 	//--------------------------------------------------
-	// コピー
-	//--------------------------------------------------
-	copy()
+	getEventBus()
 	{
-		const sBarHeight = this.getStatusBarHeight();
-		var obj = new Block(this.x / this.width, (this.y - sBarHeight) / this.height, this.type, this.func, this.life, this.infinit, this.throughVect, this.game);
+		return (this.game && this.game.eventBus) || EventBus;
+	}
+
+	//--------------------------------------------------
+	// コピー / クローン
+	//--------------------------------------------------
+	copy(newGame = this.game)
+	{
+		return this.clone(newGame);
+	}
+
+	clone(newGame = this.game)
+	{
+		const obj = new Block(
+			this.col !== undefined ? this.col : this.x / this.width,
+			this.row !== undefined ? this.row : (this.y - this.getStatusBarHeight()) / this.height,
+			this.type,
+			this.func,
+			this.life,
+			this.infinit,
+			this.throughVect,
+			newGame
+		);
+		obj.x = this.x;
+		obj.y = this.y;
+		obj.width = this.width;
+		obj.height = this.height;
 		obj.item = this.item;
 		obj.simulate = this.simulate;
 		obj.breakLimit = this.breakLimit;
 		obj.moveInter = this.moveInter;
 		obj.moveVect = this.moveVect;
+		obj.blinkInter = this.blinkInter;
+		obj.blinkSwitch = this.blinkSwitch;
+		obj.blinkType = this.blinkType;
+		obj.attackInter = this.attackInter;
+		obj.text = this.text;
 
 		return obj;
 	}
@@ -299,7 +327,7 @@ export default class Block
 			this.attackInter = blockAttackInter * fps * (Math.random() * 0.2 + 0.8);
 
 			// 武器の発射（EventBus経由で通知）
-			EventBus.emitEvent('weapon:spawn', {
+			this.getEventBus().emitEvent('weapon:spawn', {
 				type: 1,
 				x: this.getCenterX(),
 				y: this.getBottomY() + 1,
@@ -313,7 +341,7 @@ export default class Block
 	//--------------------------------------------------
 	updateBlink()
 	{
-		if( this.func !== BLOCK_FUNCTION.BLINK || this.blinkSwitch === 0 ) return;
+		if( this.func !== BLOCK_FUNCTION.BLINK || this.blinkSwitch === 0 ) { return; }
 
 		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
 		const blockBlinkInter = (this.game && this.game.blockBlinkInter !== undefined) ? this.game.blockBlinkInter : DEFAULT_CONFIG.blockBlinkInter;
@@ -410,14 +438,14 @@ export default class Block
 		{
 			// ワープブロック
 			if( this.func == BLOCK_FUNCTION.WARP_ENTER ) {
-				EventBus.emitEvent('sound:play', 'warp');
+				this.getEventBus().emitEvent('sound:play', 'warp');
 
 			// 通常ブロック
 			} else if( this.func != BLOCK_FUNCTION.NORMAL && this.func != BLOCK_FUNCTION.EXPLODE_STRENGTH ) {
 				if( ball.status == BALL_STATUS.NORMAL ) {
-					EventBus.emitEvent('sound:play', 'block');
+					this.getEventBus().emitEvent('sound:play', 'block');
 				} else {
-					EventBus.emitEvent('sound:play', 'spBlock');
+					this.getEventBus().emitEvent('sound:play', 'spBlock');
 				}
 			}
 		}
@@ -435,7 +463,7 @@ export default class Block
 				this.break(null);
 
 				// ポイントの付与（EventBus経由で通知）
-				EventBus.emitEvent('score:add', blockDefaultPoint);
+				this.getEventBus().emitEvent('score:add', blockDefaultPoint);
 			}
 
 			return;
@@ -562,7 +590,7 @@ export default class Block
 
 				// ポイント計算（EventBus経由で通知）
 				if( ball ) {
-					EventBus.emitEvent('score:add', ball.pointIncr);
+					this.getEventBus().emitEvent('score:add', ball.pointIncr);
 					ball.pointIncr = Number(ball.pointIncr) + blockIncrPoint;
 
 					// 連続破壊数の通知（EventBus経由で通知）
@@ -570,7 +598,7 @@ export default class Block
 					let by = ball.getCenterY();
 					if( bx > canvasWidth - 30 ) { bx = canvasWidth - 30; }
 					if( by > canvasHeight - 15 ) { by = canvasHeight - 15; }
-					EventBus.emitEvent('award:continuousBreak', {
+					this.getEventBus().emitEvent('award:continuousBreak', {
 						breakNum: ball.breakNum,
 						x: bx,
 						y: by,
@@ -591,7 +619,7 @@ export default class Block
 
 		// 破壊不可ブロック
 		} else if( this.infinit == 1 && ball.simulate == 0 ) {
-			EventBus.emitEvent('score:add', ball.pointIncr);
+			this.getEventBus().emitEvent('score:add', ball.pointIncr);
 			ball.pointIncr = Number(ball.pointIncr) + ~~(blockIncrPoint / 2);
 		}
 
@@ -657,12 +685,12 @@ export default class Block
 
 			// ブロック数の減少（EventBus経由で通知）
 			if( this.infinit == 0 ) {
-				EventBus.emitEvent('status:blockBreak');
+				this.getEventBus().emitEvent('status:blockBreak');
 			}
 
 			// アイテム出現（EventBus経由で通知）
 			if( this.item != null ) {
-				EventBus.emitEvent('item:spawn', {
+				this.getEventBus().emitEvent('item:spawn', {
 					type: this.item,
 					x: this.getLeftX(),
 					y: this.getTopY(),
@@ -739,10 +767,10 @@ export default class Block
 						// シミュレートでない場合
 						if( !ball || ball.simulate == 0 ) {
 							// 爆発音（EventBus経由で通知）
-							EventBus.emitEvent('sound:play', 'bomb');
+							this.getEventBus().emitEvent('sound:play', 'bomb');
 
 							// ポイント計算（EventBus経由で通知）
-							EventBus.emitEvent('score:add', ~~(blockDefaultPoint * 1.5));
+							this.getEventBus().emitEvent('score:add', ~~(blockDefaultPoint * 1.5));
 							if( ball ) { ball.pointIncr += ~~(blockIncrPoint / 2); }
 						}
 					}

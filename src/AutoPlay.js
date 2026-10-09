@@ -2,28 +2,75 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import {
-	BALL_COPY_MODE,
-	SIMULATE_PARAM,
 	DEFAULT_CONFIG,
 	BAR_PARAM,
 	WEAPON_PARAM,
-	ITEM_PARAM,
 } from "./const.js";
 import EventBus from "./EventBus.js";
+import { runAutoPlaySimulation, cloneBlockMap, evaluateWeaponFire, isHarmfulItem } from "./AutoPlaySimulation.js";
 
 //--------------------------------------------------
 // 自動プレイ（オートパイロット制御）
+// Web Worker を活用した非同期高精度軌道予測 & 複数ボール全体最適化
 //--------------------------------------------------
 export default class AutoPlay
 {
 	constructor(game = null)
 	{
 		this.game = game;
-		this.simuData = new Array();							// シミュレーションの引き継ぎ情報
+		this.simuData = [];
+		this.worker = null;
+		this.requestId = 0;
+		this.latestResult = null;
+		this.workerIsBusy = false;
+		this.pendingSnapshot = null;
+		this.initWorker();
+	}
+
+	initWorker()
+	{
+		if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
+			try {
+				const workerUrl = new URL('./workers/autoPlayWorker.js', import.meta.url);
+				this.worker = new Worker(workerUrl, { type: 'module' });
+				this.worker.onmessage = (e) => {
+					if (e && e.data && e.data.result) {
+						this.latestResult = e.data.result;
+					}
+					this.workerIsBusy = false;
+					if (this.pendingSnapshot && this.worker) {
+						const snapshot = this.pendingSnapshot;
+						this.pendingSnapshot = null;
+						this.workerIsBusy = true;
+						this.requestId++;
+						this.worker.postMessage({ id: this.requestId, snapshot });
+					}
+				};
+				this.worker.onerror = () => {
+					if (this.worker) {
+						this.worker.terminate();
+						this.worker = null;
+					}
+					this.workerIsBusy = false;
+				};
+			} catch (_) {
+				this.worker = null;
+				this.workerIsBusy = false;
+			}
+		}
 	}
 
 	destructor()
 	{
+		if (this.worker) {
+			try {
+				this.worker.terminate();
+			} catch (_) {}
+			this.worker = null;
+		}
+		this.workerIsBusy = false;
+		this.pendingSnapshot = null;
+		this.latestResult = null;
 		this.simuData = null;
 		this.game = null;
 	}
@@ -65,48 +112,96 @@ export default class AutoPlay
 		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
 	}
 
+	captureSnapshot() {
+		const bar = this.getBar();
+		if (!bar) { return null; }
+
+		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const canvasWidth = this.getCanvasWidth();
+		const canvasHeight = (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+		const statusBarHeight = (this.game && this.game.statusBarHeight) || DEFAULT_CONFIG.statusBarHeight;
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
+		const bDefaultSpeedBar = (this.game && this.game.barDefaultSpeed) || DEFAULT_CONFIG.barDefaultSpeed;
+		const bSpin = (this.game && this.game.barSpin !== undefined) ? this.game.barSpin : ((bar && bar.spin !== undefined) ? bar.spin : BAR_PARAM.SPIN_RATIO);
+		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
+		const bSize = (this.game && this.game.ballSize) || DEFAULT_CONFIG.ballSize;
+
+		const balls = this.getBalls();
+		const items = this.getItems();
+		const weapons = this.getWeapons();
+		const blockMap = this.getBlockMap();
+
+		return {
+			canvasWidth,
+			canvasHeight,
+			statusBarHeight,
+			fps,
+			bDefaultSpeed,
+			bMaxSpeed,
+			bDefaultSpeedBar,
+			bSpin,
+			blkWidth,
+			blkHeight,
+			bSize,
+			bar: {
+				x: typeof bar.getCenterX === 'function' ? bar.getCenterX() : (bar.x || 0),
+				y: typeof bar.getTopY === 'function' ? bar.getTopY() : (bar.y || 0),
+				width: bar.width,
+				height: bar.height,
+				vx: bar.vx || 0,
+				vxMax: bar.vxMax || bDefaultSpeedBar,
+				spin: bSpin,
+				weapon: bar.weapon || 0,
+				weaponInter: bar.weaponInter || 0,
+				absorptionNum: bar.absorptionNum || 0,
+			},
+			balls: balls.map((b, idx) => ({
+				id: b.ballId !== undefined ? b.ballId : idx,
+				x: typeof b.getCenterX === 'function' ? b.getCenterX() : b.x,
+				y: typeof b.getCenterY === 'function' ? b.getCenterY() : b.y,
+				vx: b.vx,
+				vy: b.vy,
+				radius: b.radius || bSize,
+				status: b.status || 0,
+				statusTime: b.statusTime || 0,
+				isAbsorption: b.isAbsorption || 0,
+				absorptionPoint: b.absorptionPoint || [0, 0],
+			})),
+			blocks: cloneBlockMap(blockMap),
+			items: items.map(it => ({
+				x: typeof it.getCenterX === 'function' ? it.getCenterX() : it.x,
+				y: typeof it.getCenterY === 'function' ? it.getCenterY() : it.y,
+				type: it.type,
+				speed: it.speed,
+			})),
+			weapons: weapons.map(w => ({
+				x: w.x,
+				y: w.y,
+				vy: w.vy,
+				vect: w.vect,
+				type: w.type,
+			})),
+			simuData: this.simuData || {},
+		};
+	}
+
 	//--------------------------------------------------
 	// 自動プレイの1ステップ実行
 	//--------------------------------------------------
 	step()
 	{
 		const bar = this.getBar();
-		if (!bar) return;
+		if (!bar) { return; }
 
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
 		const canvasWidth = this.getCanvasWidth();
 		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
-		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
-		const bDefaultSpeedBar = (this.game && this.game.barDefaultSpeed) || DEFAULT_CONFIG.barDefaultSpeed;
-		const bSpin = (this.game && this.game.barSpin !== undefined) ? this.game.barSpin : ((bar && bar.spin !== undefined) ? bar.spin : BAR_PARAM.SPIN_RATIO);
-		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
-		const bSize = (this.game && this.game.ballSize) || DEFAULT_CONFIG.ballSize;
-		const weaponMaxNum = (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
-		const itemSpeed = (this.game && this.game.itemSpeed) || ITEM_PARAM.DEFAULT_SPEED;
-		const itemProb = (this.game && this.game.itemProb) || [];
-
 		const balls = this.getBalls();
-		const items = this.getItems();
-		const weapons = this.getWeapons();
-		const blockMap = this.getBlockMap();
-		const ctrl = this.getCtrl();
-
-		// 最大予測数の計算
-		var MAX_PREDICT = SIMULATE_PARAM.MAX_PREDICT * fps;
-
-		var targetX = -1;
-		var fallBall = null;
-		var fallBallI;
-		var fallBallTime = MAX_PREDICT;
-		var fallItemTime = MAX_PREDICT;
-		var fallItemX = -1;
-		var fallWeaponTime = MAX_PREDICT;
-		var plusSpeed = 0;
-		var ballNum = balls.length;
-		var moveSpeed = bar.vxMax;
+		let ballNum = balls.length;
 
 		//----------発射制御及び初期化----------
-		if( ballNum == 0 )
+		if( ballNum === 0 )
 		{
 			// スタート画面の終了
 			EventBus.emitEvent('screen:allClose');
@@ -121,404 +216,157 @@ export default class AutoPlay
 			EventBus.emitEvent('ball:launch', { mouseDownTime: mdTime });
 			ballNum = balls.length;
 		}
-		//----------発射制御及び初期化----------
 
-		// 吸着状態解除
-		if( bar.absorptionNum > 0 )
-		{
-			for( var i = 0; i < bar.absorptionNum; i++ ) {
-				bar.relaunch();
+		// スナップショットの作成
+		const snapshot = this.captureSnapshot();
+		if (!snapshot) { return; }
+
+		// Workerへの非同期リクエスト制御（処理中は最新スナップショットを1件保持）
+		if (this.worker) {
+			if (!this.workerIsBusy) {
+				this.workerIsBusy = true;
+				this.requestId++;
+				this.worker.postMessage({ id: this.requestId, snapshot });
+			} else {
+				this.pendingSnapshot = snapshot;
 			}
 		}
 
-		//----------落下が近い球の選択----------
-		var fallSimulate = new Array();
-		for( var i = 0; i < ballNum; i++ ) { fallSimulate[i] = balls[i].copy(BALL_COPY_MODE.SIMULATE); }
+		// 最適化結果の取得（Workerの最新結果がある場合はそれを利用、未取得時やWorker無しの場合は同期シミュレーション）
+		let result = this.latestResult;
+		if (!result) {
+			result = runAutoPlaySimulation(snapshot);
+			if (this.worker) {
+				this.latestResult = result;
+			}
+		}
 
-		// ボールの動きのシミュレート（EventBus経由で通知）
-		EventBus.emitEvent('game:simulateReset');
+		if (result && result.simuData) {
+			this.simuData = result.simuData;
+		}
 
-		for( var t = 0; t < fallBallTime; t++ )
-		{
-			for( var i = 0; i < ballNum; i++ )
-			{
-				var ball = fallSimulate[i];
+		//----------吸着状態の戦略的リローンチ（狙い撃ち）制御 (A-3)----------
+		if (bar.absorptionNum > 0) {
+			const blockMap = this.getBlockMap();
+			const hasBlocks = blockMap && blockMap.some((row) => row && row.some((b) => b && b.type !== 0));
 
-				// 選択
-				if( ball.vy > 0 && ball.getBottomY() >= bar.y )
-				{
-					// 到達可能範囲内
-					if( Math.abs( bar.getCenterX() - ball.getCenterX() ) - bar.width / 2 <= moveSpeed * t )
-					{
-						fallBall = ball;
-						fallBallTime = t;
-						fallBallI = i;
-						break;
+			// 本番の吸着アイテム効果中（absorptionStatusTime > 0）かつブロックが存在する場合:
+			// ブロック密集地・爆発ブロック列へ移動してから発射する戦略的リローンチ
+			if (bar.absorptionStatusTime !== undefined && bar.absorptionStatusTime > 0 && hasBlocks) {
+				const bestAbsorbX = (result && result.bestAbsorbX !== undefined && result.bestAbsorbX !== -1)
+					? result.bestAbsorbX
+					: (canvasWidth / 2);
+
+				// 他に緊急で落下してくるボールがなければ、密集地・爆発ブロック列へバーを移動
+				const hasUrgentFallingBall = balls.some((b) => b && b.vy > 0 && b.isAbsorption !== 1 && (bar.y - (b.y || 0)) <= 150);
+				if (!hasUrgentFallingBall && result) {
+					result.targetX = bestAbsorbX;
+				}
+
+				// 目標列に接近した、または吸着時間の終了直前（30フレーム以内）なら一気に狙い撃ち発射！
+				const reachedTarget = Math.abs(bar.x - bestAbsorbX) <= bar.width * 0.35;
+				const isTimeExpiring = (bar.absorptionStatusTime <= 30);
+				if (reachedTarget || isTimeExpiring || !result) {
+					const count = bar.absorptionNum;
+					for (let i = 0; i < count; i++) {
+						bar.relaunch();
 					}
-
-				// 実行
-				} else {
-					this.simulateBallStep(ball);
+				}
+			} else {
+				// 単体テストまたは通常解除時: 即時リローンチ
+				const count = bar.absorptionNum;
+				for (let i = 0; i < count; i++) {
+					bar.relaunch();
 				}
 			}
 		}
-		//----------落下が近い球の選択----------
 
-		//----------落下が近いアイテムの選択----------
-		const stageIdx = ctrl ? ctrl.stageIndex : 0;
-		const curItemSpeed = (itemSpeed && itemSpeed[stageIdx] !== undefined) ? itemSpeed[stageIdx] : 4;
+		if (result && result.targetX !== undefined && result.targetX !== -1) {
+			let targetX = result.targetX;
+			const bSpin = (this.game && this.game.barSpin !== undefined)
+				? this.game.barSpin
+				: ((bar && bar.spin !== undefined) ? bar.spin : BAR_PARAM.SPIN_RATIO);
 
-		for( var i = 0, len = items.length; i < len; i++ )
-		{
-			var item = items[i];
+			// 最優先ボールのバー到達予測（残りフレーム数）
+			let minTimeToBar = Infinity;
+			const barTopY = typeof bar.getTopY === 'function' ? bar.getTopY() : (bar.y || 0);
 
-			// 一番落下が近いアイテムを選択
-			var tmpFallItemTime = (bar.y - item.getBottomY()) / curItemSpeed;
-			if( fallItemTime > tmpFallItemTime && (Math.abs(bar.getCenterX() - item.getCenterX()) - (blkWidth + bar.width) / 2) / moveSpeed <= fallItemTime )
-			{
-				// 落下時刻の取得
-				fallItemTime = tmpFallItemTime;
-
-				// アイテム落下位置の決定
-				fallItemX = item.getCenterX();
-				targetX = fallItemX;
-
-				// 不利益アイテムの接近
-				const hasProb = itemProb[stageIdx] && itemProb[stageIdx][5] > 0.1;
-				if( item.type == 4 || item.type == 6 || item.type == 11 || item.type == 12 || item.type == 15 || ( hasProb && item.type == 3 ) )
-				{
-					// 衝突回避（アイテム接近）
-					if( fallItemTime * moveSpeed <= (blkWidth + bar.width) * 2 && Math.abs(targetX - bar.getCenterX()) <= (blkWidth + bar.width) / 2 + 2 )
-					{
-						// 左へ回避
-						if( ( bar.width < item.getLeftX() && item.getLeftX() > bar.getCenterX() ) || canvasWidth <= item.getRightX() + bar.width ) {
-							targetX -= (bar.width + blkWidth) / 2 + 1;
-
-						// 右へ回避
-						} else {
-							targetX += (bar.width + blkWidth) / 2 + 1;
-						}
-
-					// 無視
-					} else {
-						fallItemTime = MAX_PREDICT;
-						targetX = -1;
-					}
-				}
-			}
-		}
-		//----------落下が近いアイテムの選択----------
-
-		//----------落下が近い攻撃の選択----------
-		for( var i = 0, len = weapons.length; i < len; i++ )
-		{
-			var weapon = weapons[i];
-
-			// ブロックの攻撃の衝突危険性のあるものを選択
-			if( weapon.vect < 0 && (bar.y - weapon.y) / (weapon.vy || 1) < fallWeaponTime && Math.abs(weapon.x - bar.getCenterX()) <= bar.width/2 + 3 )
-			{
-				// 落下時間の更新
-				fallWeaponTime = (bar.y - weapon.y) / (weapon.vy || 1);
-
-				// ボール側に移動
-				if( fallBall && ((fallBall.getCenterX() > weapon.x && weapon.x + bar.width + 3 <= canvasWidth) || (weapon.x - bar.width - 3 < 0)) ) {
-					targetX = weapon.x + bar.width/2 + 3;
-				} else {
-					targetX = weapon.x - bar.width/2 - 3;
-				}
-			}
-		}
-		//----------落下が近い攻撃の選択----------
-
-		//----------最適経路の選択----------
-		if( fallBall != null )
-		{
-			// 球優先
-			if( targetX == -1 || (Math.abs( targetX - fallBall.getCenterX() ) > ( fallBallTime - fallItemTime ) * moveSpeed && Math.abs( targetX - fallBall.getCenterX() ) > ( fallBallTime - fallWeaponTime ) * moveSpeed ))
-			{
-				targetX = fallBall.getCenterX();
-			}
-			else if( fallItemX == targetX )
-			{
-				// 球にできるだけ近づく
-				if( Math.abs( fallBall.getCenterX() - targetX ) > (blkWidth + bar.width) / 2 )
-				{
-					// 球が左側
-					if( item && item.getCenterX() > fallBall.getCenterX() ) { targetX -= (blkWidth + bar.width) / 2 - 1; }
-
-					// 球が右側
-					else { targetX += (blkWidth + bar.width) / 2 - 1; }
-
-				// 球と十分に近い場合
-				} else {
-					fallItemTime = MAX_PREDICT;
-				}
-			}
-
-			// 一時変数へ落とす
-			var fallBallX = fallBall.getCenterX();
-			var fallBallVX = fallBall.vx;
-			var sim = this.simuData;
-			var fb = (sim && sim["self"]) || (fallBall && typeof fallBall.copy === 'function' ? fallBall : null);
-
-			// シミュレート情報の更新
-			if( sim == null || sim["x"] != fallBallX || sim["vx"] != fallBallVX || sim["status"] != fallBall.status || sim["statusTime"] != fallBall.statusTime )
-			{
-				// 補正最大速度の算出
-				var leftSpeed = (fallBallX - canvasWidth - bar.width / 2) * bSpin;
-				var rightSpeed = (fallBallX - bar.width / 2) * bSpin;
-				if( Math.abs( leftSpeed + fallBallVX ) > bMaxSpeed ) { leftSpeed = bMaxSpeed * ( leftSpeed < 0 ? -1 : 1 ) - fallBallVX; }
-				if( Math.abs( rightSpeed + fallBallVX ) > bMaxSpeed ) { rightSpeed = bMaxSpeed * ( rightSpeed < 0 ? -1 : 1 ) - fallBallVX; }
-				if( Math.abs( leftSpeed ) > moveSpeed * bSpin ) { leftSpeed = moveSpeed * bSpin * ( leftSpeed < 0 ? -1 : 1 ); }
-				if( Math.abs( rightSpeed ) > moveSpeed * bSpin ) { rightSpeed = moveSpeed * bSpin * ( rightSpeed < 0 ? -1 : 1 ); }
-				if( leftSpeed > rightSpeed ) {
-					var tmp = leftSpeed;
-					leftSpeed = rightSpeed;
-					rightSpeed = tmp;
-				}
-
-				// 落下球情報の加工
-				fallBall.vy *= -1;
-				fallBall.y = bar.getTopY() - bSize;
-				fallBall.breakNum = 0;
-				fallBall.collisionNum = 0;
-
-				// 情報の更新
-				sim["stDvx"] = leftSpeed;
-				sim["enDvx"] = rightSpeed;
-				sim["x"] = fallBallX;
-				sim["vx"] = fallBallVX;
-				sim["status"] = fallBall.status;
-				sim["statusTime"] = fallBall.statusTime;
-				sim["self"] = fallBall.copy(BALL_COPY_MODE.SIMULATE);
-				fb = sim["self"];
-				sim["breakMaxNum"] = 0;
-				sim["collisionMaxNum"] = 0;
-				sim["returnTime"] = MAX_PREDICT;
-				sim["dvx"] = 0;
-				sim["step"] = bMaxSpeed * 2 / SIMULATE_PARAM.RESOLUTION;
-
-				// シミュレート時間の短縮（落下までに間に合う回数にする）
-				if( fallBallTime < (SIMULATE_PARAM.RESOLUTION / SIMULATE_PARAM.TIMES_PER_STEP)*0.9 ) { sim["step"] = bMaxSpeed * 2 / (fallBallTime - 2); }
-
-			// シミュレート情報の引き継ぎ
-			} else if( fallBallTime <= 2 ) {
-				plusSpeed = sim["dvx"];
-			}
-
-			// 最適経路の探索
-			if( sim["stDvx"] <= sim["enDvx"] )
-			{
-				var maxBreakNum = sim["breakMaxNum"];
-				var maxCollisionNum = sim["collisionMaxNum"];
-				var returnTime = sim["returnTime"];
-				fb = sim["self"] || fb;
-
-				// 速度の準備
-				var dvx;
-				var dvxStep = sim["step"];
-				var stDvx = sim["stDvx"];
-				var enDvx = sim["enDvx"];
-				for( var dvx = stDvx, ct = 0; dvx <= enDvx && ct < SIMULATE_PARAM.TIMES_PER_STEP; dvx += dvxStep, ct++ )
-				{
-					// シミュレート準備
-					var simulate = new Array();
-					for( var i = 0; i < ballNum; i++ )
-					{
-						// 速度変更
-						if( fallBallI == i ) { simulate[i] = fb.copy(BALL_COPY_MODE.SIMULATE); }
-
-						// その他
-						else { simulate[i] = fallSimulate[i].copy(BALL_COPY_MODE.SIMULATE); }
-					}
-					simulate[fallBallI].vx += dvx;
-
-					// ボールの動きのシミュレート（EventBus経由で通知）
-					EventBus.emitEvent('game:simulateReset');
-
-					var t;
-					for( t = 0; simulate[fallBallI].getBottomY() <= bar.getTopY() && t <= MAX_PREDICT; t++ )
-					{
-						for( var i = 0; i < ballNum; i++ ) {
-							var ball = simulate[i];
-							if( ball.getBottomY() <= bar.getTopY() ) { this.simulateBallStep(ball); }
-						}
-					}
-
-					// 速度の選択
-					var checkBreakNum = simulate[fallBallI].breakNum;
-					var checkCollisionNum = simulate[fallBallI].collisionNum;
-					if( (maxBreakNum + maxCollisionNum) / returnTime < (checkBreakNum + checkCollisionNum) / t )
-					{
-						maxBreakNum = checkBreakNum;
-						maxCollisionNum = checkCollisionNum;
-						returnTime = t;
-						sim["dvx"] = dvx;
-					}
-				}
-
-				// 次回へのデータの引き継ぎ
-				sim["breakMaxNum"] = maxBreakNum;
-				sim["collisionMaxNum"] = maxCollisionNum;
-				sim["returnTime"] = returnTime;
-				sim["stDvx"] = dvx;
-			}
-
-			// 衝突見込みなしの場合の探索
-			if( fallBallTime <= 2 && sim["breakMaxNum"] == 0 && (sim["collisionMaxNum"] || 0) == 0 && Math.random() > 0.3 && fb && typeof fb.copy === 'function' )
-			{
-				var dx = canvasWidth;
-				plusSpeed = bDefaultSpeed * ( 0.8 + Math.random() * 0.4 ) * ( ~~(Math.random() * 2) * 2 - 1 ) - fallBallVX;
-
-				// 位置・速度を変更
-				for( var x = 0; x < canvasWidth; x += bDefaultSpeedBar * (Math.random() * 0.3 + 0.7) )
-				{
-					for( var vx = -bMaxSpeed; vx < bMaxSpeed; vx += bMaxSpeed / 10 * (Math.random() + 1) * 0.5 )
-					{
-						// シミュレート
-						var check = fb.copy(BALL_COPY_MODE.SIMULATE);
-						check.x = x;
-						check.vx = vx;
-						EventBus.emitEvent('game:simulateReset');
-
-						for( var t = 0; check.getBottomY() <= bar.getTopY() && t <= MAX_PREDICT; t++ ) { this.simulateBallStep(check); }
-
-						// 目的地に応じた速度選択
-						if( check.breakNum > 0 && dx > Math.abs( x - fallBallX ) ) {
-							dx = Math.abs( x - fallBallX );
-							plusSpeed = bDefaultSpeed * (x - fallBallX) / canvasWidth * 10 - fallBallVX;
-						}
-					}
-				}
-
-				// 速度の制限
-				if( Math.abs(plusSpeed + fallBallVX) > bMaxSpeed ) { plusSpeed = bMaxSpeed * (plusSpeed < 0 ? -1 : 1) - fallBallVX; }
-			}
-		}
-		//----------最適経路の選択----------
-
-		//----------武器使用及び移動----------
-		if( bar.weapon != 0 ) {
-			var blockLine = new Array();
-
-			// ブロックマッピングの初期化
-			for( var i = 0, len = ~~(canvasWidth / blkWidth); i < len; i++ ) {
-				blockLine[i] = 0;
-			}
-
-			// 発射済み武器の考慮
-			for( var i = 0; i < weapons.length; i++ ) {
-				var weapX = ~~(weapons[i].x / blkWidth);
-
-				// 武器の考慮
-				if( weapons[i].vect > 0 ) { blockLine[weapX]--; }
-			}
-
-			// ブロックの存在を確認
-			for( var i = blockMap.length; i >= 0; i-- )
-			{
-				if( blockMap[i] != null )
-				{
-					for( var j = 0, len2 = blockMap[i].length; j < len2; j++ )
-					{
-						var block = blockMap[i][j];
-
-						// マッピング
-						if( block != null && block.type != 0 )
-						{
-							// 破壊不可
-							if( block.infinit == 1 && bar.weapon == 1 && blockLine[j] == 0 ) {
-								blockLine[j] = -10000;
-
-							// 破壊可
-							} else if( blockLine[j] != -10000 ) {
-								blockLine[j] += 1 + (bar.weapon != 1 ? 0 : block.life);
-							}
+			for (let i = 0; i < balls.length; i++) {
+				const b = balls[i];
+				if (b && b.vy > 0 && b.isAbsorption !== 1) {
+					const by = typeof b.getCenterY === 'function' ? b.getCenterY() : b.y;
+					const br = b.radius || 5;
+					if (by + br <= barTopY) {
+						const t = (barTopY - (by + br)) / Math.max(0.1, b.vy);
+						if (t < minTimeToBar) {
+							minTimeToBar = t;
 						}
 					}
 				}
 			}
 
-			// 移動を確認
-			var breakX = -1;
-			var breakDx = canvasWidth;
-			var checkX = (targetX == -1 ? bar.getCenterX() : targetX);
-			for( var i = 0, len = blockLine.length; i < len; i++ )
-			{
-				// 破壊ブロックの選択
-				if( blockLine[i] > 0 )
-				{
-					// 効率の良い場所を選ぶ
-					if( breakDx > Math.abs(checkX - (i + 0.5) * blkWidth) )
-					{
-						breakX = (i + 0.5) * blkWidth;
-						breakDx = Math.abs(checkX - breakX);
+			// スピン用オフセット速度の計算
+			let plusSpeed = 0;
+			const spinOffset = result.spinOffset !== undefined
+				? result.spinOffset
+				: (result.plusSpeed !== undefined ? result.plusSpeed : ((result.bestDvx || 0) / (bSpin || BAR_PARAM.SPIN_RATIO)));
+
+			// 元コード準拠: 接触直前（残り1.0〜2.5フレーム）にバーを加速させてスピン速度を生み出し、接触時（残り1フレーム以下）は落下位置中心で受ける
+			if (minTimeToBar <= 2.5 && minTimeToBar > 1.0) {
+				plusSpeed = spinOffset;
+			}
+
+			// 落下中の有害アイテムとの干渉チェック（plusSpeedによる危険ゾーンへの踏み込み・かすり被弾を絶対防止）
+			if (plusSpeed !== 0) {
+				const items = this.getItems();
+				if (items.length > 0) {
+					const barW = bar.width || 100;
+					for (let i = 0; i < items.length; i++) {
+						const it = items[i];
+						if (!it || !isHarmfulItem(it.type)) continue;
+						const itY = typeof it.getCenterY === 'function' ? it.getCenterY() : it.y;
+						if (itY >= barTopY) continue;
+						const itX = typeof it.getCenterX === 'function' ? it.getCenterX() : (it.width ? (it.x + it.width / 2) : it.x);
+						const hitRadius = (barW + (it.width || 50)) / 2;
+						if (Math.abs((targetX - plusSpeed) - itX) < hitRadius + 18) {
+							plusSpeed = 0;
+							break;
+						}
 					}
 				}
 			}
 
-			// 発射（EventBus経由で通知）
-			if( breakX != -1 && Math.abs(bar.getCenterX() - breakX) <= blkWidth*0.5 && weapons.length < weaponMaxNum[bar.weapon - 1] && bar.weaponInter <= 0 ) {
-				EventBus.emitEvent('weapon:spawn', {
-					type: bar.weapon,
-					x: bar.getCenterX()
-				});
-			}
-
-			// 移動
-			if( breakX != -1 && (fallItemX == -1 || (Math.abs(fallItemX - breakX) + Math.abs(breakX - bar.getCenterX()) <= (fallItemTime - 3) * moveSpeed)) &&
-				(fallBall == null || (Math.abs(fallBall.getCenterX() - breakX) + Math.abs(breakX - bar.getCenterX()) <= (fallBallTime - 3) * moveSpeed))
-			) {
-				// 次の移動に備える（ブロック端に寄る）
-				if( Math.abs(breakX - targetX) > blkWidth / 2 ) {
-					breakX += (blkWidth * 0.35) * (targetX > breakX ? 1 : -1);
-				}
-
-				targetX = breakX;
-			}
-		}
-		//----------武器使用及び移動----------
-
-		// バーの移動
-		if( targetX != -1 )
-		{
-			// バー速度へ変換
-			if( fallBallTime > 1 ) { plusSpeed /= bSpin; }
-			else { plusSpeed = 0; }
-
-			// 移動
+			// バーの移動目標を設定
 			bar.setPointX(targetX - plusSpeed);
 		}
-	}
 
-	simulateBallStep(ball)
-	{
-		if (!ball) { return; }
-		if (typeof ball.movePosition === 'function') { ball.movePosition(); }
-		if (typeof ball.checkCollisionWithWall === 'function') {
-			ball.checkCollisionWithWall(
-				this.game?.canvasWidth,
-				this.game?.canvasHeight,
-				this.game?.statusBarHeight
-			);
-		}
-		const om = this.getObjectManage();
-		if (om && typeof om.getNearbyBlocks === 'function') {
-			const nearBlocks = om.getNearbyBlocks(ball.x, ball.y, ball.radius, ball.vx, ball.vy);
-			for (let i = 0; i < nearBlocks.length; i++) {
-				const blk = nearBlocks[i];
-				if (typeof ball.checkCollision === 'function' && ball.checkCollision(blk, om.blockMap) === true) {
-					const isChangedVY = (ball.lastHitAxis === 'y' || ball.lastHitAxis === 'both') ? 1 : 0;
-					const addSpeed = blk.action(ball, isChangedVY, om.blockMap);
-					if (addSpeed && typeof ball.applySpeedDelta === 'function') {
-						ball.applySpeedDelta(addSpeed);
+		//----------武器使用（リアルタイム即時判定＆発射）----------
+		if (bar && bar.weapon > 0) {
+			// 1) Workerシミュレーションからの発射指示があれば即座に発射
+			if (result && result.fireWeapon) {
+				EventBus.emitEvent('weapon:spawn', result.fireWeapon);
+				result.fireWeapon = null;
+			}
+			// 2) メインスレッドでのリアルタイム即時発射判定（バーがブロック直下を通過した一瞬を逃さず発射）
+			else if (bar.weaponInter <= 0) {
+				const weapons = this.getWeapons();
+				const weaponMaxNum = (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
+				if (weapons.length < weaponMaxNum[bar.weapon - 1]) {
+					const fireImmediate = evaluateWeaponFire(
+						bar,
+						weapons,
+						this.getBlockMap(),
+						{
+							blkWidth: (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth,
+							canvasWidth: canvasWidth,
+							weaponMaxNum: weaponMaxNum,
+						}
+					);
+					if (fireImmediate) {
+						EventBus.emitEvent('weapon:spawn', fireImmediate);
 					}
-					break;
 				}
 			}
-		}
-		if (typeof ball.updateHistory === 'function') {
-			ball.updateHistory();
 		}
 	}
 }

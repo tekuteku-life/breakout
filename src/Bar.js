@@ -65,40 +65,40 @@ export default class Bar
 		this.onResetDisturbHandler = () => this.resetDisturb();
 		this.onResetVibrationHandler = () => this.resetVibration();
 
-		EventBus.addOnEvent('input:pointX', this.onPointXHandler);
-		EventBus.addOnEvent('bar:damage', this.onDamageHandler);
-		EventBus.addOnEvent('bar:relaunch', this.onRelaunchHandler);
-		EventBus.addOnEvent('bar:applyItem', this.onApplyItemHandler);
-		EventBus.addOnEvent('bar:resetWidth', this.onResetWidthHandler);
-		EventBus.addOnEvent('bar:resetSpeed', this.onResetSpeedHandler);
-		EventBus.addOnEvent('bar:resetWeapon', this.onResetWeaponHandler);
-		EventBus.addOnEvent('bar:resetAbsorption', this.onResetAbsorptionHandler);
-		EventBus.addOnEvent('bar:resetImmortal', this.onResetImmortalHandler);
-		EventBus.addOnEvent('bar:resetDisturb', this.onResetDisturbHandler);
-		EventBus.addOnEvent('bar:resetVibration', this.onResetVibrationHandler);
+		this.getEventBus().addOnEvent('input:pointX', this.onPointXHandler);
+		this.getEventBus().addOnEvent('bar:damage', this.onDamageHandler);
+		this.getEventBus().addOnEvent('bar:relaunch', this.onRelaunchHandler);
+		this.getEventBus().addOnEvent('bar:applyItem', this.onApplyItemHandler);
+		this.getEventBus().addOnEvent('bar:resetWidth', this.onResetWidthHandler);
+		this.getEventBus().addOnEvent('bar:resetSpeed', this.onResetSpeedHandler);
+		this.getEventBus().addOnEvent('bar:resetWeapon', this.onResetWeaponHandler);
+		this.getEventBus().addOnEvent('bar:resetAbsorption', this.onResetAbsorptionHandler);
+		this.getEventBus().addOnEvent('bar:resetImmortal', this.onResetImmortalHandler);
+		this.getEventBus().addOnEvent('bar:resetDisturb', this.onResetDisturbHandler);
+		this.getEventBus().addOnEvent('bar:resetVibration', this.onResetVibrationHandler);
 	}
 
 	destructor()
 	{
-		if (this.onPointXHandler) EventBus.removeOnEvent('input:pointX', this.onPointXHandler);
-		if (this.onDamageHandler) EventBus.removeOnEvent('bar:damage', this.onDamageHandler);
-		if (this.onRelaunchHandler) EventBus.removeOnEvent('bar:relaunch', this.onRelaunchHandler);
-		if (this.onApplyItemHandler) EventBus.removeOnEvent('bar:applyItem', this.onApplyItemHandler);
-		if (this.onResetWidthHandler) EventBus.removeOnEvent('bar:resetWidth', this.onResetWidthHandler);
-		if (this.onResetSpeedHandler) EventBus.removeOnEvent('bar:resetSpeed', this.onResetSpeedHandler);
-		if (this.onResetWeaponHandler) EventBus.removeOnEvent('bar:resetWeapon', this.onResetWeaponHandler);
-		if (this.onResetAbsorptionHandler) EventBus.removeOnEvent('bar:resetAbsorption', this.onResetAbsorptionHandler);
-		if (this.onResetImmortalHandler) EventBus.removeOnEvent('bar:resetImmortal', this.onResetImmortalHandler);
-		if (this.onResetDisturbHandler) EventBus.removeOnEvent('bar:resetDisturb', this.onResetDisturbHandler);
-		if (this.onResetVibrationHandler) EventBus.removeOnEvent('bar:resetVibration', this.onResetVibrationHandler);
+		if (this.onPointXHandler) this.getEventBus().removeOnEvent('input:pointX', this.onPointXHandler);
+		if (this.onDamageHandler) this.getEventBus().removeOnEvent('bar:damage', this.onDamageHandler);
+		if (this.onRelaunchHandler) this.getEventBus().removeOnEvent('bar:relaunch', this.onRelaunchHandler);
+		if (this.onApplyItemHandler) this.getEventBus().removeOnEvent('bar:applyItem', this.onApplyItemHandler);
+		if (this.onResetWidthHandler) this.getEventBus().removeOnEvent('bar:resetWidth', this.onResetWidthHandler);
+		if (this.onResetSpeedHandler) this.getEventBus().removeOnEvent('bar:resetSpeed', this.onResetSpeedHandler);
+		if (this.onResetWeaponHandler) this.getEventBus().removeOnEvent('bar:resetWeapon', this.onResetWeaponHandler);
+		if (this.onResetAbsorptionHandler) this.getEventBus().removeOnEvent('bar:resetAbsorption', this.onResetAbsorptionHandler);
+		if (this.onResetImmortalHandler) this.getEventBus().removeOnEvent('bar:resetImmortal', this.onResetImmortalHandler);
+		if (this.onResetDisturbHandler) this.getEventBus().removeOnEvent('bar:resetDisturb', this.onResetDisturbHandler);
+		if (this.onResetVibrationHandler) this.getEventBus().removeOnEvent('bar:resetVibration', this.onResetVibrationHandler);
 
-		EventBus.removeTimer('bar:width');
-		EventBus.removeTimer('bar:speed');
-		EventBus.removeTimer('bar:weapon');
-		EventBus.removeTimer('bar:absorption');
-		EventBus.removeTimer('bar:immortal');
-		EventBus.removeTimer('bar:disturb');
-		EventBus.removeTimer('bar:vibration');
+		this.getEventBus().removeTimer('bar:width');
+		this.getEventBus().removeTimer('bar:speed');
+		this.getEventBus().removeTimer('bar:weapon');
+		this.getEventBus().removeTimer('bar:absorption');
+		this.getEventBus().removeTimer('bar:immortal');
+		this.getEventBus().removeTimer('bar:disturb');
+		this.getEventBus().removeTimer('bar:vibration');
 
 		this.onPointXHandler = null;
 		this.onDamageHandler = null;
@@ -115,6 +115,36 @@ export default class Bar
 	}
 
 
+	getEventBus()
+	{
+		return (this.game && this.game.eventBus) || EventBus;
+	}
+
+	clone(newGame = this.game)
+	{
+		const obj = new Bar(newGame);
+		obj.x = this.x;
+		obj.y = this.y;
+		obj.width = this.width;
+		obj.height = this.height;
+		obj.vx = this.vx;
+		obj.vxMax = this.vxMax;
+		obj.pointX = this.pointX;
+		obj.spin = this.spin;
+		obj.weapon = this.weapon;
+		obj.weaponInter = this.weaponInter;
+		obj.weaponTime = this.weaponTime;
+		obj.absorptionNum = this.absorptionNum;
+		obj.absorptionStatusTime = this.absorptionStatusTime;
+		obj.widthStatusTime = this.widthStatusTime;
+		obj.speedStatusTime = this.speedStatusTime;
+		obj.immortalStatusTime = this.immortalStatusTime;
+		obj.disturbStatusTime = this.disturbStatusTime;
+		obj.vibrationTime = this.vibrationTime;
+		obj.color = this.color;
+		return obj;
+	}
+
 	absorbBall() {
 		this.absorptionNum++;
 	}
@@ -125,7 +155,7 @@ export default class Bar
 
 	setPointX(val) {
 		this.pointX = val;
-		EventBus.emitEvent('input:setPointX', val);
+		this.getEventBus().emitEvent('input:setPointX', val);
 	}
 
 	getCanvasWidth() {
@@ -214,7 +244,7 @@ export default class Bar
 	//--------------------------------------------------
 	relaunch()
 	{
-		EventBus.emitEvent('ball:relaunch', { barVx: this.vx });
+		this.getEventBus().emitEvent('ball:relaunch', { barVx: this.vx });
 	}
 
 
@@ -376,14 +406,14 @@ export default class Bar
 			// HPを回復
 			this.hitPoint = bDefHP;
 
-			// ライフを消費（EventBus経由で通知）
-			EventBus.emitEvent('status:addLife', -1);
+			// ライフを消費（this.getEventBus()経由で通知）
+			this.getEventBus().emitEvent('status:addLife', -1);
 		}
 	}
 
 
 	//--------------------------------------------------
-	// アイテム効果の適用（EventBusからの通知を受信）
+	// アイテム効果の適用（this.getEventBus()からの通知を受信）
 	//--------------------------------------------------
 	applyItemEffect(type)
 	{
@@ -403,7 +433,7 @@ export default class Bar
 			this.width = ~~(this.width * BAR_PARAM.LONG_WIDTH_RATIO);
 			if (this.width > barMaxWidth) { this.width = barMaxWidth; }
 			this.widthStatusTime = barStatusDefaultTime * fps;
-			EventBus.addTimer('bar:width', statusDurationMs, () => this.resetWidth(), {
+			this.getEventBus().addTimer('bar:width', statusDurationMs, () => this.resetWidth(), {
 				event: 'bar:resetWidth',
 				onTick: (timer) => {
 					this.widthStatusTime = Math.ceil(timer.remaining / (1000 / fps));
@@ -414,7 +444,7 @@ export default class Bar
 			this.width = ~~(this.width * BAR_PARAM.SHORT_WIDTH_RATIO);
 			if (this.width < barMinWidth) { this.width = barMinWidth; }
 			this.widthStatusTime = barStatusDefaultTime * fps;
-			EventBus.addTimer('bar:width', statusDurationMs, () => this.resetWidth(), {
+			this.getEventBus().addTimer('bar:width', statusDurationMs, () => this.resetWidth(), {
 				event: 'bar:resetWidth',
 				onTick: (timer) => {
 					this.widthStatusTime = Math.ceil(timer.remaining / (1000 / fps));
@@ -424,7 +454,7 @@ export default class Bar
 		} else if (type === ITEM_TYPE.GUN) {
 			this.weapon = 1;
 			this.weaponTime = barWeaponDefaultTime * fps;
-			EventBus.addTimer('bar:weapon', weaponDurationMs, () => this.resetWeapon(), {
+			this.getEventBus().addTimer('bar:weapon', weaponDurationMs, () => this.resetWeapon(), {
 				event: 'bar:resetWeapon',
 				onTick: (timer) => {
 					this.weaponTime = Math.ceil(timer.remaining / (1000 / fps));
@@ -434,7 +464,7 @@ export default class Bar
 		} else if (type === ITEM_TYPE.MISSILE) {
 			this.weapon = 2;
 			this.weaponTime = barWeaponDefaultTime * fps;
-			EventBus.addTimer('bar:weapon', weaponDurationMs, () => this.resetWeapon(), {
+			this.getEventBus().addTimer('bar:weapon', weaponDurationMs, () => this.resetWeapon(), {
 				event: 'bar:resetWeapon',
 				onTick: (timer) => {
 					this.weaponTime = Math.ceil(timer.remaining / (1000 / fps));
@@ -447,7 +477,7 @@ export default class Bar
 			const bDefaultHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : DEFAULT_CONFIG.barDefaultHeight;
 			this.height = bDefaultHeight * BAR_PARAM.SPEED_DOWN_HEIGHT_RATIO;
 			this.speedStatusTime = barStatusDefaultTime * fps;
-			EventBus.addTimer('bar:speed', statusDurationMs, () => this.resetSpeed(), {
+			this.getEventBus().addTimer('bar:speed', statusDurationMs, () => this.resetSpeed(), {
 				event: 'bar:resetSpeed',
 				onTick: (timer) => {
 					this.speedStatusTime = Math.ceil(timer.remaining / (1000 / fps));
@@ -456,7 +486,7 @@ export default class Bar
 		// 加振
 		} else if (type === ITEM_TYPE.VIBRATE) {
 			this.vibrationTime = barStatusDefaultTime * fps;
-			EventBus.addTimer('bar:vibration', statusDurationMs, () => this.resetVibration(), {
+			this.getEventBus().addTimer('bar:vibration', statusDurationMs, () => this.resetVibration(), {
 				event: 'bar:resetVibration',
 				onTick: (timer) => {
 					this.vibrationTime = Math.ceil(timer.remaining / (1000 / fps));
@@ -465,7 +495,7 @@ export default class Bar
 		// 吸着
 		} else if (type === ITEM_TYPE.ABSORB) {
 			this.absorptionStatusTime = barStatusDefaultTime * fps;
-			EventBus.addTimer('bar:absorption', statusDurationMs, () => this.resetAbsorption(), {
+			this.getEventBus().addTimer('bar:absorption', statusDurationMs, () => this.resetAbsorption(), {
 				event: 'bar:resetAbsorption',
 				onTick: (timer) => {
 					this.absorptionStatusTime = Math.ceil(timer.remaining / (1000 / fps));
@@ -475,7 +505,7 @@ export default class Bar
 		} else if (type === ITEM_TYPE.IMMORTAL) {
 			this.color = barImmortalColor;
 			this.immortalStatusTime = barStatusDefaultTime * fps;
-			EventBus.addTimer('bar:immortal', statusDurationMs, () => this.resetImmortal(), {
+			this.getEventBus().addTimer('bar:immortal', statusDurationMs, () => this.resetImmortal(), {
 				event: 'bar:resetImmortal',
 				onTick: (timer) => {
 					this.immortalStatusTime = Math.ceil(timer.remaining / (1000 / fps));
@@ -484,7 +514,7 @@ export default class Bar
 		// 画面難視化
 		} else if (type === ITEM_TYPE.DISTURB) {
 			this.disturbStatusTime = barStatusDefaultTime * fps;
-			EventBus.addTimer('bar:disturb', statusDurationMs, () => this.resetDisturb(), {
+			this.getEventBus().addTimer('bar:disturb', statusDurationMs, () => this.resetDisturb(), {
 				event: 'bar:resetDisturb',
 				onTick: (timer) => {
 					this.disturbStatusTime = Math.ceil(timer.remaining / (1000 / fps));

@@ -200,4 +200,22 @@ test('Item class unit tests', async (t) => {
 		item.updateState();
 		assert.equal(mockGame.objectManage.items.length, 0, 'updateState must despawn off-canvas item');
 	});
+
+	await t.test('clone accurately duplicates item properties', () => {
+		const item = new Item(3, 150, 200, '#111', '#222');
+		item.width = 45;
+		item.height = 25;
+		item.speed = 5;
+
+		const cloned = item.clone();
+		assert.notEqual(cloned, item);
+		assert.equal(cloned.type, 3);
+		assert.equal(cloned.x, 150);
+		assert.equal(cloned.y, 200);
+		assert.equal(cloned.lineColor, '#111');
+		assert.equal(cloned.color, '#222');
+		assert.equal(cloned.width, 45);
+		assert.equal(cloned.height, 25);
+		assert.equal(cloned.speed, 5);
+	});
 });

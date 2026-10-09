@@ -124,13 +124,27 @@ export default class Item
 	}
 
 
+	getEventBus()
+	{
+		return (this.game && this.game.eventBus) || EventBus;
+	}
+
+	clone(newGame = this.game)
+	{
+		const obj = new Item(this.type, this.x, this.y, this.lineColor, this.color, newGame);
+		obj.width = this.width;
+		obj.height = this.height;
+		obj.speed = this.speed;
+		return obj;
+	}
+
 	//--------------------------------------------------
 	// アイテム効果の発動
 	//--------------------------------------------------
 	applyEffect()
 	{
 		// アイテム取得数の計算（EventBus経由で通知）
-		EventBus.emitEvent('award:add', { key: 'getItemNum', count: 1 });
+		this.getEventBus().emitEvent('award:add', { key: 'getItemNum', count: 1 });
 
 		// 取得音（EventBus経由で通知）
 		const isMinus = (
@@ -140,7 +154,7 @@ export default class Item
 			this.type === ITEM_TYPE.VIBRATE
 		);
 		const soundName = isMinus ? 'minusItem' : 'plusItem';
-		EventBus.emitEvent('sound:play', soundName);
+		this.getEventBus().emitEvent('sound:play', soundName);
 
 		// 各種効果のEventBus通知
 		if (
@@ -151,16 +165,16 @@ export default class Item
 			this.type === ITEM_TYPE.SPEED_DOWN
 		) {
 			// ボールに関する効果（増殖、強化、無敵、速度変化）
-			EventBus.emitEvent('ball:applyItem', this.type);
+			this.getEventBus().emitEvent('ball:applyItem', this.type);
 		} else if (this.type === ITEM_TYPE.LIFE) {
 			// ライフ回復
-			EventBus.emitEvent('status:addLife', 1);
+			this.getEventBus().emitEvent('status:addLife', 1);
 		} else if (this.type === ITEM_TYPE.POISON) {
 			// ライフ減少
-			EventBus.emitEvent('status:addLife', -1);
+			this.getEventBus().emitEvent('status:addLife', -1);
 		} else {
 			// バーに関する効果（幅変更、武器、加振、吸着、不死身、画面難視化など）
-			EventBus.emitEvent('bar:applyItem', this.type);
+			this.getEventBus().emitEvent('bar:applyItem', this.type);
 		}
 	}
 }
