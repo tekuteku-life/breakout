@@ -461,6 +461,27 @@ export function setupEnvironment() {
 
 	sharedStorage.clear();
 
+	const windowEventListeners = new Map();
+	globalThis.addEventListener = (type, listener) => {
+		if (!windowEventListeners.has(type)) {
+			windowEventListeners.set(type, new Set());
+		}
+		windowEventListeners.get(type).add(listener);
+	};
+	globalThis.removeEventListener = (type, listener) => {
+		if (windowEventListeners.has(type)) {
+			windowEventListeners.get(type).delete(listener);
+		}
+	};
+	globalThis.dispatchEvent = (event) => {
+		const type = event && event.type;
+		if (windowEventListeners.has(type)) {
+			for (const fn of windowEventListeners.get(type)) {
+				fn(event);
+			}
+		}
+	};
+
 	// Inject globals
 	globalThis.window = globalThis;
 	globalThis.document = mockDocument;

@@ -54,7 +54,6 @@ describe('InputManage class unit tests', () => {
 
 	it('initializes InputManage with default properties and EventBus listeners', () => {
 		const input = new InputManage(mockGame);
-		// Default pointX is initialized to canvas center (375 for DEFAULT_CONFIG 750)
 		assert.equal(typeof input.pointX, 'number');
 		assert.equal(input.isPointerLocked, false);
 		assert.equal(input.mouseDownTime, 0);
@@ -312,6 +311,136 @@ describe('InputManage class unit tests', () => {
 		EventBus.emitEvent('input:exitPointerLock');
 		assert.equal(exitCalled, true);
 		assert.equal(input.isPointerLocked, false);
+
+		input.destructor();
+	});
+
+	it('exits pointer lock on beforeunload, pagehide, visibilitychange, and blur to prevent invisible cursor', () => {
+		const input = new InputManage(mockGame);
+		input.bind(mockCanvas, document, window);
+
+		let exitCalled = false;
+		document.exitPointerLock = () => {
+			exitCalled = true;
+			document.pointerLockElement = null;
+		};
+
+		// 1. window blur
+		input.isPointerLocked = true;
+		document.pointerLockElement = mockCanvas;
+		exitCalled = false;
+		window.dispatchEvent({ type: 'blur' });
+		assert.equal(exitCalled, true);
+		assert.equal(input.isPointerLocked, false);
+
+		// 2. document visibilitychange
+		input.isPointerLocked = true;
+		document.pointerLockElement = mockCanvas;
+		exitCalled = false;
+		document.dispatchEvent({ type: 'visibilitychange' });
+		assert.equal(exitCalled, true);
+		assert.equal(input.isPointerLocked, false);
+
+		// 3. window beforeunload
+		input.isPointerLocked = true;
+		document.pointerLockElement = mockCanvas;
+		exitCalled = false;
+		window.dispatchEvent({ type: 'beforeunload' });
+		assert.equal(exitCalled, true);
+		assert.equal(input.isPointerLocked, false);
+
+		// 4. window pagehide
+		input.isPointerLocked = true;
+		document.pointerLockElement = mockCanvas;
+		exitCalled = false;
+		window.dispatchEvent({ type: 'pagehide' });
+		assert.equal(exitCalled, true);
+		assert.equal(input.isPointerLocked, false);
+
+		input.destructor();
+	});
+
+	it('handles SecurityError (Promise rejection and synchronous throw) in requestPointerLock and enforces cooldown', async () => {
+		const input = new InputManage(mockGame);
+		mockGame.ctrl.pointerLockSwitch = 1;
+		mockGame.ctrl.ctrlSwitch = 0;
+
+		// 1. Promise rejection (SecurityError)
+		let rejectPromise;
+		const elPromise = {
+			requestPointerLock: () => {
+				return new Promise((_, reject) => {
+					rejectPromise = reject;
+				});
+			},
+		};
+
+		input.isPointerLocked = true;
+		input.requestPointerLock(elPromise);
+		// Promise rejection を発生させる
+		rejectPromise(new Error('SecurityError: Pointer lock cannot be acquired immediately after the user has exited the lock.'));
+		// マイクロタスクキューを消化
+		await Promise.resolve();
+
+		assert.equal(input.isPointerLocked, false);
+		assert.ok(input.pointerLockCooldownUntil > Date.now());
+
+		// 2. クールダウン期間中は requestPointerLock がスキップされる
+		let calledDuringCooldown = false;
+		const elCheck = {
+			requestPointerLock: () => {
+				calledDuringCooldown = true;
+			},
+		};
+		input.requestPointerLock(elCheck);
+		assert.equal(calledDuringCooldown, false);
+
+		// 3. 同期例外の try-catch
+		input.pointerLockCooldownUntil = 0;
+		const elThrow = {
+			requestPointerLock: () => {
+				throw new Error('SecurityError synchronously thrown');
+			},
+		};
+		input.isPointerLocked = true;
+		assert.doesNotThrow(() => {
+			input.requestPointerLock(elThrow);
+		});
+		assert.equal(input.isPointerLocked, false);
+		assert.ok(input.pointerLockCooldownUntil > Date.now());
+
+		input.destructor();
+	});
+
+	it('skips requestPointerLock while in cooldown period after user exits pointer lock via ESC', () => {
+		const input = new InputManage(mockGame);
+		input.bind(mockCanvas, document, window);
+		mockGame.ctrl.pointerLockSwitch = 1;
+		mockGame.ctrl.ctrlSwitch = 0;
+
+		// ユーザーがポインターロックに入っている状態
+		input.isPointerLocked = true;
+		document.pointerLockElement = mockCanvas;
+
+		// ユーザーが ESC キー等でロックを解除
+		document.pointerLockElement = null;
+		document.dispatchEvent({ type: 'pointerlockchange' });
+
+		assert.equal(input.isPointerLocked, false);
+		assert.ok(input.pointerLockCooldownUntil > Date.now());
+
+		// ESC直後に画面をクリックしても requestPointerLock は呼ばれない
+		let lockCalled = false;
+		mockCanvas.requestPointerLock = () => {
+			lockCalled = true;
+		};
+		mockCanvas.dispatchEvent({ type: 'mousedown', button: 0, clientX: 200, clientY: 300 });
+		assert.equal(lockCalled, false);
+
+		// クールダウン解除後は再び受け付ける
+		input.pointerLockCooldownUntil = Date.now() - 1;
+		mockCanvas.dispatchEvent({ type: 'mousedown', button: 0, clientX: 200, clientY: 300 });
+		assert.equal(lockCalled, true);
 
 		input.destructor();
 	});
