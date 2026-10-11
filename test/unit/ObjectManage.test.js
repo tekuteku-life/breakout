@@ -363,9 +363,14 @@ test('ObjectManage class unit tests', async (t) => {
 		EventBus.emitEvent('item:spawn', { type: 3, x: 20, y: 40 });
 		assert.equal(om.items.length, 1);
 
-		// weapon:spawn
+		// weapon:spawn (explicit and implicit from bar)
 		EventBus.emitEvent('weapon:spawn', { type: 1, x: 60 });
 		assert.equal(om.weapons.length, 1);
+
+		om.bar.weapon = 1;
+		om.bar.weaponInter = 0;
+		EventBus.emitEvent('weapon:spawn');
+		assert.equal(om.weapons.length, 2);
 
 		// balloon:spawn
 		EventBus.emitEvent('balloon:spawn', {
@@ -373,9 +378,25 @@ test('ObjectManage class unit tests', async (t) => {
 		});
 		assert.equal(om.balloons.length, 1);
 
-		// ball:launch
+		// ball:launch blocked when player is dead or mouseDownTime is 0
+		gm.statusMng = { isAlive: () => false };
+		EventBus.emitEvent('ball:launch', { mouseDownTime: 1234 });
+		assert.equal(om.balls.length, 0);
+
+		gm.statusMng = { isAlive: () => true };
+		EventBus.emitEvent('ball:launch', { mouseDownTime: 0 });
+		assert.equal(om.balls.length, 0);
+
+		// ball:launch succeeds when alive and mouseDownTime > 0
 		EventBus.emitEvent('ball:launch', { mouseDownTime: 1234 });
 		assert.equal(om.balls.length, 1);
+
+		// ball:launch with fireWeapon: true when ball already exists fires weapon
+		om.bar.weapon = 1;
+		om.bar.weaponInter = 0;
+		EventBus.emitEvent('ball:launch', { mouseDownTime: 0, fireWeapon: true });
+		assert.equal(om.balls.length, 1);
+		assert.equal(om.weapons.length, 3);
 
 		// ball:applyItem
 		EventBus.emitEvent('ball:applyItem', ITEM_TYPE.HARD);

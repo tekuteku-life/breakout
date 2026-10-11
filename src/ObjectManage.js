@@ -74,13 +74,24 @@ export default class ObjectManage {
 			if (data) this.spawnItem(data);
 		};
 		this.onWeaponSpawnHandler = (data) => {
-			if (data) this.spawnWeapon(data.type, data.x, data.y, data.vect);
+			if (data) {
+				this.spawnWeapon(data.type, data.x, data.y, data.vect);
+			} else {
+				this.spawnWeapon();
+			}
 		};
 		this.onBalloonSpawnHandler = (data) => {
 			if (data) this.spawnBalloon(data);
 		};
 		this.onBallLaunchHandler = (data) => {
-			this.launchBall(data ? data.mouseDownTime : 0);
+			const mdTime = (data && data.mouseDownTime !== undefined) ? data.mouseDownTime : 0;
+			if (this.balls.length === 0) {
+				if (this.isPlayerAlive() && (!data || data.mouseDownTime === undefined || mdTime !== 0)) {
+					this.launchBall(mdTime);
+				}
+			} else if (data && data.fireWeapon) {
+				this.spawnWeapon();
+			}
 		};
 		this.onBallApplyItemHandler = (type) => {
 			this.applyBallItem(type);
@@ -517,6 +528,12 @@ export default class ObjectManage {
 		}
 	}
 
+	isPlayerAlive() {
+		const statusMng = this.game && this.game.statusMng;
+		if (!statusMng) { return true; }
+		return typeof statusMng.isAlive === 'function' ? statusMng.isAlive() : statusMng.life > 0;
+	}
+
 	launchBall(mouseDownTime = 0) {
 		const origin = this.bar ? { x: this.bar.getCenterX(), y: this.bar.getTopY(), vx: this.bar.vx } : null;
 		const b = new Ball(BALL_CREATE_MODE.LAUNCH, this.game, mouseDownTime, origin);
@@ -549,19 +566,24 @@ export default class ObjectManage {
 		return false;
 	}
 
-	spawnWeapon(type, x, y = null, vect = null) {
+	spawnWeapon(type = null, x = null, y = null, vect = null) {
 		const targetVect = (vect !== null && vect !== undefined) ? vect : 1;
+		const targetType = (type !== null && type !== undefined) ? type : (this.bar ? this.bar.weapon : 0);
 		if (targetVect > 0) {
 			const maxNum = (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
 			const canFire = this.bar && (typeof this.bar.canFireWeapon === 'function'
-				? this.bar.canFireWeapon(this.weapons, maxNum, type)
-				: (this.bar.weaponInter <= 0));
+				? this.bar.canFireWeapon(this.weapons, maxNum, targetType)
+				: (targetType !== 0 && this.bar.weaponInter <= 0));
 			if (!canFire) {
 				return null;
 			}
 		}
+		if (!targetType) {
+			return null;
+		}
+		const targetX = (x !== null && x !== undefined) ? x : (this.bar && typeof this.bar.getCenterX === 'function' ? this.bar.getCenterX() : (this.bar ? this.bar.x : 0));
 		const targetY = (y !== null && y !== undefined) ? y : (this.bar ? ~~(this.bar.getTopY()) : 0);
-		const w = new Weapon(type, x, targetY, targetVect, this.game);
+		const w = new Weapon(targetType, targetX, targetY, targetVect, this.game);
 		this.weapons.push(w);
 		if (this.bar && targetVect > 0) {
 			this.bar.weaponInter = WEAPON_PARAM.FIRE_INTERVAL;

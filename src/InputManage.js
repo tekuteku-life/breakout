@@ -115,29 +115,6 @@ export default class InputManage {
 		return (this.game && this.game.ctrl) || null;
 	}
 
-	getObjectManage() {
-		return (this.game && this.game.objectManage) || null;
-	}
-
-	getBar() {
-		const om = this.getObjectManage();
-		return om ? om.bar : null;
-	}
-
-	getBalls() {
-		const om = this.getObjectManage();
-		return om ? om.balls : [];
-	}
-
-	getWeapons() {
-		const om = this.getObjectManage();
-		return om ? om.weapons : [];
-	}
-
-	getStatusMng() {
-		return (this.game && this.game.statusMng) || null;
-	}
-
 	getCanvasWidth() {
 		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
 	}
@@ -203,8 +180,8 @@ export default class InputManage {
 		// マウス移動（画面外にカーソルが出てもウィンドウ全体で追従）
 		if (targetWin && targetCanvas) {
 			const onMouseMove = (event) => {
-				const g = this.game;
-				const scale = (g && g.ctrl) ? g.ctrl.scale : ((targetWin.ctrl) ? targetWin.ctrl.scale : 1);
+				const ctrl = this.getCtrl();
+				const scale = ctrl ? ctrl.scale : 1;
 				this.getMouseMove(event, targetCanvas, 0, scale);
 			};
 			targetWin.onmousemove = onMouseMove;
@@ -214,10 +191,7 @@ export default class InputManage {
 		// キャンバス上のマウスダウン/アップ（Pointer Lock トリガー含む）
 		if (targetCanvas) {
 			const onMouseDown = (e) => {
-				const ctrl = this.getCtrl();
-				if (ctrl && ctrl.ctrlSwitch == 0 && ctrl.pointerLockSwitch == 1) {
-					this.requestPointerLock(targetCanvas);
-				}
+				this.requestPointerLock(targetCanvas);
 				this.handlePointerDown(e ? e.button : 0);
 			};
 			targetCanvas.onmousedown = onMouseDown;
@@ -258,9 +232,7 @@ export default class InputManage {
 				const ctrl = this.getCtrl();
 				// プレイ中（pauseSwitch == 0 かつ autoSwitch == 0 かつ マウス操作時）
 				if (ctrl && ctrl.ctrlSwitch == 0 && ctrl.pauseSwitch == 0 && ctrl.autoSwitch == 0) {
-					if (ctrl.pointerLockSwitch == 1) {
-						this.requestPointerLock(targetCanvas);
-					}
+					this.requestPointerLock(targetCanvas);
 					this.handlePointerDown(e ? e.button : 0);
 				}
 			};
@@ -290,9 +262,7 @@ export default class InputManage {
 			this.boundHandlers.winClick = targetWin.onclick;
 
 			targetWin.onresize = () => {
-				const g = this.game;
-				const ctrl = g ? g.ctrl : targetWin.ctrl;
-				if (ctrl && typeof ctrl.fixSize === 'function') ctrl.fixSize();
+				EventBus.emitEvent('control:fixSize');
 			};
 			this.boundHandlers.winResize = targetWin.onresize;
 
@@ -307,8 +277,8 @@ export default class InputManage {
 		// タッチ操作
 		if (targetWin && targetCanvas) {
 			const onTouchMove = (event) => {
-				const g = this.game;
-				const scale = (g && g.ctrl) ? g.ctrl.scale : ((targetWin.ctrl) ? targetWin.ctrl.scale : 1);
+				const ctrl = this.getCtrl();
+				const scale = ctrl ? ctrl.scale : 1;
 				this.getMouseMove(event, targetCanvas, 1, scale);
 				if (event && typeof event.preventDefault === 'function') {
 					event.preventDefault();
@@ -363,6 +333,7 @@ export default class InputManage {
 	unbind() {
 		if (this.boundWin) {
 			if (this.boundWin.onclick === this.boundHandlers.winClick) this.boundWin.onclick = null;
+			if (this.boundWin.onresize === this.boundHandlers.winResize) this.boundWin.onresize = null;
 			if (this.boundWin.onmousemove === this.boundHandlers.winMouseMove) this.boundWin.onmousemove = null;
 			if (this.boundWin.ontouchmove === this.boundHandlers.winTouchMove) this.boundWin.ontouchmove = null;
 			if (this.boundWin.oncontextmenu === this.boundHandlers.winContextMenu) this.boundWin.oncontextmenu = null;
@@ -408,51 +379,31 @@ export default class InputManage {
 	}
 
 	handlePointerDown(button = 0) {
-		const g = this.game;
 		const ctrl = this.getCtrl();
-		const bar = this.getBar();
-		const weapons = this.getWeapons();
-		const weaponMaxNum = (g && g.weaponMaxNum) || [3, 2];
-
 		if (ctrl && ctrl.ctrlSwitch == 0) {
 			this.mouseDownTime = Date.now();
 			EventBus.emitEvent('input:mouseDownTime', this.mouseDownTime);
 			EventBus.emitEvent('input:pointerDown', { button, mouseDownTime: this.mouseDownTime });
 		}
 
-		// 武器の発射（EventBus経由で通知）
-		const canFire = bar && (typeof bar.canFireWeapon === 'function'
-			? bar.canFireWeapon(weapons, weaponMaxNum)
-			: (bar.weapon != 0 && bar.weaponInter <= 0));
-		if (canFire) {
-			EventBus.emitEvent('weapon:spawn', {
-				type: bar.weapon,
-				x: bar.getCenterX()
-			});
-		}
+		// 武器の発射要求（発射可否はObjectManage・Bar側で判定）
+		EventBus.emitEvent('weapon:spawn');
 	}
 
 	handlePointerUp(button = 0) {
 		const ctrl = this.getCtrl();
-		const bar = this.getBar();
-		const balls = this.getBalls();
-		const statusMng = this.getStatusMng();
-
-		const isAlive = statusMng ? (typeof statusMng.isAlive === 'function' ? statusMng.isAlive() : statusMng.life > 0) : true;
 		const mdTime = this.mouseDownTime;
 
-		// 発射制御（EventBus経由で通知）
-		if (ctrl && ctrl.ctrlSwitch == 0 && button != 2 && balls && balls.length == 0 && isAlive && mdTime != 0) {
-			EventBus.emitEvent('ball:launch', { mouseDownTime: mdTime });
+		// 発射制御（ボール有無・生存判定はObjectManage側へ委譲）
+		if (ctrl && ctrl.ctrlSwitch == 0 && button != 2 && mdTime != 0) {
 			this.mouseDownTime = 0;
 			EventBus.emitEvent('input:mouseDownTime', 0);
+			EventBus.emitEvent('ball:launch', { mouseDownTime: mdTime });
 			EventBus.emitEvent('input:pointerUp', { button });
 		}
 
-		// 吸着状態からの再発射（EventBus経由で通知）
-		if (bar && bar.absorptionNum > 0) {
-			EventBus.emitEvent('bar:relaunch');
-		}
+		// 吸着状態からの再発射要求（吸着状態の有無はBar側へ委譲）
+		EventBus.emitEvent('bar:relaunch');
 	}
 
 	getMouseMove(event, canvas, touch, scale) {
@@ -578,7 +529,6 @@ export default class InputManage {
 		else if (code == 82) this.keyStr = 'prevStage';
 		else this.keyStr = '';
 
-		const g = this.game;
 		const ctrl = this.getCtrl();
 		if (this.keyStr !== '' &&
 			(this.keyStr !== 'Auto' && this.keyStr !== 'Ctrl' && this.keyStr !== 'Pause' && this.keyStr !== 'Sound' && this.keyStr !== 'sizeFit' && this.keyStr !== 'nextStage' && this.keyStr !== 'prevStage') &&
@@ -602,23 +552,11 @@ export default class InputManage {
 				this.mouseDownTime = Date.now();
 				EventBus.emitEvent('input:mouseDownTime', this.mouseDownTime);
 			} else {
-				const balls = this.getBalls();
-				const statusMng = this.getStatusMng();
-				const isAlive = statusMng ? (typeof statusMng.isAlive === 'function' ? statusMng.isAlive() : statusMng.life > 0) : true;
-				const bar = this.getBar();
-				const weapons = this.getWeapons();
-				const weaponMaxNum = (g && g.weaponMaxNum) || [3, 2];
-
-				if (balls.length === 0 && isAlive && this.mouseDownTime !== 0) {
-					EventBus.emitEvent('ball:launch', { mouseDownTime: this.mouseDownTime });
-					this.mouseDownTime = 0;
-					EventBus.emitEvent('input:mouseDownTime', 0);
-				} else if (bar && bar.canFireWeapon && bar.canFireWeapon(weapons, weaponMaxNum)) {
-					EventBus.emitEvent('weapon:spawn', {
-						type: bar.weapon,
-						x: bar.getCenterX()
-					});
-				}
+				const mdTime = this.mouseDownTime;
+				this.mouseDownTime = 0;
+				EventBus.emitEvent('input:mouseDownTime', 0);
+				EventBus.emitEvent('ball:launch', { mouseDownTime: mdTime, fireWeapon: true });
+				EventBus.emitEvent('bar:relaunch');
 			}
 		} else if (this.keyStr === 'Pause') {
 			if (action === 'up') {

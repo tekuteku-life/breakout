@@ -29,24 +29,6 @@ describe('InputManage class unit tests', () => {
 			canvasWidth: 480,
 			canvasHeight: 480,
 			ctrl: null,
-			objectManage: {
-				bar: {
-					pointX: 240,
-					pointY: 440,
-					width: 60,
-					weapon: 0,
-					weaponInter: 0,
-					absorptionNum: 0,
-					getTopY: () => 430,
-					getCenterX: () => 240,
-				},
-				balls: [],
-				weapons: [],
-			},
-			statusMng: {
-				isAlive: () => true,
-				life: 3,
-			},
 			dynamicCanvas: mockCanvas,
 		};
 		mockGame.ctrl = new Control(mockGame);
@@ -203,7 +185,7 @@ describe('InputManage class unit tests', () => {
 		input.destructor();
 	});
 
-	it('globalMouseDown fires weapon or sets mouseDownTime outside canvas, but ignores UI elements', () => {
+	it('globalMouseDown fires weapon:spawn and sets mouseDownTime outside canvas, but ignores UI elements', () => {
 		const input = new InputManage(mockGame);
 		input.bind(mockCanvas, document, window);
 
@@ -211,10 +193,6 @@ describe('InputManage class unit tests', () => {
 		EventBus.addOnEvent('weapon:spawn', () => {
 			weaponSpawned = true;
 		});
-
-		// Equip weapon on bar
-		mockGame.objectManage.bar.weapon = 1;
-		mockGame.objectManage.balls = [{ x: 100, y: 100 }];
 
 		// Outside canvas click on generic background div
 		const outsideDiv = document.createElement('div');
@@ -226,6 +204,7 @@ describe('InputManage class unit tests', () => {
 			button: 0,
 		});
 		assert.equal(weaponSpawned, true);
+		assert.ok(input.mouseDownTime > 0);
 
 		// Click on a UI button -> should NOT fire weapon
 		weaponSpawned = false;
@@ -253,16 +232,23 @@ describe('InputManage class unit tests', () => {
 		input.destructor();
 	});
 
-	it('globalMouseUp triggers ball launch when clicked outside canvas', () => {
+	it('globalMouseUp triggers ball:launch and bar:relaunch when clicked outside canvas, and window.onresize emits control:fixSize', () => {
 		const input = new InputManage(mockGame);
 		input.bind(mockCanvas, document, window);
 
 		let ballLaunched = false;
+		let relaunchEmitted = false;
+		let fixSizeEmitted = false;
 		EventBus.addOnEvent('ball:launch', () => {
 			ballLaunched = true;
 		});
+		EventBus.addOnEvent('bar:relaunch', () => {
+			relaunchEmitted = true;
+		});
+		EventBus.addOnEvent('control:fixSize', () => {
+			fixSizeEmitted = true;
+		});
 
-		mockGame.objectManage.balls = []; // No balls yet, ready to launch
 		input.mouseDownTime = 5;
 
 		const outsideDiv = document.createElement('div');
@@ -273,9 +259,14 @@ describe('InputManage class unit tests', () => {
 		});
 
 		assert.equal(ballLaunched, true);
+		assert.equal(relaunchEmitted, true);
 		assert.equal(input.mouseDownTime, 0);
 
+		window.onresize();
+		assert.equal(fixSizeEmitted, true);
+
 		input.destructor();
+		assert.equal(window.onresize, null);
 	});
 
 	it('exits pointer lock on pause, menu screen open, or input:exitPointerLock events', () => {

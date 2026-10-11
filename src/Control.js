@@ -68,6 +68,9 @@ export default class Control
 			}
 			EventBus.emitEvent('game:init', this.stageIndex);
 		};
+		this.onFixSizeHandler = () => {
+			if (typeof this.fixSize === 'function') this.fixSize();
+		};
 
 		EventBus.addOnEvent('control:togglePause', this.onTogglePauseHandler);
 		EventBus.addOnEvent('control:toggleSound', this.onToggleSoundHandler);
@@ -77,6 +80,7 @@ export default class Control
 		EventBus.addOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
 		EventBus.addOnEvent('control:forwardStage', this.onForwardStageHandler);
 		EventBus.addOnEvent('control:backwardStage', this.onBackwardStageHandler);
+		EventBus.addOnEvent('control:fixSize', this.onFixSizeHandler);
 	}
 
 	destructor()
@@ -89,6 +93,7 @@ export default class Control
 		if (this.onToggleSizeFitHandler) EventBus.removeOnEvent('control:toggleSizeFit', this.onToggleSizeFitHandler);
 		if (this.onForwardStageHandler) EventBus.removeOnEvent('control:forwardStage', this.onForwardStageHandler);
 		if (this.onBackwardStageHandler) EventBus.removeOnEvent('control:backwardStage', this.onBackwardStageHandler);
+		if (this.onFixSizeHandler) EventBus.removeOnEvent('control:fixSize', this.onFixSizeHandler);
 		this.onTogglePauseHandler = null;
 		this.onToggleSoundHandler = null;
 		this.onToggleAutoHandler = null;
@@ -97,6 +102,7 @@ export default class Control
 		this.onToggleSizeFitHandler = null;
 		this.onForwardStageHandler = null;
 		this.onBackwardStageHandler = null;
+		this.onFixSizeHandler = null;
 
 		if (this.formSelector) {
 			for (const key of Object.keys(this.formSelector)) {
@@ -130,7 +136,6 @@ export default class Control
 		return (g && g.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
 	}
 
-
 	//--------------------------------------------------
 	// 音の設定の読み書き
 	//--------------------------------------------------
@@ -144,7 +149,6 @@ export default class Control
 		const storage = this.getStorage();
 		if( storage ) { storage.setItem("setting_soundSwitch", this.soundSwitch); }
 	}
-
 
 	//--------------------------------------------------
 	// サイズ調整の設定の読み書き
@@ -160,7 +164,6 @@ export default class Control
 		if( storage ) { storage.setItem("setting_sizeFitSwitch", this.sizeFitSwitch); }
 	}
 
-
 	//--------------------------------------------------
 	// ゲーム開始方法の設定の読み書き
 	//--------------------------------------------------
@@ -175,7 +178,6 @@ export default class Control
 		if( storage ) { storage.setItem("setting_continueSwitch", this.continueSwitch); }
 	}
 
-
 	//--------------------------------------------------
 	// 操作方法の設定の読み書き
 	//--------------------------------------------------
@@ -189,7 +191,6 @@ export default class Control
 		const storage = this.getStorage();
 		if( storage ) { storage.setItem("setting_ctrlSwitch", this.ctrlSwitch); }
 	}
-
 
 	//--------------------------------------------------
 	// マウスロック（Pointer Lock）設定の読み書き
@@ -207,7 +208,6 @@ export default class Control
 		if( storage ) { storage.setItem("setting_pointerLockSwitch", this.pointerLockSwitch); }
 	}
 
-
 	//--------------------------------------------------
 	// ステージインデックスの設定の読み書き
 	//--------------------------------------------------
@@ -222,7 +222,6 @@ export default class Control
 		if( storage ) { storage.setItem("continue_stageIndex", this.stageIndex); }
 	}
 
-
 	//--------------------------------------------------
 	// 自動プレイのトグル
 	//--------------------------------------------------
@@ -231,7 +230,6 @@ export default class Control
 		if( this.autoSwitch == 0 ) { this.autoSwitch = 1; }
 		else { this.autoSwitch = 0; }
 	}
-
 
 	//--------------------------------------------------
 	// 一時停止のオン・オフ・トグル
@@ -257,7 +255,6 @@ export default class Control
 		if( this.pauseSwitch == 0 ) { this.pauseSwitchOn(); }
 		else { this.pauseSwitchOff(); }
 	}
-
 
 	//--------------------------------------------------
 	// 音の設定のトグル
@@ -293,7 +290,6 @@ export default class Control
 		// 設定の記録
 		this.recordSoundSwitch();
 	}
-
 
 	//--------------------------------------------------
 	// 画面調整設定のトグル
@@ -335,7 +331,6 @@ export default class Control
 		this.fixSize();
 	}
 
-
 	//--------------------------------------------------
 	// 制御方法の設定のトグル
 	//--------------------------------------------------
@@ -371,7 +366,6 @@ export default class Control
 		this.recordCtrlSwitch();
 	}
 
-
 	//--------------------------------------------------
 	// マウスロック（Pointer Lock）のトグル
 	//--------------------------------------------------
@@ -397,7 +391,6 @@ export default class Control
 
 		this.recordPointerLockSwitch();
 	}
-
 
 	//--------------------------------------------------
 	// ステージインデックスの設定
@@ -427,7 +420,6 @@ export default class Control
 			sel.childNodes[this.stageIndex].selected = 'selected';
 		}
 	}
-
 
 	//--------------------------------------------------
 	// ステージインデックスを進める
@@ -469,7 +461,6 @@ export default class Control
 		}
 	}
 
-
 	//--------------------------------------------------
 	// ステージインデックスを戻す
 	//--------------------------------------------------
@@ -509,7 +500,6 @@ export default class Control
 			storage.setItem("continue_score", 0);
 		}
 	}
-
 
 	//--------------------------------------------------
 	// 画面サイズの調整

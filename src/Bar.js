@@ -52,7 +52,9 @@ export default class Bar
 			this.endamage(damage);
 		};
 		this.onRelaunchHandler = () => {
-			this.relaunch();
+			if (this.absorptionNum > 0) {
+				this.relaunch();
+			}
 		};
 		this.onApplyItemHandler = (itemType) => {
 			this.applyItemEffect(itemType);
