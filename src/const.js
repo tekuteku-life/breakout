@@ -306,7 +306,7 @@ export const DEFAULT_CONFIG = Object.freeze({
 		Object.freeze(['Double', 'Hard', 'Fire', 'Long', 'Short', 'Life', 'Poison', 'SpeedUp', 'SpeedDown', 'Gun', 'Missile', 'Slow', 'Vibrate', 'Absorb', 'Immortal', 'Disturb']),
 	]),
 	blockText: Object.freeze([
-		'', '', 'Bomb', '', '', 'Fuel', '', 'Napalm', '', 'Active', '▲▲▲', '▼▼▼', 'In', 'Out', 'Magnet', 'Repull', 'Blink', 'Attack'
+		'', '', 'Bomb', '', '', 'Fuel', '', 'Napalm', '', 'Move', '▲▲▲', '▼▼▼', 'In', 'Out', 'Magnet', 'Repull', 'Blink', 'Attack'
 	]),
 	blockTextColor: Object.freeze([
 		'', '', '#000000', '', '', '#000000', '', '#ffffff', '#2f2f00', '#ffffff', '#ffffff', '#ffffff', '#dfdfdf', '#dfdfdf', '#FF1A1F', '#FF1A1F', '#bfbfbf', '#ff0000'

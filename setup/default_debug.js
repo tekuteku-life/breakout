@@ -202,7 +202,7 @@ var blockLineColor = new Array(				// ブロックのライン色
 	'#ffffff'
 );
 var blockText = new Array(				// ブロック文字
-	'', '', 'Bomb', '', '', 'Fuel', '', 'Napalm', '', 'Active', '↑↑↑', '↓↓↓'
+	'', '', 'Bomb', '', '', 'Fuel', '', 'Napalm', '', 'Move', '↑↑↑', '↓↓↓'
 );
 var blockTextColor = new Array(				// ブロック文字色
 	'', '', '#000000', '', '', '#000000', '', '#ffffff', '#2f2f00', '#ffffff', '#ffffff', '#ffffff'
