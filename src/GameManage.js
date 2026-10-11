@@ -403,7 +403,6 @@ export default class GameManage {
 		this.screenManage.closeScreen("screen_loading");
 	}
 
-
 	start() {
 		this.stop();
 		this.isRunning = true;
@@ -548,7 +547,7 @@ export default class GameManage {
 
 		// ステータス描画
 		if (this.statusMng) {
-			this.statusMng.printStatus(dynamicCtx);
+			this.statusMng.printStatus();
 		}
 	}
 
@@ -691,6 +690,4 @@ export default class GameManage {
 			this.initAsync(0);
 		};
 	}
-
-
 }

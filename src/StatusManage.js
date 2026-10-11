@@ -24,10 +24,21 @@ export default class StatusManage
 		this.playTime = 0;														// プレイ時間
 		this.displayPoint = 0;													// 表示用ポイント
 		this.displayPointStep = 1;												// 表示用ポイント増加幅
-		this.hiScore = 0;														// ハイスコア
 		this.blockNum = 0;														// 破壊可能ブロック数
 		this.life = 0;															// ライフ
 		this.hearts = new Array();												// ライフ表示用ハート
+		this.statusElements = null;												// ステータス表示用DOM要素キャッシュ
+		this.statusCache = {													// 前回描画値キャッシュ（不要なDOM書き換えをスキップ）
+			lifeSpaceSize: null,
+			score: null,
+			hiScore: null,
+			stage: null,
+			timeMin: null,
+			timeSec: null,
+			mode: null,
+			fps: null,
+			balls: null,
+		};
 
 		// EventBus経由でライフ・ブロック数変更要求を購読
 		this.onAddLifeHandler = (amount = 1) => {
@@ -56,6 +67,8 @@ export default class StatusManage
 			}
 		}
 		this.hearts = new Array();
+		this.statusElements = null;
+		this.statusCache = null;
 		this.game = null;
 	}
 
@@ -79,7 +92,6 @@ export default class StatusManage
 		return (this.game && this.game.staticCtx) || null;
 	}
 
-
 	//--------------------------------------------------
 	// 初期化
 	//--------------------------------------------------
@@ -93,7 +105,6 @@ export default class StatusManage
 			this.hearts[i] = new Heart((i * 17 + 36), 9, ( i < this.life ? 1 : 0 ), this.game);
 		}
 	}
-
 
 	//--------------------------------------------------
 	// FPSの測定
@@ -141,7 +152,6 @@ export default class StatusManage
 		}
 	}
 
-
 	//--------------------------------------------------
 	// 実測FPSの取得
 	//--------------------------------------------------
@@ -154,7 +164,6 @@ export default class StatusManage
 		return measuredFPS;
 	}
 
-
 	//--------------------------------------------------
 	// プレイ時間の計測
 	//--------------------------------------------------
@@ -166,7 +175,6 @@ export default class StatusManage
 		if( (this.startTime == 0 && ballNum != 0) || ballNum == 0 || (ctrl && ctrl.pauseSwitch == 1) ) { this.startTime = Date.now() - this.playTime; }
 		if( ballNum > 0 ) { this.playTime = Date.now() - this.startTime; }
 	}
-
 
 	//--------------------------------------------------
 	// 表示用プレイ時間の秒数を取得
@@ -184,7 +192,6 @@ export default class StatusManage
 		return playTimeStr;
 	}
 
-
 	//--------------------------------------------------
 	// 表示用プレイ時間の分数を取得
 	//--------------------------------------------------
@@ -194,7 +201,6 @@ export default class StatusManage
 
 		return playTime_min;
 	}
-
 
 	//--------------------------------------------------
 	// 表示用ポイント数の取得
@@ -218,7 +224,6 @@ export default class StatusManage
 		return this.displayPoint;
 	}
 
-
 	//--------------------------------------------------
 	// 破壊可能ブロック数の計算
 	//--------------------------------------------------
@@ -241,7 +246,6 @@ export default class StatusManage
 			}
 		}
 	}
-
 
 	//--------------------------------------------------
 	// ライフの加算
@@ -269,7 +273,6 @@ export default class StatusManage
 		if (staticCtx) this.drawLife(staticCtx);
 	}
 
-
 	//--------------------------------------------------
 	// ライフの有無（あればtrue、なければfalse）
 	//--------------------------------------------------
@@ -278,7 +281,6 @@ export default class StatusManage
 		if( this.life > 0 ) { return true; }
 		else { return false; }
 	}
-
 
 	//--------------------------------------------------
 	// ライフの描画
@@ -295,29 +297,77 @@ export default class StatusManage
 	}
 
 	//--------------------------------------------------
-	// ステータスの表示
+	// ステータス表示用DOM要素の取得・キャッシュ
 	//--------------------------------------------------
-	printStatus(dynamicCtx) {
+	getStatusElements() {
+		if (typeof document === 'undefined') { return null; }
+		if (this.statusElements && this.statusElements.score) {
+			return this.statusElements;
+		}
+		const scoreEl = document.getElementById("status_score");
+		if (!scoreEl) { return null; }
+		this.statusElements = {
+			body: document.getElementById("status_bar_body"),
+			score: scoreEl,
+			hiScore: document.getElementById("status_hi_score"),
+			stage: document.getElementById("status_stage"),
+			timeMin: document.getElementById("status_time_min"),
+			timeSec: document.getElementById("status_time_sec"),
+			mode: document.getElementById("status_mode"),
+			fps: document.getElementById("status_fps"),
+			balls: document.getElementById("status_balls"),
+		};
+		return this.statusElements;
+	}
+
+	updateStatusElement(el, cacheKey, value) {
+		if (!this.statusCache || this.statusCache[cacheKey] === value) {
+			return false;
+		}
+		this.statusCache[cacheKey] = value;
+		if (el) {
+			el.textContent = value;
+		}
+		return true;
+	}
+
+	//--------------------------------------------------
+	// ステータスの表示（差分のみDOM更新）
+	//--------------------------------------------------
+	printStatus() {
 		if (typeof document === 'undefined' || !this.game || !this.game.scoreMng || !this.game.ctrl) { return; }
-		const playInfo = document.getElementById("play_info");
-		if (!playInfo) { return; }
+		const els = this.getStatusElements();
+		if (!els || !this.statusCache) { return; }
 
 		const scoreMng = this.getScoreMng();
 		const ctrl = this.getCtrl();
-		const displayPoint = this.getDisplayPoint();
-		const playTime = this.getPlaySecTime();
-		const playTime_min = this.getPlayMinTime();
-		const stageTitles = (this.game && this.game.stageTitle) || [];
-		const stageTitleStr = stageTitles[ctrl.stageIndex] || '';
-
-		let text = '/ Score:' + displayPoint + ' / Hi-Score:' + String(scoreMng.hiScore);
-		text += ' / Stage:' + stageTitleStr + ' / Time:' + playTime_min + '\'' + playTime + ' / Mode:' + (ctrl.autoSwitch === 0 ? 'MP' : 'AP');
-		text += '<span style="font-size: 0.8em; margin-left: 3em;">' + this.getRealFPS() + 'fps / ' + String(this.getBalls().length) + '</span>';
-
 		const maxLife = this.game.maxLife || DEFAULT_CONFIG.maxLife;
 		const lifeSpaceSize = maxLife * 17 + 5;
 
-		playInfo.innerHTML = 'Life' + '<span style="margin-left: ' + lifeSpaceSize + 'px;">' + text + '</span>';
+		if (this.statusCache.lifeSpaceSize !== lifeSpaceSize) {
+			this.statusCache.lifeSpaceSize = lifeSpaceSize;
+			if (els.body && els.body.style) {
+				els.body.style.marginLeft = lifeSpaceSize + 'px';
+			}
+		}
+
+		const displayPoint = String(this.getDisplayPoint());
+		const hiScore = String(scoreMng.hiScore);
+		const stageTitles = this.game.stageTitle || [];
+		const stageTitleStr = String(stageTitles[ctrl.stageIndex] || '');
+		const playTimeMin = this.getPlayMinTime();
+		const playTimeSec = this.getPlaySecTime();
+		const modeStr = ctrl.autoSwitch === 0 ? 'MP' : 'AP';
+		const realFPS = this.getRealFPS();
+		const ballCount = String(this.getBalls().length);
+
+		this.updateStatusElement(els.score, 'score', displayPoint);
+		this.updateStatusElement(els.hiScore, 'hiScore', hiScore);
+		this.updateStatusElement(els.stage, 'stage', stageTitleStr);
+		this.updateStatusElement(els.timeMin, 'timeMin', playTimeMin);
+		this.updateStatusElement(els.timeSec, 'timeSec', playTimeSec);
+		this.updateStatusElement(els.mode, 'mode', modeStr);
+		this.updateStatusElement(els.fps, 'fps', realFPS);
+		this.updateStatusElement(els.balls, 'balls', ballCount);
 	}
 }
-

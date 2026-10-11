@@ -364,7 +364,27 @@ export function setupEnvironment() {
 	getOrCreate('static', 'canvas');
 	getOrCreate('dynamic', 'canvas');
 	getOrCreate('canvas_background', 'div');
-	getOrCreate('play_info', 'div');
+	const playInfo = getOrCreate('play_info', 'div');
+	const playInfoMatch = indexHtml.match(/<div id="play_info">([\s\S]*?)<\/div>/);
+	if (playInfoMatch) {
+		playInfo.innerHTML = playInfoMatch[1];
+	}
+	const statusBarBody = getOrCreate('status_bar_body', 'span');
+	statusBarBody.style.marginLeft = '90px';
+	const statusIds = [
+		'status_score',
+		'status_hi_score',
+		'status_stage',
+		'status_time_min',
+		'status_time_sec',
+		'status_mode',
+		'status_fps',
+		'status_balls',
+	];
+	for (const stId of statusIds) {
+		statusBarBody.appendChild(getOrCreate(stId, 'span'));
+	}
+	playInfo.appendChild(statusBarBody);
 	getOrCreate('debug_info', 'div');
 
 	// Record elements

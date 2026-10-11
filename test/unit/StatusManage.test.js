@@ -199,5 +199,98 @@ test('StatusManage class unit tests', async (t) => {
 		assert.equal(sm.getBlockMap(), mockBlockMap);
 		assert.equal(sm.getStaticCtx(), mockStaticCtx);
 	});
-});
 
+	await t.test('printStatus updates only target value spans and skips DOM writes when values are unchanged', () => {
+		setupEnvironment();
+		const game = createMockGame({
+			maxLife: 5,
+			stageTitle: ['Normal', 'Hard'],
+			scoreMng: { score: 100, hiScore: 500 },
+			ctrl: { stageIndex: 0, autoSwitch: 0, pauseSwitch: 0 },
+			balls: [{}, {}],
+		});
+		const sm = new StatusManage(game);
+		sm.displayPoint = 100;
+		sm.realFPS = 60;
+		sm.getPlayMinTime = () => '2';
+		sm.getPlaySecTime = () => '34.5';
+
+		const scoreEl = document.getElementById('status_score');
+		const hiScoreEl = document.getElementById('status_hi_score');
+		const stageEl = document.getElementById('status_stage');
+		const timeMinEl = document.getElementById('status_time_min');
+		const timeSecEl = document.getElementById('status_time_sec');
+		const modeEl = document.getElementById('status_mode');
+		const fpsEl = document.getElementById('status_fps');
+		const ballsEl = document.getElementById('status_balls');
+		const bodyEl = document.getElementById('status_bar_body');
+
+		const writeCounts = {
+			score: 0,
+			hiScore: 0,
+			stage: 0,
+			timeMin: 0,
+			timeSec: 0,
+			mode: 0,
+			fps: 0,
+			balls: 0,
+		};
+		const attachSpy = (el, key) => {
+			let val = '';
+			Object.defineProperty(el, 'textContent', {
+				get: () => val,
+				set: (v) => {
+					val = v;
+					writeCounts[key]++;
+				},
+				configurable: true,
+			});
+		};
+		attachSpy(scoreEl, 'score');
+		attachSpy(hiScoreEl, 'hiScore');
+		attachSpy(stageEl, 'stage');
+		attachSpy(timeMinEl, 'timeMin');
+		attachSpy(timeSecEl, 'timeSec');
+		attachSpy(modeEl, 'mode');
+		attachSpy(fpsEl, 'fps');
+		attachSpy(ballsEl, 'balls');
+
+		// 1st call: initializes all 8 fields
+		sm.printStatus();
+		assert.equal(bodyEl.style.marginLeft, '90px');
+		assert.equal(scoreEl.textContent, '100');
+		assert.equal(hiScoreEl.textContent, '500');
+		assert.equal(stageEl.textContent, 'Normal');
+		assert.equal(timeMinEl.textContent, '2');
+		assert.equal(timeSecEl.textContent, '34.5');
+		assert.equal(modeEl.textContent, 'MP');
+		assert.equal(fpsEl.textContent, '60.0');
+		assert.equal(ballsEl.textContent, '2');
+		for (const key of Object.keys(writeCounts)) {
+			assert.equal(writeCounts[key], 1, `${key} should be written once on initial render`);
+		}
+
+		// 2nd call with identical values: all DOM writes must be skipped
+		sm.printStatus();
+		for (const key of Object.keys(writeCounts)) {
+			assert.equal(writeCounts[key], 1, `${key} should not be rewritten when value is unchanged`);
+		}
+
+		// 3rd call with only mode and balls changed: only mode and balls are written
+		game.ctrl.autoSwitch = 1;
+		game.objectManage.balls = [{}];
+		sm.printStatus();
+		assert.equal(modeEl.textContent, 'AP');
+		assert.equal(ballsEl.textContent, '1');
+		assert.equal(writeCounts.mode, 2);
+		assert.equal(writeCounts.balls, 2);
+		assert.equal(writeCounts.score, 1);
+		assert.equal(writeCounts.hiScore, 1);
+		assert.equal(writeCounts.stage, 1);
+		assert.equal(writeCounts.timeMin, 1);
+		assert.equal(writeCounts.timeSec, 1);
+		assert.equal(writeCounts.fps, 1);
+
+		sm.destructor();
+	});
+});

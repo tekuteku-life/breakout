@@ -104,7 +104,7 @@ test('GameManage class unit tests', async (t) => {
 		gm.init(0);
 		gm.stop();
 
-		gm.statusMng.printStatus(gm.dynamicCtx);
+		gm.statusMng.printStatus();
 
 		// Trigger game over
 		gm.statusMng.life = 0;
