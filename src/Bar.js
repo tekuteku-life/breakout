@@ -1,7 +1,7 @@
 // src/Bar.js
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
-import { DEFAULT_CONFIG, BAR_PARAM, ITEM_TYPE } from "./const.js";
+import { DEFAULT_CONFIG, BAR_PARAM, ITEM_TYPE, WEAPON_PARAM } from "./const.js";
 import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
@@ -114,7 +114,6 @@ export default class Bar
 		this.game = null;
 	}
 
-
 	getEventBus()
 	{
 		return (this.game && this.game.eventBus) || EventBus;
@@ -161,7 +160,6 @@ export default class Bar
 	getCanvasWidth() {
 		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
 	}
-
 
 	//--------------------------------------------------
 	// 描画
@@ -214,7 +212,6 @@ export default class Bar
 		ctx.globalAlpha = 1;
 	}
 
-
 	//--------------------------------------------------
 	// 上下・左右・中央座標取得
 	//--------------------------------------------------
@@ -238,7 +235,6 @@ export default class Bar
 		return this.y + this.height;
 	}
 
-
 	//--------------------------------------------------
 	// ボールを再発射
 	//--------------------------------------------------
@@ -246,7 +242,6 @@ export default class Bar
 	{
 		this.getEventBus().emitEvent('ball:relaunch', { barVx: this.vx });
 	}
-
 
 	//--------------------------------------------------
 	// 衝突判定（画面端との衝突・位置制限）
@@ -266,7 +261,6 @@ export default class Bar
 		}
 		return false;
 	}
-
 
 	//--------------------------------------------------
 	//--------------------------------------------------
@@ -323,6 +317,26 @@ export default class Bar
 	{
 		// 武器発射間隔の制御
 		if( this.weaponInter > 0 ) { this.weaponInter--; }
+	}
+
+	//--------------------------------------------------
+	// 武器発射可否判定（バー側での厳格な一元管理）
+	//--------------------------------------------------
+	canFireWeapon(weapons = [], customMaxNum = null, weaponType = null)
+	{
+		const currentWeapon = (weaponType !== null && weaponType !== undefined) ? weaponType : this.weapon;
+		if (!currentWeapon || currentWeapon <= 0) {
+			return false;
+		}
+		if (this.weaponInter > 0) {
+			return false;
+		}
+		const weaponMaxNum = customMaxNum || (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
+		const maxAllowed = (weaponMaxNum && weaponMaxNum[currentWeapon - 1] !== undefined)
+			? weaponMaxNum[currentWeapon - 1]
+			: 1;
+		const myWeaponsCount = (weapons || []).filter(w => (w && w.vect !== undefined ? w.vect > 0 : true)).length;
+		return myWeaponsCount < maxAllowed;
 	}
 
 	//--------------------------------------------------
@@ -389,7 +403,6 @@ export default class Bar
 		this.updateWeapon();
 	}
 
-
 	//--------------------------------------------------
 	// HPの減少
 	//--------------------------------------------------
@@ -410,7 +423,6 @@ export default class Bar
 			this.getEventBus().emitEvent('status:addLife', -1);
 		}
 	}
-
 
 	//--------------------------------------------------
 	// アイテム効果の適用（this.getEventBus()からの通知を受信）

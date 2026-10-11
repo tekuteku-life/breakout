@@ -34,6 +34,150 @@ export function isHarmfulItem(type) {
 }
 
 /**
+ * アイテムの空間・時間メトリクスを正確に算出
+ * Item.checkCollision(bar) は item.getBottomY() > bar.getTopY() かつ item.y <= canvasHeight の全期間で成立するため、
+ * 下端がバー上面に達する時刻(hitStartTime)から、上端がcanvasHeightを超えて消滅する時刻(passEndTime)までを危険期間とする。
+ */
+export function getItemMetrics(it, bar, config) {
+	const itSpeed = it.speed || 4;
+	const itemW = it.width || (config && config.blkWidth) || DEFAULT_CONFIG.blockWidth || 50;
+	const itemH = it.height || (config && config.blkHeight) || DEFAULT_CONFIG.blockHeight || 20;
+	const barW = (bar && bar.width) || DEFAULT_CONFIG.barDefaultWidth || 100;
+	const barH = (bar && bar.height) || DEFAULT_CONFIG.barDefaultHeight || 10;
+	const barY = (bar && bar.y !== undefined) ? bar.y : 517.5;
+	const rawCanvasH = (config && config.canvasHeight) || DEFAULT_CONFIG.canvasHeight || 530;
+	const canvasHeight = Math.min(Math.max(barY + 12, rawCanvasH), barY + barH + 8);
+
+	const itemX = typeof it.getCenterX === 'function'
+		? it.getCenterX()
+		: (it.centerX !== undefined ? it.centerX : (it.width !== undefined ? (it.x + it.width / 2) : it.x));
+
+	let itTopY, itBottomY, itCenterY;
+	if (typeof it.getTopY === 'function' && typeof it.getBottomY === 'function') {
+		itTopY = it.getTopY();
+		itBottomY = it.getBottomY();
+		itCenterY = it.getCenterY();
+	} else if (it.topY !== undefined && it.bottomY !== undefined) {
+		itTopY = it.topY;
+		itBottomY = it.bottomY;
+		itCenterY = it.centerY !== undefined ? it.centerY : (itTopY + itBottomY) / 2;
+	} else if (it.height !== undefined) {
+		itTopY = it.y;
+		itBottomY = it.y + itemH;
+		itCenterY = it.y + itemH / 2;
+	} else {
+		itCenterY = it.y;
+		itTopY = it.y - itemH / 2;
+		itBottomY = it.y + itemH / 2;
+	}
+
+	const isActive = itTopY <= canvasHeight;
+	const hitStartTime = Math.max(0, (barY - itBottomY) / itSpeed);
+	const centerTime = Math.max(0, (barY - itCenterY) / itSpeed);
+	const passEndTime = Math.max(0, (canvasHeight - itTopY) / itSpeed + 1);
+	const hitRadius = (barW + itemW) / 2;
+	const safeDist = hitRadius + 25;
+
+	return {
+		itemX,
+		itemW,
+		itemH,
+		itSpeed,
+		itTopY,
+		itBottomY,
+		itCenterY,
+		isActive,
+		hitStartTime,
+		centerTime,
+		passEndTime,
+		hitRadius,
+		safeDist,
+	};
+}
+
+/**
+ * 落下ボールと有害アイテムの時空間干渉（被弾脅威度）を厳密に評価
+ * @returns {number} 脅威スコア (0: 安全に回避・両立可能, >0: 回避不能な干渉リスク)
+ */
+export function evalBallHarmfulThreat(bCandidate, it, bar, config, moveSpeed = 8) {
+	if (!isHarmfulItem(it.type)) return 0;
+	const m = getItemMetrics(it, bar, config);
+	if (!m.isActive) return 0;
+
+	const barW = bar.width || 100;
+	const ballX = bCandidate.fallX !== undefined ? bCandidate.fallX : bCandidate.x;
+	const ballTime = bCandidate.fallTime !== undefined ? bCandidate.fallTime : 0;
+
+	// 0. 移動経路上の横断リスクチェック（現在地 bar.x と ballX の間に有害アイテムが落下中の場合）
+	if (bar && bar.x !== undefined) {
+		const crossesItem = (bar.x < m.itemX - m.hitRadius * 0.5 && ballX > m.itemX) ||
+			(bar.x > m.itemX + m.hitRadius * 0.5 && ballX < m.itemX);
+		if (crossesItem) {
+			const distToCrossClear = Math.abs(m.itemX - bar.x) + m.safeDist;
+			const crossTime = distToCrossClear / moveSpeed;
+			if (m.hitStartTime <= crossTime + 10) {
+				// 今すぐ横切ると衝突する。アイテム完全通過後(passEndTime)に出発して間に合うか？
+				const waitX = bar.x <= m.itemX ? (m.itemX - m.safeDist) : (m.itemX + m.safeDist);
+				const distAfterPass = Math.max(0, Math.abs(ballX - waitX) - barW * 0.35);
+				const timeAfterPass = m.passEndTime + distAfterPass / moveSpeed;
+				if (timeAfterPass > ballTime - 1.5) {
+					const typeWeight = (it.type === ITEM_TYPE.POISON) ? 2000 : 1000;
+					return typeWeight + 500;
+				}
+			}
+		}
+	}
+
+	// 1. 空間的に十分離れている（バー中心がボール位置にあっても安全距離以上）
+	const centerDist = Math.abs(m.itemX - ballX);
+	if (centerDist >= m.safeDist) {
+		return 0; // 完全安全
+	}
+
+	// 2. 時系列による判定
+	// 2-a. ボールが先、アイテムが後 (ballTime < m.hitStartTime)
+	if (ballTime <= m.hitStartTime - 5) {
+		const timeGap = m.hitStartTime - ballTime;
+		const escapeDist = Math.max(0, m.safeDist - centerDist);
+		const escapeTime = escapeDist / moveSpeed;
+		if (escapeTime + 6 <= timeGap) {
+			return 0; // ボール救出後に余裕で安全距離へ逃げ切れる！
+		}
+	}
+
+	// 2-b. アイテムが先、ボールが後 (m.passEndTime < ballTime)
+	if (m.centerTime <= ballTime - 5) {
+		const effectivePassTime = Math.min(m.passEndTime, m.centerTime + 4);
+		const timeGap = ballTime - effectivePassTime;
+		const reachDist = Math.max(0, m.safeDist - centerDist);
+		const reachTime = reachDist / moveSpeed;
+		if (timeGap > 0 && reachTime <= timeGap - 1.5) {
+			return 0; // アイテム回避後に余裕でボールに間に合う！
+		}
+	}
+
+	// 2-c. 同時衝突または僅差
+	// 端受球（オフセット受球: ±(barW/2 - 8)）で安全距離を確保できるか？
+	// ※ POISON（ライフ-1）の場合はかすり被弾リスクを排除するためより広い安全マージンを要求
+	const maxOffset = barW / 2 - 8;
+	const offsetDir = m.itemX >= ballX ? -1 : 1;
+	const rawEdgeTargetX = ballX + offsetDir * maxOffset;
+	const cWidth = (config && config.canvasWidth) || 800;
+	const edgeTargetX = Math.max(barW / 2, Math.min(cWidth - barW / 2, rawEdgeTargetX));
+	const edgeDist = Math.abs(edgeTargetX - m.itemX);
+	const requiredEdgeMargin = (it.type === ITEM_TYPE.POISON) ? 22 : 12;
+
+	if (Math.abs(edgeTargetX - ballX) <= barW / 2 && edgeDist >= m.hitRadius + requiredEdgeMargin) {
+		return 0; // 端受球で安全に両立可能！
+	}
+
+	// 3. 回避不能な干渉
+	const typeWeight = (it.type === ITEM_TYPE.POISON) ? 2000 : 1000;
+	const proximityScore = Math.max(1, m.safeDist - edgeDist);
+	return typeWeight + proximityScore;
+}
+
+/**
  * シミュレーション用ゲームコンテキストの作成
  */
 export function createSimGame(config) {
@@ -331,19 +475,21 @@ export function getNearbyBlocksForSimulation(ball, blockMap, config) {
 	const blkHeight = (config && (config.blkHeight || config.blockHeight)) || DEFAULT_CONFIG.blockHeight;
 	const sBarHeight = (config && (config.statusBarHeight !== undefined)) ? config.statusBarHeight : DEFAULT_CONFIG.statusBarHeight;
 
-	const stepX = (ball.vx || 0) < 0 ? -1 : 1;
-	const stepY = (ball.vy || 0) < 0 ? -1 : 1;
 	const radius = ball.radius || 5;
+	const vx = ball.vx || 0;
+	const vy = ball.vy || 0;
+	const prevX = ball.x - vx;
+	const prevY = ball.y - vy;
 
-	const startX = Math.floor((ball.x - radius * stepX) / blkWidth);
-	const endX = Math.floor((ball.x + radius * stepX) / blkWidth);
-	const startY = Math.floor((ball.y - radius * stepY - sBarHeight) / blkHeight);
-	const endY = Math.floor((ball.y + radius * stepY - sBarHeight) / blkHeight);
+	const minBoundX = Math.min(ball.x, prevX) - radius;
+	const maxBoundX = Math.max(ball.x, prevX) + radius;
+	const minBoundY = Math.min(ball.y, prevY) - radius;
+	const maxBoundY = Math.max(ball.y, prevY) + radius;
 
-	const minX = Math.max(0, Math.min(startX, endX));
-	const maxX = Math.max(startX, endX);
-	const minY = Math.max(0, Math.min(startY, endY));
-	const maxY = Math.max(startY, endY);
+	const minX = Math.max(0, Math.floor(minBoundX / blkWidth));
+	const maxX = Math.floor(maxBoundX / blkWidth);
+	const minY = Math.max(0, Math.floor((minBoundY - sBarHeight) / blkHeight));
+	const maxY = Math.floor((maxBoundY - sBarHeight) / blkHeight);
 
 	const candidates = [];
 	for (let i = minY; i <= maxY; i++) {
@@ -356,6 +502,19 @@ export function getNearbyBlocksForSimulation(ball, blockMap, config) {
 			}
 		}
 	}
+
+	if (candidates.length > 1) {
+		candidates.sort((a, b) => {
+			const midAX = a.x + a.width / 2;
+			const midAY = a.y + a.height / 2;
+			const midBX = b.x + b.width / 2;
+			const midBY = b.y + b.height / 2;
+			const distA = (prevX - midAX) ** 2 + (prevY - midAY) ** 2;
+			const distB = (prevX - midBX) ** 2 + (prevY - midBY) ** 2;
+			return distA - distB;
+		});
+	}
+
 	return candidates;
 }
 
@@ -891,46 +1050,32 @@ export function runAutoPlaySimulation(snapshot) {
 		.sort((a, b) => a.fallTime - b.fallTime);
 
 	const isMultiBall = rawBalls.length > 1;
-	let primaryBallIndex = 0;
+	const hasActiveHostileWeapons = weapons.some((w) => w && w.vect < 0);
+	const hasActiveHarmfulItems = items.some((it) => it && isHarmfulItem(it.type) && getItemMetrics(it, bar, config).isActive);
 
-	// 複数ボール時: 落下位置・時刻が有害デバフアイテム（POISON, SHORT, SPEED_DOWN等）の被弾ゾーンと重なるボールを回避し、
-	// 最も安全に救出できるボールを選択する (C-1)
-	if (isMultiBall && fallingBalls.length > 0 && items.length > 0) {
-		let safeBallFound = false;
-		for (let bIdx = 0; bIdx < fallingBalls.length; bIdx++) {
-			const bCandidate = fallingBalls[bIdx];
-			const isCandidateInDanger = items.some((it) => {
-				if (!isHarmfulItem(it.type)) { return false; }
-				const itSpeed = it.speed || 4;
-				const itY = typeof it.getCenterY === 'function' ? it.getCenterY() : it.y;
-				if (itY >= bar.y) { return false; }
-				const itTime = (bar.y - itY) / itSpeed;
-				const itemX = typeof it.getCenterX === 'function' ? it.getCenterX() : (it.width ? (it.x + it.width / 2) : it.x);
-				const itemW = it.width || config.blkWidth || 50;
-				const dangerDist = (bar.width + itemW) / 2 + 25;
-				return Math.abs(itTime - bCandidate.fallTime) <= 20 && Math.abs(itemX - bCandidate.fallX) < dangerDist;
-			});
-
-			if (!isCandidateInDanger) {
-				primaryBallIndex = bIdx;
-				safeBallFound = true;
-				break;
-			}
+	// 各落下予測ボールの有害アイテム脅威度を評価
+	for (let bIdx = 0; bIdx < fallingBalls.length; bIdx++) {
+		const bCandidate = fallingBalls[bIdx];
+		let totalThreat = 0;
+		for (let itIdx = 0; itIdx < items.length; itIdx++) {
+			totalThreat += evalBallHarmfulThreat(bCandidate, items[itIdx], bar, config, moveSpeed);
 		}
-
-		// 全ての落下ボールが有害アイテム危険ゾーンと重なっている場合、ボールを無理に拾わず完全退避
-		if (!safeBallFound) {
-			primaryBallIndex = -1;
-		}
+		bCandidate.harmfulThreat = totalThreat;
 	}
 
+	// 複数ボール時: 有害アイテムの被弾ゾーン・移動経路と干渉する危険なボール（harmfulThreat > 0）を除外し、
+	// 安全に救出できるボールのみをターゲット候補とする (C-1: 複数ボール時に毒へ突っ込むデグレを根絶)
+	const candidateFallingBalls = isMultiBall
+		? fallingBalls.filter((b) => b.harmfulThreat === 0)
+		: fallingBalls;
+
 	// 最優先ターゲットボールを確実に設定
-	if (primaryBallIndex >= 0 && fallingBalls.length > primaryBallIndex) {
-		const targetBall = fallingBalls[primaryBallIndex];
+	if (candidateFallingBalls.length > 0) {
+		const targetBall = candidateFallingBalls[0];
 		fallBall = targetBall;
 		fallBallTime = targetBall.fallTime;
 		fallBallI = rawBalls.findIndex((b) => b.id === targetBall.id);
-		if (fallBallI === -1) fallBallI = primaryBallIndex;
+		if (fallBallI === -1) fallBallI = 0;
 	} else {
 		fallBall = null;
 		fallBallTime = Infinity;
@@ -942,8 +1087,8 @@ export function runAutoPlaySimulation(snapshot) {
 	//--------------------------------------------------
 	// 2. 目標バー位置 targetX の決定
 	//--------------------------------------------------
-	if (fallingBalls.length > primaryBallIndex) {
-		const targetBall = fallingBalls[primaryBallIndex];
+	if (candidateFallingBalls.length > 0) {
+		const targetBall = candidateFallingBalls[0];
 		const t1 = targetBall.fallTime;
 		const x1 = targetBall.fallX;
 
@@ -954,19 +1099,18 @@ export function runAutoPlaySimulation(snapshot) {
 		const moveThreshold = timeNeeded + 30;
 
 		// ブロックが存在する実戦フィールドで、長期間戻ってこないボール（t1 > moveThreshold かつ t1 > 60）:
-		// 戻ってくるタイミングが近づくまで追いかける必要はない！
-		// 画面中央のホームポジションでどっしり構えて待機し、無駄な横移動を完全に抑制
+		// ただし敵弾や有害アイテムが存在する時に毎回中央へ戻ろうとすると、弾幕の中を往復して被弾するため現在地で静止待機！
 		if (hasBlocksInField && t1 > moveThreshold && t1 > 60) {
-			targetX = config.canvasWidth / 2;
+			targetX = (hasActiveHostileWeapons || hasActiveHarmfulItems) ? bar.x : (config.canvasWidth / 2);
 		} else {
-			if (fallingBalls.length > primaryBallIndex + 1) {
-				const second = fallingBalls[primaryBallIndex + 1];
+			if (candidateFallingBalls.length > 1) {
+				const second = candidateFallingBalls[1];
 				const t2 = second.fallTime;
 				const x2 = second.fallX;
 				const deltaT = t2 - t1;
 				const distBetween = Math.abs(x1 - x2);
 
-				// 2つのボールがほぼ同時に落ちてくる場合
+				// 2つの安全なボールがほぼ同時に落ちてくる場合
 				if (deltaT <= 3 && distBetween <= bar.width * 0.75) {
 					// 両方をバーの幅の中に収める中間地点
 					targetX = (x1 + x2) / 2;
@@ -984,9 +1128,9 @@ export function runAutoPlaySimulation(snapshot) {
 			}
 		}
 	} else if (rawBalls.length > 0) {
-		// まだ落下予測未到達の場合（長期間戻ってこない＝戻ってくるタイミングがまだわからない）
-		// 戻ってくるタイミングがわかるまでボールを追う必要はないため、画面中央で安定待機
-		targetX = config.canvasWidth / 2;
+		// 落下予測未到達、または複数ボールで危険ボールを見送る場合:
+		// 敵弾・有害アイテムがある場合は無駄に中央へ動かず現在地(bar.x)をベースにし、平時は画面中央で待機
+		targetX = (hasActiveHostileWeapons || hasActiveHarmfulItems) ? bar.x : (config.canvasWidth / 2);
 	}
 
 	//--------------------------------------------------
@@ -996,18 +1140,16 @@ export function runAutoPlaySimulation(snapshot) {
 	let bestItemX = -1;
 	let bestItemTime = -1;
 	if (items.length > 0) {
-		const curItemSpeed = 4;
 		let bestItemScore = -Infinity;
 
 		for (let i = 0; i < items.length; i++) {
 			const it = items[i];
 			if (isHarmfulItem(it.type)) { continue; }
 
-			const itSpeed = it.speed || curItemSpeed;
-			const itY = (typeof it.getCenterY === 'function') ? it.getCenterY() : it.y;
-			const itTime = Math.max(0, (bar.y - itY) / itSpeed);
-
-			const itemX = (typeof it.getCenterX === 'function') ? it.getCenterX() : (it.width ? (it.x + it.width / 2) : it.x);
+			const m = getItemMetrics(it, bar, config);
+			if (!m.isActive) { continue; }
+			const itTime = m.centerTime;
+			const itemX = m.itemX;
 			// バー幅を考慮した必要移動距離（バーの幅の40%を許容マージンとする）
 			const distToReachItem = Math.max(0, Math.abs(bar.x - itemX) - bar.width * 0.4);
 			const timeToReachItem = distToReachItem / moveSpeed;
@@ -1020,9 +1162,9 @@ export function runAutoPlaySimulation(snapshot) {
 				// （ただし終盤全ボール防衛モード時はクリアボーナス優先のためボールを落とさない）
 				if (isMultiBall && it.type === ITEM_TYPE.LIFE && !isEndgame) {
 					canCollectSafely = true;
-				} else if (fallingBalls.length > primaryBallIndex) {
-					const t1 = fallingBalls[primaryBallIndex].fallTime;
-					const x1 = fallingBalls[primaryBallIndex].fallX;
+				} else if (candidateFallingBalls.length > 0) {
+					const t1 = candidateFallingBalls[0].fallTime;
+					const x1 = candidateFallingBalls[0].fallX;
 					const distToBallFromItem = Math.max(0, Math.abs(itemX - x1) - bar.width * 0.4);
 					const timeToBallFromItem = distToBallFromItem / moveSpeed;
 
@@ -1048,14 +1190,15 @@ export function runAutoPlaySimulation(snapshot) {
 				if (canCollectSafely) {
 					const isItemNearHarmful = items.some((hIt) => {
 						if (!isHarmfulItem(hIt.type)) return false;
-						const hSpeed = hIt.speed || curItemSpeed;
-						const hY = typeof hIt.getCenterY === 'function' ? hIt.getCenterY() : hIt.y;
-						if (hY >= bar.y) return false;
-						const hTime = Math.max(0, (bar.y - hY) / hSpeed);
-						const hX = typeof hIt.getCenterX === 'function' ? hIt.getCenterX() : (hIt.width ? (hIt.x + hIt.width / 2) : hIt.x);
-						const hW = hIt.width || config.blkWidth || 50;
-						const harmDist = (bar.width + hW) / 2 + 25;
-						return Math.abs(hTime - itTime) <= 25 && Math.abs(hX - itemX) < harmDist;
+						const hm = getItemMetrics(hIt, bar, config);
+						if (!hm.isActive) return false;
+						// 1. アイテム取得地点での被弾（今から有益アイテム取得完了後まで）
+						if (hm.hitStartTime <= itTime + 15 && Math.abs(hm.itemX - itemX) < hm.safeDist) return true;
+						// 2. 移動経路上での被弾
+						const minPathX = Math.min(bar.x, itemX) - hm.safeDist;
+						const maxPathX = Math.max(bar.x, itemX) + hm.safeDist;
+						if (hm.itemX >= minPathX && hm.itemX <= maxPathX && hm.hitStartTime <= timeToReachItem + 12) return true;
+						return false;
 					});
 					if (isItemNearHarmful) {
 						canCollectSafely = false;
@@ -1090,98 +1233,117 @@ export function runAutoPlaySimulation(snapshot) {
 	// ギリギリかすって被弾しないよう、衝突境界 + 25px 以上の十分な安全クリアランスを確保！
 	//--------------------------------------------------
 	if (items.length > 0) {
-		const curItemSpeed = 4;
-
+		const activeHarmfulMetrics = [];
 		for (let i = 0; i < items.length; i++) {
 			const it = items[i];
-			if (!isHarmfulItem(it.type)) { continue; }
+			if (!isHarmfulItem(it.type)) continue;
+			const m = getItemMetrics(it, bar, config);
+			if (m.isActive && m.hitStartTime <= 70) {
+				activeHarmfulMetrics.push({ it, m });
+			}
+		}
 
-			const itSpeed = it.speed || curItemSpeed;
-			const itY = typeof it.getCenterY === 'function' ? it.getCenterY() : it.y;
-			if (itY >= bar.y) { continue; }
+		for (let i = 0; i < activeHarmfulMetrics.length; i++) {
+			const { it, m } = activeHarmfulMetrics[i];
+			const itemX = m.itemX;
+			const safeDistance = m.safeDist;
+			const hitRadius = m.hitRadius;
 
-			const itTime = (bar.y - itY) / itSpeed;
-			const itemX = typeof it.getCenterX === 'function' ? it.getCenterX() : (it.width ? (it.x + it.width / 2) : it.x);
-			const itemW = it.width || config.blkWidth || 50;
-			// 物理衝突境界 (bar.width + itemW)/2 に対し、スピン・加減速・端部接触を完全に排除する十分な安全距離（+25px）
-			const safeDistance = (bar.width + itemW) / 2 + 25;
-
-			// アイテムが接近しており（65フレーム以内）、targetX または現在地 bar.x と衝突する危険があるか
+			// targetX または現在地 bar.x と衝突する危険、あるいは移動経路上で有害アイテムを踏み抜く危険があるか
 			const willHitTarget = (targetX !== -1) ? (Math.abs(targetX - itemX) < safeDistance) : false;
 			const willHitCurrent = Math.abs(bar.x - itemX) < safeDistance;
+			const crossesItem = (targetX !== -1) && (
+				(bar.x < itemX - hitRadius * 0.5 && targetX > itemX) ||
+				(bar.x > itemX + hitRadius * 0.5 && targetX < itemX)
+			);
+			const crossTime = (Math.abs(itemX - bar.x) + safeDistance) / moveSpeed;
+			const willCrossPath = crossesItem && (m.hitStartTime <= crossTime + 12);
 
-			if (itTime <= 65 && (willHitTarget || willHitCurrent)) {
-				// ボールが直後に落ちてくるかチェック
-				let mustCatchBallSoon = false;
-				let ballFallX = -1;
+			if (willHitTarget || willHitCurrent || willCrossPath) {
+				const hasFallBall = (fallBall !== null && fallBallTime !== Infinity);
+				const ballFallX = hasFallBall ? (fallBall.fallX !== undefined ? fallBall.fallX : fallBall.x) : -1;
 
-				// 複数ボールがある場合、デバフアイテムはボールを落としてでも絶対に回避する！
-				const ignoreBallCatchForHarm = isMultiBall && isHarmfulItem(it.type);
+				if (hasFallBall && !willCrossPath) {
+					const maxCatchOffset = bar.width / 2 - 8;
+					const offsetDir = itemX >= ballFallX ? -1 : 1;
+					const rawEdgeTargetX = ballFallX + offsetDir * maxCatchOffset;
+					const edgeTargetX = Math.max(bar.width / 2, Math.min(config.canvasWidth - bar.width / 2, rawEdgeTargetX));
+					const canCatchAtEdge = Math.abs(edgeTargetX - ballFallX) <= bar.width / 2;
+					const requiredEdgeMargin = (it.type === ITEM_TYPE.POISON && isMultiBall) ? 22 : 12;
+					const isEdgeSafe = canCatchAtEdge && (Math.abs(edgeTargetX - itemX) >= hitRadius + requiredEdgeMargin);
 
-				if (!ignoreBallCatchForHarm && fallBall !== null && fallBallTime !== Infinity) {
-					if (Math.abs(fallBallTime - itTime) <= 8) {
-						mustCatchBallSoon = true;
-						ballFallX = fallBall.fallX !== undefined ? fallBall.fallX : fallBall.x;
+					// A. ボールが有害アイテムより先に落ちてきて、拾った後に確実に安全圏へ脱出できる場合
+					if (fallBallTime <= m.hitStartTime - 5) {
+						const timeGap = m.hitStartTime - fallBallTime;
+						const catchX = isEdgeSafe ? edgeTargetX : ballFallX;
+						const escapeDist = Math.max(0, safeDistance - Math.abs(catchX - itemX));
+						const escapeTime = escapeDist / moveSpeed;
+						if (escapeTime + 6 <= timeGap) {
+							if (isEdgeSafe) {
+								targetX = edgeTargetX;
+							}
+							continue;
+						}
 					}
+
+					// B. 同時衝突または僅差: 端受球オフセットで安全距離を確保できる場合
+					if (isEdgeSafe && m.hitStartTime >= fallBallTime - 3) {
+						targetX = edgeTargetX;
+						continue;
+					}
+
+					// C. 両立不能かつアイテムがボールと同時期（先に通り過ぎた後に拾えない）で単一ボールの場合:
+					// 単一ボール時はライフ喪失防止のためボール救出を絶対最優先！（ただしアイテムが先に通過し終わる場合はまず退避してやり過ごす）
+					const effectivePassTime = Math.min(m.passEndTime, m.centerTime + 4);
+					const canEvadeThenCatch = (effectivePassTime < fallBallTime - 4) &&
+						(( safeDistance / moveSpeed ) <= (fallBallTime - effectivePassTime - 1.5));
+					if (!isMultiBall && !canEvadeThenCatch) {
+						targetX = canCatchAtEdge ? edgeTargetX : ballFallX;
+						continue;
+					}
+					// 複数ボール時、または先にアイテムをやり過ごしてから拾える場合は、今は完全退避を実行！
 				}
 
-				if (mustCatchBallSoon) {
-					// 単一ボール時の緊急ボール救出:
-					// ボールをバーの端（端から8px内側）で確実に受け止めつつ、有害アイテムから最大限遠ざける
-					const maxCatchOffset = bar.width / 2 - 8;
-					let edgeTargetX = targetX;
-					if (itemX >= ballFallX) {
-						// アイテムが右側なら、バーを左に寄せてボールを右端で受ける
-						edgeTargetX = ballFallX - maxCatchOffset;
-					} else {
-						// アイテムが左側なら、バーを右に寄せてボールを左端で受ける
-						edgeTargetX = ballFallX + maxCatchOffset;
-					}
+				// D. 完全退避（画面内の全有害アイテムから安全で、現在地から 가장 近い位置を選択）
+				const minBarX = bar.width / 2;
+				const maxBarX = config.canvasWidth - bar.width / 2;
+				const avoidLeftX = Math.max(minBarX, itemX - safeDistance);
+				const avoidRightX = Math.min(maxBarX, itemX + safeDistance);
 
-					// ずらした結果、アイテムとの距離が物理衝突限界 + 12px 以上確保できるか？
-					const hitRadius = (bar.width + itemW) / 2;
-					if (Math.abs(edgeTargetX - itemX) >= hitRadius + 12) {
-						targetX = edgeTargetX;
+				const isPosSafeFromAll = (candX) => {
+					if (candX < minBarX || candX > maxBarX) return false;
+					return activeHarmfulMetrics.every((h) => Math.abs(candX - h.m.itemX) >= h.m.safeDist - 2);
+				};
+
+				const canLeft = (itemX - safeDistance >= minBarX) && isPosSafeFromAll(avoidLeftX);
+				const canRight = (itemX + safeDistance <= maxBarX) && isPosSafeFromAll(avoidRightX);
+
+				if (canLeft || canRight) {
+					if (bar.x <= itemX) {
+						targetX = canLeft ? avoidLeftX : avoidRightX;
 					} else {
-						// どうしても両立できない至近距離の場合:
-						// 毒(POISON)はライフ減少リスクがあるため完全退避を最優先
-						if (it.type === ITEM_TYPE.POISON) {
-							const avoidLeftX = itemX - safeDistance;
-							const avoidRightX = itemX + safeDistance;
-							targetX = (bar.x <= itemX) ? avoidLeftX : avoidRightX;
-						} else {
-							targetX = edgeTargetX;
-						}
+						targetX = canRight ? avoidRightX : avoidLeftX;
 					}
 				} else {
-					// 完全退避: 有害アイテムから物理衝突境界 + 25px 以上完全に離れた安全位置へ移動
-					const avoidLeftX = itemX - safeDistance;
-					const avoidRightX = itemX + safeDistance;
-					const canLeft = avoidLeftX >= bar.width / 2;
-					const canRight = avoidRightX <= config.canvasWidth - bar.width / 2;
-
-					// アイテムの真下をくぐって横切らないよう、現在位置から離れる安全方向を選択
-					if (bar.x <= itemX) {
-						// バーがアイテムの左側にいるなら左へ退避
-						if (canLeft) {
-							targetX = avoidLeftX;
-						} else if (canRight) {
-							targetX = avoidRightX;
-						} else {
-							targetX = bar.width / 2;
+					// 複数の有害アイテムで挟まれている場合、グリッド探索で全有害アイテムから最も安全な位置を選択
+					let bestSafeX = (bar.x <= itemX) ? avoidLeftX : avoidRightX;
+					let bestSafeMargin = -Infinity;
+					for (let gx = minBarX; gx <= maxBarX; gx += 10) {
+						let minMargin = Infinity;
+						for (let k = 0; k < activeHarmfulMetrics.length; k++) {
+							const hm = activeHarmfulMetrics[k].m;
+							const margin = Math.abs(gx - hm.itemX) - hm.safeDist;
+							if (margin < minMargin) minMargin = margin;
 						}
-					} else {
-						// バーがアイテムの右側にいるなら右へ退避
-						if (canRight) {
-							targetX = avoidRightX;
-						} else if (canLeft) {
-							targetX = avoidLeftX;
-						} else {
-							targetX = config.canvasWidth - bar.width / 2;
+						const score = minMargin * 100 - Math.abs(gx - bar.x) * 0.1;
+						if (score > bestSafeMargin) {
+							bestSafeMargin = score;
+							bestSafeX = gx;
 						}
 					}
-					isFetchingItem = false;
+					targetX = bestSafeX;
 				}
+				isFetchingItem = false;
 			}
 		}
 	}
@@ -1190,7 +1352,14 @@ export function runAutoPlaySimulation(snapshot) {
 	// 2-D. 武器使用のための能動的移動（ボール救出絶対最優先！）
 	// ボール落下まで十分な余裕がある安全な時間帯のみ、ブロック破壊列（breakX）へ移動
 	//--------------------------------------------------
-	if (bar.weapon > 0) {
+	const weaponMaxNum = (config && config.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
+	const maxAllowed = (weaponMaxNum && weaponMaxNum[bar.weapon - 1] !== undefined)
+		? weaponMaxNum[bar.weapon - 1]
+		: 1;
+	const myWeaponsCount = (weapons || []).filter(w => (w && w.vect !== undefined ? w.vect > 0 : true)).length;
+	const canFireMore = myWeaponsCount < maxAllowed;
+
+	if (bar.weapon > 0 && canFireMore) {
 		const blockLine = computeBlockLine(rawBlocks, weapons, bar.weapon, config);
 		const checkX = (targetX !== -1) ? targetX : bar.x;
 		const breakX = getBestWeaponBreakX(blockLine, checkX, config);
@@ -1212,13 +1381,55 @@ export function runAutoPlaySimulation(snapshot) {
 				const canReturnForItem = (bestItemX === -1 || bestItemTime <= 0) ||
 					(timeToBreak + Math.abs(bestItemX - breakX) / moveSpeed + 8 <= bestItemTime);
 
-				// 落下中の全ボール（第2ボール以降含む）に対しても間に合わなくなる危険がないか検証
-				const canReturnForAllBalls = fallingBalls.every((b) => {
+				// 落下中の全安全ボールに対しても間に合わなくなる危険がないか検証
+				const canReturnForAllBalls = candidateFallingBalls.every((b) => {
 					const retTime = timeToBreak + Math.abs(b.fallX - breakX) / moveSpeed + 12;
 					return retTime <= b.fallTime;
 				});
 
-				if (canReturnForBall && canReturnForItem && canReturnForAllBalls) {
+				// 有害アイテムへの突入防止: breakX または移動経路上に有害アイテムが落ちてくるなら武器移動禁止！
+				const isBreakSafeFromHarmful = items.every((hIt) => {
+					if (!isHarmfulItem(hIt.type)) return true;
+					const hm = getItemMetrics(hIt, bar, config);
+					if (!hm.isActive) return true;
+					if (hm.hitStartTime > 60) return true;
+					// 1. breakX 到達地点での被弾
+					if (Math.abs(breakX - hm.itemX) < hm.safeDist && hm.hitStartTime <= timeToBreak + 18) {
+						return false;
+					}
+					// 2. 移動経路上での被弾
+					const minMoveX = Math.min(bar.x, breakX) - hm.safeDist;
+					const maxMoveX = Math.max(bar.x, breakX) + hm.safeDist;
+					if (hm.itemX >= minMoveX && hm.itemX <= maxMoveX && hm.hitStartTime <= timeToBreak + 10) {
+						return false;
+					}
+					return true;
+				});
+
+				// 敵弾への突入防止
+				const isBreakSafeFromHostileWeapons = weapons.every((w) => {
+					if (!w || w.vect >= 0) return true;
+					const wSize = w.size || 1;
+					const wTopY = w.y - wSize * 0.5;
+					const wBottomY = w.y + wSize * 6;
+					const cHeight = Math.max(bar.y + 12, config.canvasHeight || DEFAULT_CONFIG.canvasHeight);
+					if (wTopY > cHeight) return true;
+					const wSpeed = Math.abs(w.vy) || 4;
+					const wTime = Math.max(0, (bar.y - wBottomY) / wSpeed);
+					if (wTime > 60) return true;
+					const harmDist = bar.width / 2 + 25;
+					if (Math.abs(breakX - w.x) < harmDist && wTime <= timeToBreak + 18) {
+						return false;
+					}
+					const minMoveX = Math.min(bar.x, breakX) - harmDist;
+					const maxMoveX = Math.max(bar.x, breakX) + harmDist;
+					if (w.x >= minMoveX && w.x <= maxMoveX && wTime <= timeToBreak + 10) {
+						return false;
+					}
+					return true;
+				});
+
+				if (canReturnForBall && canReturnForItem && canReturnForAllBalls && isBreakSafeFromHarmful && isBreakSafeFromHostileWeapons) {
 					let aimBreakX = breakX;
 					if (targetX !== -1 && Math.abs(breakX - targetX) > config.blkWidth / 2) {
 						aimBreakX += (config.blkWidth * 0.35) * (targetX > breakX ? 1 : -1);
@@ -1544,23 +1755,33 @@ export function runAutoPlaySimulation(snapshot) {
 
 	//--------------------------------------------------
 	// 4. 危険な敵弾（武器）の波状・全体俯瞰回避 (C-2)
-	// 最初の一撃だけでなく、接近中の全弾の弾道・到達時刻を統合して安全スロットを探索！
-	// 複数ボール存在時は、毒アイテム同様にボールを落としてでも敵弾を絶対に完全回避！
+	// 直近の脅威を最優先しつつ最小限の移動でかわし、移動経路上の弾への突入（踏み抜き）を防止！
+	// 単一ボール時は絶対にボール受球可能範囲を死守し、複数ボール時はボールを落としてでも敵弾を完全回避！
 	//--------------------------------------------------
 	if (weapons.length > 0) {
 		const incomingWeapons = [];
+		const cHeight = config.canvasHeight || 600;
 		for (let i = 0; i < weapons.length; i++) {
 			const w = weapons[i];
-			if (w.vect < 0 && w.y < bar.y) {
+			if (!w || w.vect >= 0) continue;
+			const wSize = w.size || 1;
+			const wTopY = w.y - wSize * 0.5;
+			// 画面下端（canvasHeight）へ完全に抜けるまで当たり判定が有効
+			if (wTopY <= cHeight) {
 				const wSpeed = Math.abs(w.vy) || 4;
-				const timeToBar = (bar.y - w.y) / wSpeed;
-				if (timeToBar <= 65) {
+				const timeToBar = Math.max(0, (bar.y - w.y) / wSpeed);
+				const hitStartTime = Math.max(0, (bar.y - (w.y + wSize * 6)) / wSpeed);
+				const passEndTime = Math.max(0, (cHeight - wTopY) / wSpeed);
+				// 遥か上空の弾に過剰反応して暴れ回らないよう、48フレーム以内の弾を対象とする
+				if (timeToBar <= 48) {
 					incomingWeapons.push({
 						x: w.x,
 						y: w.y,
 						vy: w.vy,
 						time: timeToBar,
-						size: w.size || 1,
+						hitStartTime,
+						passEndTime,
+						size: wSize,
 					});
 				}
 			}
@@ -1575,35 +1796,53 @@ export function runAutoPlaySimulation(snapshot) {
 
 			const checkCurrentX = (targetX !== -1) ? targetX : bar.x;
 			const hasThreatToCurrent = incomingWeapons.some((w) => {
-				return w.time <= 55 && Math.abs(checkCurrentX - w.x) < hitClearance;
+				if (w.time <= 42 && Math.abs(checkCurrentX - w.x) < hitClearance) return true;
+				if (w.time <= 25 && Math.abs(bar.x - w.x) < hitClearance) return true;
+				// 現在地 bar.x から checkCurrentX への移動経路上に直近の敵弾がある場合も回避評価を起動
+				const crosses = (bar.x < w.x - 4 && checkCurrentX > w.x - hitClearance) ||
+					(bar.x > w.x + 4 && checkCurrentX < w.x + hitClearance);
+				if (crosses && w.hitStartTime <= (Math.abs(w.x - bar.x) + hitClearance) / moveSpeed + 8) {
+					return true;
+				}
+				return false;
 			});
 
 			if (hasThreatToCurrent) {
 				// ボール救出の必要性判定
-				// ★ 複数ボール存在時は毒アイテム同様、ボールを落としてでも敵弾を絶対に完全回避！
+				// ★ 単一ボール時はライフ喪失（即死）を防ぐためボール救出を絶対最優先！
+				// ★ 複数ボール存在時は毒アイテム同様、ボールを落としてでも敵弾を完全回避！
 				const mustCatchBall = (!isMultiBall) && (fallBall !== null) && (fallBallTime !== Infinity) && (fallBallTime <= 60);
 				const ballFallX = mustCatchBall ? (fallBall.fallX !== undefined ? fallBall.fallX : fallBall.x) : -1;
+				const maxCatchOffset = Math.max(0, bar.width / 2 - 8);
 
 				const candidates = new Set();
 				candidates.add(minX);
 				candidates.add(maxX);
+				candidates.add(Math.max(minX, Math.min(maxX, bar.x)));
+				candidates.add(Math.max(minX, Math.min(maxX, checkCurrentX)));
 				candidates.add(config.canvasWidth / 2);
 				if (mustCatchBall) {
 					candidates.add(Math.max(minX, Math.min(maxX, ballFallX)));
-					candidates.add(Math.max(minX, Math.min(maxX, ballFallX - bar.width * 0.35)));
-					candidates.add(Math.max(minX, Math.min(maxX, ballFallX + bar.width * 0.35)));
+					candidates.add(Math.max(minX, Math.min(maxX, ballFallX - maxCatchOffset)));
+					candidates.add(Math.max(minX, Math.min(maxX, ballFallX + maxCatchOffset)));
+					candidates.add(Math.max(minX, Math.min(maxX, ballFallX - bar.width * 0.25)));
+					candidates.add(Math.max(minX, Math.min(maxX, ballFallX + bar.width * 0.25)));
 				}
 
 				for (let i = 0; i < incomingWeapons.length; i++) {
 					const w = incomingWeapons[i];
-					const safeLeft = w.x - hitClearance - 6;
-					const safeRight = w.x + hitClearance + 6;
-					if (safeLeft >= minX && safeLeft <= maxX) candidates.add(safeLeft);
-					if (safeRight >= minX && safeRight <= maxX) candidates.add(safeRight);
+					const safeLeft1 = w.x - hitClearance - 4;
+					const safeRight1 = w.x + hitClearance + 4;
+					const safeLeft2 = w.x - hitClearance - 10;
+					const safeRight2 = w.x + hitClearance + 10;
+					if (safeLeft1 >= minX && safeLeft1 <= maxX) candidates.add(safeLeft1);
+					if (safeRight1 >= minX && safeRight1 <= maxX) candidates.add(safeRight1);
+					if (safeLeft2 >= minX && safeLeft2 <= maxX) candidates.add(safeLeft2);
+					if (safeRight2 >= minX && safeRight2 <= maxX) candidates.add(safeRight2);
 				}
 
-				// グリッド走査（20px刻みで全域カバー）
-				for (let x = minX; x <= maxX; x += 20) {
+				// グリッド走査（15px刻みで全域カバー）
+				for (let x = minX; x <= maxX; x += 15) {
 					candidates.add(x);
 				}
 
@@ -1611,58 +1850,111 @@ export function runAutoPlaySimulation(snapshot) {
 				let bestAvoidScore = -Infinity;
 
 				candidates.forEach((candX) => {
-					// 1. 移動時間チェック: 直近の弾までに bar.x から candX へ移動できるか？
 					const timeToReach = Math.abs(candX - bar.x) / moveSpeed;
-					if (incomingWeapons[0].time < 12 && timeToReach > incomingWeapons[0].time + 1) {
+					if (!mustCatchBall && incomingWeapons[0].time < 10 && timeToReach > incomingWeapons[0].time + 2) {
 						return;
 					}
 
-					// 2. 接近中の全敵弾に対する安全性チェック（波状攻撃の全貌を俯瞰）
 					let minMissMargin = Infinity;
-					let hitCount = 0;
+					let imminentHitCount = 0;
+					let laterHitCount = 0;
+					let pathCrossCount = 0;
 
 					for (let i = 0; i < incomingWeapons.length; i++) {
 						const w = incomingWeapons[i];
 						const dist = Math.abs(candX - w.x);
 						const margin = dist - hitClearance;
 						if (margin < 0) {
-							hitCount++;
-						} else {
-							if (margin < minMissMargin) {
-								minMissMargin = margin;
+							if (w.time <= 26) {
+								imminentHitCount++;
+							} else {
+								laterHitCount++;
+							}
+						} else if (margin < minMissMargin) {
+							minMissMargin = margin;
+						}
+
+						// 移動経路上で直近の敵弾を横切って踏み抜く危険をチェック
+						const crossesWeapon = (bar.x < w.x - 4 && candX > w.x - hitClearance) ||
+							(bar.x > w.x + 4 && candX < w.x + hitClearance);
+						if (crossesWeapon) {
+							const clearTime = (Math.abs(w.x - bar.x) + hitClearance) / moveSpeed;
+							if (w.hitStartTime <= clearTime + 8) {
+								pathCrossCount++;
 							}
 						}
 					}
 
-					let score = 0;
-					if (hitCount === 0) {
-						// 全弾を安全に回避できる完全安全スロット！
-						score += 100000;
-						score += Math.min(100, minMissMargin);
-
-						const distToWall = Math.min(candX - minX, maxX - candX);
-						if (distToWall < 50) {
-							score -= (50 - distToWall);
+					// 有害アイテムとの干渉チェック（敵弾を避けて毒アイテム等に突っ込むのを絶対防止）
+					let hitsHarmfulItem = false;
+					for (let i = 0; i < items.length; i++) {
+						const it = items[i];
+						if (!it || !isHarmfulItem(it.type)) continue;
+						const hm = getItemMetrics(it, bar, config);
+						if (hm.isActive && hm.hitStartTime <= 55 && Math.abs(candX - hm.itemX) < hm.safeDist) {
+							hitsHarmfulItem = true;
+							break;
 						}
+					}
 
-						if (mustCatchBall) {
-							const ballDist = Math.abs(candX - ballFallX);
-							if (ballDist <= bar.width / 2 - 8) {
-								score += 500000;
-								score -= ballDist * 10;
-							} else {
-								score -= ballDist;
-							}
+					let score = 0;
+					if (hitsHarmfulItem) {
+						score -= 8000000;
+					}
+
+					// 1. 単一ボール救出スコア（hitCount の有無にかかわらず常時最優先で評価！）
+					if (mustCatchBall) {
+						const ballDist = Math.abs(candX - ballFallX);
+						if (ballDist <= maxCatchOffset) {
+							// ボールを確実にキャッチできる範囲内！
+							score += 5000000;
+							score -= ballDist * 5;
 						} else {
-							score -= Math.abs(candX - checkCurrentX) * 0.5;
+							// キャッチ範囲外へ出る場合: 直近の弾をやり過ごした後にボール位置へ戻れる時間的余裕があるか？
+							const distBackToCatch = ballDist - maxCatchOffset;
+							const earliestPass = incomingWeapons[0].passEndTime;
+							const canDodgeAndReturn = (fallBallTime > 26) &&
+								(earliestPass + (distBackToCatch / moveSpeed) + 8 <= fallBallTime);
+							if (canDodgeAndReturn) {
+								score += 1000000 - distBackToCatch * 20;
+							} else {
+								// 戻れず単一ボールを落として即死するため絶対禁止級のペナルティ
+								score -= 10000000 - ballDist * 100;
+							}
+						}
+					}
+
+					// 2. 敵弾回避スコア（直近弾の回避と経路横断防止を優先）
+					if (imminentHitCount === 0 && pathCrossCount === 0) {
+						score += 300000;
+						if (laterHitCount === 0) {
+							score += 80000;
+						} else {
+							score -= laterHitCount * 15000;
+						}
+						// クリアランスボーナスは12pxで飽和させ、不必要な大移動を誘発しない
+						if (minMissMargin !== Infinity) {
+							score += Math.min(12, minMissMargin) * 2;
 						}
 					} else {
-						score -= hitCount * 10000;
+						score -= imminentHitCount * 500000;
+						score -= pathCrossCount * 600000;
+						score -= laterHitCount * 15000;
 						const distToFirst = Math.abs(candX - incomingWeapons[0].x) - hitClearance;
-						if (distToFirst > 0) {
-							score += 5000;
+						if (distToFirst >= 0) {
+							score += 100000;
+						} else {
+							score += distToFirst * 500;
 						}
-						score -= timeToReach * 10;
+					}
+
+					// 3. 最小移動ペナルティ（無駄に動き回って別の弾に当たるのを防ぎ、最小シフトでピタッと止まる）
+					score -= Math.abs(candX - checkCurrentX) * 12;
+					score -= Math.abs(candX - bar.x) * 15;
+
+					const distToWall = Math.min(candX - minX, maxX - candX);
+					if (distToWall < 30) {
+						score -= (30 - distToWall) * 2;
 					}
 
 					if (score > bestAvoidScore) {
@@ -1697,17 +1989,11 @@ export function runAutoPlaySimulation(snapshot) {
 	if (items.length > 0 && targetX !== -1 && spinOffset !== 0) {
 		for (let i = 0; i < items.length; i++) {
 			const it = items[i];
-			if (!isHarmfulItem(it.type)) continue;
-			const itY = typeof it.getCenterY === 'function' ? it.getCenterY() : it.y;
-			if (itY >= bar.y) continue;
-			const itSpeed = it.speed || 4;
-			const itTime = (bar.y - itY) / itSpeed;
-			if (itTime <= 50) {
-				const itemX = typeof it.getCenterX === 'function' ? it.getCenterX() : (it.width ? (it.x + it.width / 2) : it.x);
-				const itemW = it.width || config.blkWidth || 50;
-				const hitRadius = (bar.width + itemW) / 2;
-				// スピン適用後のバー目標位置 (targetX - spinOffset) が、衝突限界 + 20px 以内に入るならスピンを無効化
-				if (Math.abs((targetX - spinOffset) - itemX) < hitRadius + 20) {
+			if (!it || !isHarmfulItem(it.type)) continue;
+			const m = getItemMetrics(it, bar, config);
+			if (m.isActive && m.hitStartTime <= 50) {
+				// スピン適用後のバー目標位置 (targetX - spinOffset) が安全距離以内に入るならスピンを無効化
+				if (Math.abs((targetX - spinOffset) - m.itemX) < m.safeDist) {
 					spinOffset = 0;
 					break;
 				}
@@ -1717,11 +2003,12 @@ export function runAutoPlaySimulation(snapshot) {
 
 	// ★ スピンオフセットによる敵弾方向への踏み込み・被弾の絶対防止！
 	if (weapons.length > 0 && targetX !== -1 && spinOffset !== 0) {
+		const cHeight = config.canvasHeight || 600;
 		for (let i = 0; i < weapons.length; i++) {
 			const w = weapons[i];
-			if (w.vect < 0 && w.y < bar.y) {
+			if (w && w.vect < 0 && (w.y - (w.size || 1) * 0.5) <= cHeight) {
 				const wSpeed = Math.abs(w.vy) || 4;
-				const timeToBar = (bar.y - w.y) / wSpeed;
+				const timeToBar = Math.max(0, (bar.y - w.y) / wSpeed);
 				if (timeToBar <= 50) {
 					if (Math.abs((targetX - spinOffset) - w.x) < bar.width / 2 + 15) {
 						spinOffset = 0;

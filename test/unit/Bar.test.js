@@ -246,4 +246,39 @@ test('Bar class unit tests', async (t) => {
 		assert.equal(cloned.vibrationTime, 10);
 		assert.equal(cloned.color, '#ffff00');
 	});
+
+	await t.test('canFireWeapon strictly validates weapon status, interval, and max bullet count', () => {
+		const bar = new Bar();
+		bar.weapon = 0;
+		bar.weaponInter = 0;
+
+		// 1. 武器なし (weapon = 0)
+		assert.equal(bar.canFireWeapon([]), false, 'Cannot fire when no weapon equipped');
+
+		// 2. 武器あり (weapon = 1: GUN, max=5)
+		bar.weapon = 1;
+		assert.equal(bar.canFireWeapon([]), true, 'Can fire with GUN and 0 existing bullets');
+
+		// 3. インターバル中 (weaponInter > 0)
+		bar.weaponInter = 5;
+		assert.equal(bar.canFireWeapon([]), false, 'Cannot fire during weapon interval cooldown');
+		bar.weaponInter = 0;
+
+		// 4. 弾数上限到達 (max=5)
+		const existing4 = [{ vect: 1 }, { vect: 1 }, { vect: 1 }, { vect: 1 }];
+		assert.equal(bar.canFireWeapon(existing4), true, 'Can fire with 4 existing bullets (max 5)');
+		const existing5 = [{ vect: 1 }, { vect: 1 }, { vect: 1 }, { vect: 1 }, { vect: 1 }];
+		assert.equal(bar.canFireWeapon(existing5), false, 'Cannot fire when at max bullets (5)');
+
+		// 敵弾(vect: -1)はプレイヤー弾数にカウントされない
+		const mixedWeapons = [{ vect: -1 }, { vect: -1 }, { vect: 1 }];
+		assert.equal(bar.canFireWeapon(mixedWeapons), true, 'Enemy weapons do not count towards player max');
+
+		// 5. MISSILE (weapon = 2, max=3)
+		bar.weapon = 2;
+		const missile2 = [{ vect: 1 }, { vect: 1 }];
+		assert.equal(bar.canFireWeapon(missile2), true, 'Can fire missile with 2 existing missiles (max 3)');
+		const missile3 = [{ vect: 1 }, { vect: 1 }, { vect: 1 }];
+		assert.equal(bar.canFireWeapon(missile3), false, 'Cannot fire missile with 3 existing missiles');
+	});
 });

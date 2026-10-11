@@ -977,6 +977,116 @@ test('Ball class unit tests', async (t) => {
 		assert.deepEqual(cloned.histX, [118, 115]);
 		assert.deepEqual(cloned.histY, [234, 238]);
 	});
+	await t.test('checkCollision prevents ball from penetrating ceiling above row 0 blocks', () => {
+		const sBarHeight = globalThis.statusBarHeight;
+		const ceilingBlock = new Block(2, 0, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const map = [[null, null, ceilingBlock]];
+
+		// 1. ボールが下から上へ高速で進入し、ブロック上部（天井付近）まで深くめり込んだ場合
+		const ball1 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball1.x = ceilingBlock.getLeftX() + 25;
+		ball1.y = ceilingBlock.getTopY() + 4;
+		ball1.vx = 2;
+		ball1.vy = -6;
+		ball1.prevX = ball1.x - 2;
+		ball1.prevY = ball1.y + 6;
+
+		const hit1 = ball1.checkCollision(ceilingBlock, map);
+		assert.equal(hit1, true);
+		// 天井（statusBarHeight）の上に押し出されてはならない
+		assert.ok(ball1.getTopY() >= sBarHeight, 'Ball must not penetrate into the ceiling!');
+		// 下向きに跳ね返らなければならない
+		assert.ok(ball1.vy > 0, 'vy must reflect downwards to positive!');
+		assert.equal(ball1.y, ceilingBlock.getBottomY() + ball1.radius + 1);
+
+		// 2. ボールが横から天井ブロックの上部（天井ぎりぎり）に進入した場合
+		const ball2 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball2.x = ceilingBlock.getLeftX() + 2;
+		ball2.y = ceilingBlock.getTopY() + ball2.radius;
+		ball2.vx = 4;
+		ball2.vy = -1;
+		ball2.prevX = ceilingBlock.getLeftX() - 5;
+		ball2.prevY = ceilingBlock.getTopY() + ball2.radius + 1;
+
+		const hit2 = ball2.checkCollision(ceilingBlock, map);
+		assert.equal(hit2, true);
+		assert.ok(ball2.getTopY() >= sBarHeight, 'Ball must remain below ceiling!');
+		assert.ok(ball2.vx < 0, 'vx must reflect leftwards!');
+	});
+
+	await t.test('checkCollision prevents high-speed ball from tunneling through blocks across all 4 directions', () => {
+		const targetBlock = new Block(2, 2, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const map = [[], [], [null, null, targetBlock]];
+
+		// 1. 左から右への高速進入 (vx > 0): ブロック中心を越えても右へ突き抜けず左面へ跳ね返る
+		const ballR = new Ball(BALL_CREATE_MODE.OTHER);
+		ballR.x = targetBlock.getLeftX() + 35; // midX(25)を越えて右側
+		ballR.y = targetBlock.getTopY() + 10;
+		ballR.vx = 15;
+		ballR.vy = 1;
+		ballR.prevX = targetBlock.getLeftX() - 5;
+		ballR.prevY = ballR.y - 1;
+
+		assert.equal(ballR.checkCollision(targetBlock, map), true);
+		assert.ok(ballR.vx < 0, 'vx must reflect to negative, not tunnel rightwards!');
+		assert.ok(ballR.x <= targetBlock.getLeftX(), 'Ball must push back to the left side!');
+
+		// 2. 右から左への高速進入 (vx < 0): ブロック中心を越えても左へ突き抜けず右面へ跳ね返る
+		const ballL = new Ball(BALL_CREATE_MODE.OTHER);
+		ballL.x = targetBlock.getLeftX() + 15; // midX(25)の手前（左側）
+		ballL.y = targetBlock.getTopY() + 10;
+		ballL.vx = -15;
+		ballL.vy = 1;
+		ballL.prevX = targetBlock.getRightX() + 5;
+		ballL.prevY = ballL.y - 1;
+
+		assert.equal(ballL.checkCollision(targetBlock, map), true);
+		assert.ok(ballL.vx > 0, 'vx must reflect to positive, not tunnel leftwards!');
+		assert.ok(ballL.x >= targetBlock.getRightX(), 'Ball must push back to the right side!');
+
+		// 3. 下から上への高速進入 (vy < 0): ブロック中心を越えても上へ突き抜けず下面へ跳ね返る
+		const ballU = new Ball(BALL_CREATE_MODE.OTHER);
+		ballU.x = targetBlock.getLeftX() + 25;
+		ballU.y = targetBlock.getTopY() + 5; // midY(10)を越えて上側
+		ballU.vx = 1;
+		ballU.vy = -15;
+		ballU.prevX = ballU.x - 1;
+		ballU.prevY = targetBlock.getBottomY() + 5;
+
+		assert.equal(ballU.checkCollision(targetBlock, map), true);
+		assert.ok(ballU.vy > 0, 'vy must reflect to positive downwards, not tunnel upwards!');
+		assert.ok(ballU.y >= targetBlock.getBottomY(), 'Ball must push back to the bottom side!');
+
+		// 4. 上から下への高速進入 (vy > 0): ブロック中心を越えても下へ突き抜けず上面へ跳ね返る
+		const ballD = new Ball(BALL_CREATE_MODE.OTHER);
+		ballD.x = targetBlock.getLeftX() + 25;
+		ballD.y = targetBlock.getBottomY() - 5; // midY(10)を越えて下側
+		ballD.vx = 1;
+		ballD.vy = 15;
+		ballD.prevX = ballD.x - 1;
+		ballD.prevY = targetBlock.getTopY() - 5;
+
+		assert.equal(ballD.checkCollision(targetBlock, map), true);
+		assert.ok(ballD.vy < 0, 'vy must reflect to negative upwards, not tunnel downwards!');
+		assert.ok(ballD.y <= targetBlock.getTopY(), 'Ball must push back to the top side!');
+	});
+
+	await t.test('checkCollision prevents tunneling through joint between adjacent blocks', () => {
+		const bLeft = new Block(2, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const bRight = new Block(3, 1, 1, BLOCK_FUNCTION.NORMAL, 1);
+		const map = [[], [null, null, bLeft, bRight]];
+
+		// 2つのブロックのつなぎ目に下から高速で突入
+		const ball = new Ball(BALL_CREATE_MODE.OTHER);
+		ball.x = bLeft.getRightX() - 1;
+		ball.y = bLeft.getTopY() + 4; // 上部までめり込み
+		ball.vx = 1;
+		ball.vy = -12;
+		ball.prevX = ball.x - 1;
+		ball.prevY = bLeft.getBottomY() + 5;
+
+		assert.equal(ball.checkCollision(bLeft, map), true);
+		assert.ok(ball.vy > 0, 'vy must reflect downwards to positive!');
+		assert.ok(ball.y >= bLeft.getBottomY(), 'Ball must be pushed back to bottom, not tunneled through top!');
+	});
 });
-
-

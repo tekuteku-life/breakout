@@ -107,10 +107,23 @@ test('ObjectManage class unit tests', async (t) => {
 		assert.equal(weapon.y, ~~(om.bar.getTopY()));
 		assert.ok(om.bar.weaponInter > 0);
 
-		// Enemy weapon with explicit y and negative vect
+		// Enemy weapon with explicit y and negative vect (enemy weapon ignores player bar limits)
 		const enemyWeapon = om.spawnWeapon(1, 150, 50, -1);
 		assert.equal(enemyWeapon.y, 50);
 		assert.equal(enemyWeapon.vect, -1);
+		assert.equal(om.weapons.length, 2);
+
+		// 連射間隔制限 (weaponInter > 0 の間は発射不可)
+		assert.ok(om.bar.weaponInter > 0);
+		const blockedWeapon = om.spawnWeapon(1, 120);
+		assert.equal(blockedWeapon, null, 'spawnWeapon returns null during weaponInter cooldown');
+		assert.equal(om.weapons.length, 2, 'Weapon count unchanged when spawn is blocked');
+
+		// インターバルをリセットすれば発射可能
+		om.bar.weaponInter = 0;
+		const nextWeapon = om.spawnWeapon(1, 120);
+		assert.ok(nextWeapon instanceof Weapon, 'Can fire after weaponInter reset');
+		assert.equal(om.weapons.length, 3);
 
 		om.destructor();
 		gm.destructor();
@@ -221,6 +234,21 @@ test('ObjectManage class unit tests', async (t) => {
 
 		om.simulateReset();
 		assert.equal(resetCalled, true);
+
+		// Swept AABB & 距離ソートの検証
+		const blockA = new Block(1, 0, 1, 0, 1, 0, 0, gm); // x: 50
+		const blockB = new Block(2, 0, 1, 0, 1, 0, 0, gm); // x: 100
+		const blockC = new Block(3, 0, 1, 0, 1, 0, 0, gm); // x: 150
+		om.blockMap = [[null, blockA, blockB, blockC]];
+
+		// x = 160 へ vx = 120 で移動（前フレーム位置は 40）
+		// blockA(50), blockB(100), blockC(150) の3つすべてが軌跡内に含まれ、
+		// 移動元(40)に近い blockA -> blockB -> blockC の順にソートされること
+		const swept = om.getNearbyBlocks(160, 40, 5, 120, 0);
+		assert.equal(swept.length, 3);
+		assert.equal(swept[0], blockA);
+		assert.equal(swept[1], blockB);
+		assert.equal(swept[2], blockC);
 
 		om.destructor();
 		gm.destructor();

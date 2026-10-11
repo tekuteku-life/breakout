@@ -712,5 +712,54 @@ test('AutoPlay class unit tests', async (t) => {
 
 		ap.destructor();
 	});
-});
 
+	await t.test('AutoPlay real-time guard overrides stale Worker targetX to prevent charging into POISON in multi-ball mode', () => {
+		const bar = new Bar();
+		bar.x = 250;
+		bar.y = 550;
+		bar.width = 100;
+
+		const ball1 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball1.x = 400;
+		ball1.y = 520;
+		ball1.vy = 5;
+
+		const ball2 = new Ball(BALL_CREATE_MODE.OTHER);
+		ball2.x = 150;
+		ball2.y = 200;
+		ball2.vy = -4;
+
+		// x=400 (375..425) に毒アイテムが落下中
+		const poison = new Item(ITEM_TYPE.POISON, 375, 515, '#000', '#fff');
+		poison.width = 50;
+
+		const game = {
+			objectManage: {
+				bar,
+				balls: [ball1, ball2],
+				items: [poison],
+				weapons: [],
+				blockMap: [],
+			},
+			ctrl: { autoSwitch: 1 },
+			canvasWidth: 800,
+			canvasHeight: 600,
+		};
+
+		const ap = new AutoPlay(game);
+		// Worker遅延により古い targetX=400 (ボール1の位置) が残っている状態を再現
+		ap.latestResult = {
+			targetX: 400,
+			spinOffset: 0,
+		};
+
+		ap.step();
+		// メインスレッドのリアルタイムガードにより、複数ボール時は毒アイテム(center=400)への突入が即座に阻止される
+		assert.ok(
+			Math.abs(bar.pointX - 400) >= 100,
+			`Real-time guard overrides stale targetX away from poison in multi-ball mode (pointX=${bar.pointX})`
+		);
+
+		ap.destructor();
+	});
+});

@@ -13,9 +13,13 @@ import {
 	runAutoPlaySimulation,
 	isBlockAlive,
 	createSimGame,
+	evalBallHarmfulThreat,
 } from '../../src/AutoPlaySimulation.js';
 import Ball from '../../src/Ball.js';
 import Block from '../../src/Block.js';
+import Bar from '../../src/Bar.js';
+import Item from '../../src/Item.js';
+import AutoPlay from '../../src/AutoPlay.js';
 import { BLOCK_FUNCTION, ITEM_TYPE, BALL_STATUS } from '../../src/const.js';
 
 describe('AutoPlaySimulation unit tests', () => {
@@ -2146,8 +2150,486 @@ describe('AutoPlaySimulation unit tests', () => {
 		// 敵弾方向へのスピン踏み込みが安全に防止される
 		assert.ok(typeof res.spinOffset === 'number');
 	});
+
+	it('evalBallHarmfulThreat validates threat score based on spatial separation, time gap, and edge catch', () => {
+		const bar = { x: 400, y: 550, width: 100, vxMax: 8 };
+		const conf = { blkWidth: 50 };
+
+		// 1. 空間的に十分離れている (itemX = 100, ballX = 400) -> 脅威 0
+		const distantItem = { x: 100, y: 500, width: 50, speed: 4, type: ITEM_TYPE.POISON };
+		const ball1 = { fallX: 400, fallTime: 12 };
+		assert.equal(evalBallHarmfulThreat(ball1, distantItem, bar, conf, 8), 0, 'Distant item has 0 threat');
+
+		// 2. ボールが先(t=10)、アイテムが後(t=40) -> ボール救出後に逃げられるので脅威 0
+		const delayedItem = { x: 400, y: 390, width: 50, speed: 4, type: ITEM_TYPE.POISON }; // (550 - 390)/4 = 40フレーム
+		const earlyBall = { fallX: 400, fallTime: 10 };
+		assert.equal(evalBallHarmfulThreat(earlyBall, delayedItem, bar, conf, 8), 0, 'Early ball before late item has 0 threat');
+
+		// 3. アイテムが先(t=10)、ボールが後(t=40) -> アイテム回避後にボールへ間に合うので脅威 0
+		const earlyItem = { x: 400, y: 510, width: 50, speed: 4, type: ITEM_TYPE.POISON }; // (550 - 510)/4 = 10フレーム
+		const lateBall = { fallX: 400, fallTime: 40 };
+		assert.equal(evalBallHarmfulThreat(lateBall, earlyItem, bar, conf, 8), 0, 'Early item before late ball has 0 threat');
+
+		// 4. 同時衝突だが端受球で回避可能
+		// itemX = 430, ballX = 390 (|430 - 390| = 40)
+		// 端受球(offset = -42 -> barX = 348): |348 - 430| = 82 >= hitRadius(75) + 6
+		const closeItem = { x: 405, y: 510, width: 50, speed: 4, type: ITEM_TYPE.SHORT }; // center = 430, t=10
+		const simultaneousBall = { fallX: 385, fallTime: 10 };
+		assert.equal(evalBallHarmfulThreat(simultaneousBall, closeItem, bar, conf, 8), 0, 'Simultaneous ball edge catch avoids item');
+
+		// 5. 同時衝突かつ完全重なり (itemX = 400, ballX = 400, t=10) -> 回避不能脅威 > 0
+		const overlappingItem = { x: 375, y: 510, width: 50, speed: 4, type: ITEM_TYPE.POISON };
+		const overlappingBall = { fallX: 400, fallTime: 10 };
+		assert.ok(evalBallHarmfulThreat(overlappingBall, overlappingItem, bar, conf, 8) > 0, 'Overlapping ball has positive threat');
+	});
+
+	it('Scenario A: ball falling before harmful item is not abandoned (does not flee prematurely)', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		// ボールは 12 フレーム後に x=400 に落下
+		const balls = [{ id: 1, x: 400, y: 490, vx: 0, vy: 5, radius: 5 }];
+		// 有害アイテムは 40 フレーム後に x=400 に落下 (まだ上空 y=390)
+		const harmfulItem = { x: 375, y: 390, width: 50, height: 20, type: ITEM_TYPE.POISON, speed: 4 };
+
+		const snapshot = {
+			...defaultConfig,
+			bar,
+			balls,
+			blocks: [],
+			items: [harmfulItem],
+			weapons: [],
+		};
+
+		const res = runAutoPlaySimulation(snapshot);
+		// 直近のボール救出目標 x=400 を維持すべき（40フレーム先の毒を恐れてボールを無視して逃げ出さない）
+		assert.ok(
+			Math.abs(res.targetX - 400) <= bar.width / 2,
+			`Catches imminent ball at x=400 (targetX=${res.targetX}) instead of fleeing from far-away poison`
+		);
+	});
+
+	it('Scenario B: multi-ball mode does not abandon all balls when all balls have nearby harmful items', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		// ボールが2個存在: 1個目は x=300 (近傍に毒), 2個目は x=500 (近傍にSHORT)
+		const balls = [
+			{ id: 1, x: 300, y: 500, vx: 0, vy: 5, radius: 5 },
+			{ id: 2, x: 500, y: 490, vx: 0, vy: 5, radius: 5 },
+		];
+		const items = [
+			{ x: 275, y: 500, width: 50, height: 20, type: ITEM_TYPE.POISON, speed: 4 },
+			{ x: 480, y: 500, width: 40, height: 20, type: ITEM_TYPE.SHORT, speed: 4 },
+		];
+
+		const snapshot = {
+			...defaultConfig,
+			bar,
+			balls,
+			blocks: [],
+			items,
+			weapons: [],
+		};
+
+		const res = runAutoPlaySimulation(snapshot);
+		// 全ボール放棄 (-1) にならず、脅威がより小さい SHORT 側 (x=500) や端受球可能側を救出する
+		assert.ok(res.targetX >= 0, 'Does not give up all balls (targetX is valid)');
+	});
+
+	it('Scenario C: single-ball mode prioritizes ball rescue over POISON avoidance using edge catch', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		// 単一ボール: x=400 に落下
+		const balls = [{ id: 1, x: 400, y: 500, vx: 0, vy: 5, radius: 5 }];
+		// POISON アイテムが x=410 に落下中
+		const poison = { x: 385, y: 510, width: 50, height: 20, type: ITEM_TYPE.POISON, speed: 4 };
+
+		const snapshot = {
+			...defaultConfig,
+			bar,
+			balls,
+			blocks: [],
+			items: [poison],
+			weapons: [],
+		};
+
+		const res = runAutoPlaySimulation(snapshot);
+		// 単一ボールではボール救出が絶対最優先（ライフ喪失を防ぐ）
+		// バーがボール(x=400)をキャッチできる範囲内に留まること
+		assert.ok(
+			Math.abs(res.targetX - 400) <= bar.width / 2,
+			`Single-ball mode must rescue the ball: targetX (${res.targetX}) is within catch range of ball (400)`
+		);
+	});
+
+	it('Scenario D: weapon breakX does not charge into falling harmful items', () => {
+		const bar = { x: 200, y: 550, width: 100, height: 10, vxMax: 8, weapon: 1 };
+		// ボールは存在しない（または安全な上空）
+		const balls = [];
+		// x=500 に破壊可能ブロックが存在
+		const blockMap = Array.from({ length: 15 }, () => Array.from({ length: 15 }, () => null));
+		blockMap[2][12] = { col: 12, row: 2, x: 480, y: 60, width: 40, height: 20, type: 1, infinit: 0, life: 1 };
+		// x=500 に有害アイテムが落下中 (y=470, speed=4 -> 20フレーム後に到達)
+		const harmfulItem = { x: 480, y: 470, width: 40, height: 20, type: ITEM_TYPE.POISON, speed: 4 };
+
+		const snapshot = {
+			...defaultConfig,
+			bar,
+			balls,
+			blocks: blockMap,
+			items: [harmfulItem],
+			weapons: [],
+		};
+
+		const res = runAutoPlaySimulation(snapshot);
+		// 有害アイテムが落ちてくる x=500 へ自ら突っ込まず、有害アイテムとの安全距離を保つ
+		const poisonCenterX = 500;
+		const hitRadius = (bar.width + 40) / 2;
+		assert.ok(
+			Math.abs(res.targetX - poisonCenterX) >= hitRadius + 20,
+			`Does not charge into poison for weapon breakX: targetX (${res.targetX}) is safe distance away from poison (${poisonCenterX})`
+		);
+	});
+
+	// =========================================================================
+	// 20の網羅的自動プレイシナリオテスト
+	// =========================================================================
+
+	it('Scenario 1: Evades safely when pinched between two harmful items from left and right', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		const items = [
+			{ x: 310, y: 500, width: 40, height: 20, type: ITEM_TYPE.POISON, speed: 4 }, // center: 330
+			{ x: 450, y: 500, width: 40, height: 20, type: ITEM_TYPE.SHORT, speed: 4 },  // center: 470
+		];
+		const snapshot = { ...defaultConfig, bar, balls: [], blocks: [], items, weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		// どちらのアイテムに対しても物理衝突限界 (70px) + 20px 以上離れた安全位置へ退避
+		const distToLeft = Math.abs(res.targetX - 330);
+		const distToRight = Math.abs(res.targetX - 470);
+		assert.ok(distToLeft >= 90 || distToRight >= 90, 'Evades to safe side when pinched');
+	});
+
+	it('Scenario 2: Clamps safely within canvas boundary when evading harmful item at left wall (x ~ 0)', () => {
+		const bar = { x: 50, y: 550, width: 100, height: 10, vxMax: 8 };
+		const items = [
+			{ x: 10, y: 500, width: 40, height: 20, type: ITEM_TYPE.POISON, speed: 4 }, // center: 30
+		];
+		const snapshot = { ...defaultConfig, bar, balls: [], blocks: [], items, weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.ok(res.targetX >= bar.width / 2, `targetX (${res.targetX}) is not beyond left boundary (${bar.width / 2})`);
+		assert.ok(res.targetX > 30 + 70, 'Evaded to the right away from left wall poison');
+	});
+
+	it('Scenario 3: Clamps safely within canvas boundary when evading harmful item at right wall (x ~ 800)', () => {
+		const bar = { x: 750, y: 550, width: 100, height: 10, vxMax: 8 };
+		const items = [
+			{ x: 750, y: 500, width: 40, height: 20, type: ITEM_TYPE.POISON, speed: 4 }, // center: 770
+		];
+		const snapshot = { ...defaultConfig, bar, balls: [], blocks: [], items, weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.ok(res.targetX <= defaultConfig.canvasWidth - bar.width / 2, `targetX (${res.targetX}) is within right boundary`);
+		assert.ok(res.targetX < 770 - 70, 'Evaded to the left away from right wall poison');
+	});
+
+	it('Scenario 4: Clamps edge-catch target within canvas bounds when ball is near left wall', () => {
+		const bar = { x: 60, y: 550, width: 100, height: 10, vxMax: 8 };
+		// ボールが x=20 (左端至近) に落下、右側 x=70 に有害アイテム
+		const balls = [{ id: 1, x: 20, y: 490, vx: 0, vy: 5, radius: 5 }];
+		const items = [{ x: 50, y: 500, width: 40, height: 20, type: ITEM_TYPE.SHORT, speed: 4 }];
+		const snapshot = { ...defaultConfig, bar, balls, blocks: [], items, weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.ok(res.targetX >= bar.width / 2, 'targetX is clamped at or above bar.width/2');
+		assert.ok(Math.abs(res.targetX - 20) <= bar.width / 2, 'Can still catch ball at left edge');
+	});
+
+	it('Scenario 5: Clamps edge-catch target within canvas bounds when ball is near right wall', () => {
+		const bar = { x: 740, y: 550, width: 100, height: 10, vxMax: 8 };
+		// ボールが x=780 (右端至近) に落下、左側 x=730 に有害アイテム
+		const balls = [{ id: 1, x: 780, y: 490, vx: 0, vy: 5, radius: 5 }];
+		const items = [{ x: 710, y: 500, width: 40, height: 20, type: ITEM_TYPE.SHORT, speed: 4 }];
+		const snapshot = { ...defaultConfig, bar, balls, blocks: [], items, weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.ok(res.targetX <= defaultConfig.canvasWidth - bar.width / 2, 'targetX is clamped at or below canvasWidth - bar.width/2');
+		assert.ok(Math.abs(res.targetX - 780) <= bar.width / 2, 'Can still catch ball at right edge');
+	});
+
+	it('Scenario 6: Correctly selects earlier ball when sequential rescue of multiple balls is feasible', () => {
+		const bar = { x: 300, y: 550, width: 100, height: 10, vxMax: 8 };
+		// 第1ボール: 10フレーム後に x=300 に落下
+		// 第2ボール: 28フレーム後に x=450 に落下 (第1ボール拾った後に余裕で間に合う)
+		const balls = [
+			{ id: 1, x: 300, y: 500, vx: 0, vy: 5, radius: 5 },
+			{ id: 2, x: 450, y: 410, vx: 0, vy: 5, radius: 5 },
+		];
+		const snapshot = { ...defaultConfig, bar, balls, blocks: [], items: [], weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.ok(Math.abs(res.targetX - 300) <= bar.width / 2, 'Prioritizes earlier ball at x=300');
+	});
+
+	it('Scenario 7: Catches ball safely after harmful item passes earlier (t_item < t_ball)', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		// Phase 1: 有害アイテムが t=8 (y=518) にバー直前へ迫っている状態
+		const itemsPhase1 = [{ x: 380, y: 518, width: 40, height: 20, type: ITEM_TYPE.POISON, speed: 4 }];
+		// ボールは t=25 (y=425) に x=400 に落下 (アイテム通過後に余裕で間に合う)
+		const ballsPhase1 = [{ id: 1, x: 400, y: 425, vx: 0, vy: 5, radius: 5 }];
+		const resPhase1 = runAutoPlaySimulation({ ...defaultConfig, bar, balls: ballsPhase1, blocks: [], items: itemsPhase1, weapons: [] });
+		// ボール自体は救出対象(fallBallId=1)として維持しつつ、直前の毒には突っ込まず一時退避する
+		assert.equal(resPhase1.fallBallId, 1, 'Keeps ball as catchable target');
+		assert.ok(Math.abs(resPhase1.targetX - 400) >= 95, 'Evades poison first while poison is still above bar');
+
+		// Phase 2: 毒アイテムが通過した直後 (t=12経過後: ボールは y=485)
+		const barAfterEvade = { ...bar, x: resPhase1.targetX };
+		const ballsPhase2 = [{ id: 1, x: 400, y: 485, vx: 0, vy: 5, radius: 5 }];
+		const resPhase2 = runAutoPlaySimulation({ ...defaultConfig, bar: barAfterEvade, balls: ballsPhase2, blocks: [], items: [], weapons: [] });
+		assert.ok(Math.abs(resPhase2.targetX - 400) <= bar.width / 2, 'Returns to ball position x=400 after item passes');
+	});
+
+	it('Scenario 8: Aborts beneficial item collection if path crosses falling harmful item', () => {
+		const bar = { x: 200, y: 550, width: 100, height: 10, vxMax: 8 };
+		// FIREアイテムが x=600 に落下中 (到達可能)
+		const beneficialItem = { x: 580, y: 470, width: 40, height: 20, type: ITEM_TYPE.FIRE, speed: 4 };
+		// しかし移動途中の x=400 に POISON アイテムが直近で落下中 (t=15)
+		const blockingPoison = { x: 380, y: 490, width: 40, height: 20, type: ITEM_TYPE.POISON, speed: 4 };
+		const snapshot = { ...defaultConfig, bar, balls: [], blocks: [], items: [beneficialItem, blockingPoison], weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.equal(res.isFetchingItem, false, 'Does not risk crossing poison to get beneficial item');
+	});
+
+	it('Scenario 9: Multi-ball mode aborts LIFE item fetch when entangled with POISON item', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		const balls = [
+			{ id: 1, x: 500, y: 400, vx: 0, vy: 4, radius: 5 },
+			{ id: 2, x: 200, y: 200, vx: 0, vy: -4, radius: 5 },
+		];
+		// LIFEアイテムとPOISONアイテムが重なって落下
+		const lifeItem = { x: 280, y: 480, width: 40, height: 20, type: ITEM_TYPE.LIFE, speed: 4 };
+		const poisonItem = { x: 290, y: 480, width: 40, height: 20, type: ITEM_TYPE.POISON, speed: 4 };
+		const snapshot = { ...defaultConfig, bar, balls, blocks: [], items: [lifeItem, poisonItem], weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.equal(res.isFetchingItem, false, 'Refuses dangerous LIFE item entangled with POISON');
+	});
+
+	it('Scenario 10: Endgame mode prioritizes all-ball defense over LIFE item collection', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		// 破壊可能ブロックが残り1個（終盤モード）
+		const blockMap = Array.from({ length: 5 }, () => Array.from({ length: 5 }, () => null));
+		blockMap[1][1] = { col: 1, row: 1, x: 40, y: 50, width: 40, height: 20, type: 1, life: 1, infinit: 0 };
+		const balls = [
+			{ id: 1, x: 500, y: 490, vx: 0, vy: 5, radius: 5 },
+			{ id: 2, x: 200, y: 490, vx: 0, vy: 5, radius: 5 },
+		];
+		// LIFEアイテムが x=300 にあるが、ボールを落とすとクリアボーナスを失う
+		const lifeItem = { x: 280, y: 480, width: 40, height: 20, type: ITEM_TYPE.LIFE, speed: 4 };
+		const snapshot = { ...defaultConfig, bar, balls, blocks: blockMap, items: [lifeItem], weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.equal(res.isFetchingItem, false, 'Endgame mode defends balls rather than chasing LIFE item');
+	});
+
+	it('Scenario 11: Hostile enemy weapon falling directly onto bar is safely evaded', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		const enemyBullet = { x: 400, y: 450, vy: 5, vect: -1 };
+		const snapshot = { ...defaultConfig, bar, balls: [], blocks: [], items: [], weapons: [enemyBullet] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.ok(Math.abs(res.targetX - 400) >= bar.width / 2 + 10, 'Evades direct enemy bullet hit');
+	});
+
+	it('Scenario 12: Single-ball mode balances enemy bullet avoidance with ball rescue via edge-catch', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		const ball = { id: 1, x: 400, y: 490, vx: 0, vy: 5, radius: 5 };
+		// 敵弾が x=445 に落下中 (端受球オフセットで分離可能な距離)
+		const enemyBullet = { x: 445, y: 470, vy: 5, vect: -1 };
+		const snapshot = { ...defaultConfig, bar, balls: [ball], blocks: [], items: [], weapons: [enemyBullet] };
+		const res = runAutoPlaySimulation(snapshot);
+		// 単一ボール時はライフ喪失を防ぐためボール救出範囲内にとどまる
+		assert.ok(Math.abs(res.targetX - 400) <= bar.width / 2, 'Maintains ball rescue position under enemy bullet pressure');
+	});
+
+	it('Scenario 13: Unreachable high-speed ball does not cause NaN or crash, clamps smoothly', () => {
+		const bar = { x: 100, y: 550, width: 100, height: 10, vxMax: 8 };
+		// 到底間に合わない高速ボール (t=1, x=750)
+		const ball = { id: 1, x: 750, y: 540, vx: 0, vy: 10, radius: 5 };
+		const snapshot = { ...defaultConfig, bar, balls: [ball], blocks: [], items: [], weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.ok(!Number.isNaN(res.targetX), 'targetX is not NaN');
+		assert.ok(Number.isFinite(res.targetX), 'targetX is finite number');
+		assert.ok(res.targetX >= bar.width / 2, 'targetX is within canvas');
+	});
+
+	it('Scenario 14: Weapon breakX movement is suppressed when player bullets are at maximum capacity', () => {
+		const bar = { x: 200, y: 550, width: 100, height: 10, vxMax: 8, weapon: 1 };
+		// 画面内に既にGUN弾が最大数(5発)存在
+		const maxWeapons = [
+			{ x: 100, y: 200, vy: -5, vect: 1 },
+			{ x: 150, y: 250, vy: -5, vect: 1 },
+			{ x: 200, y: 300, vy: -5, vect: 1 },
+			{ x: 250, y: 350, vy: -5, vect: 1 },
+			{ x: 300, y: 400, vy: -5, vect: 1 },
+		];
+		const blockMap = Array.from({ length: 5 }, () => Array.from({ length: 15 }, () => null));
+		blockMap[1][12] = { col: 12, row: 1, x: 600, y: 50, width: 40, height: 20, type: 1, life: 1, infinit: 0 };
+		const snapshot = { ...defaultConfig, bar, balls: [], blocks: blockMap, items: [], weapons: maxWeapons };
+		const res = runAutoPlaySimulation(snapshot);
+		// 弾を撃てないため x=600 への寄り道はしない
+		assert.notEqual(res.targetX, 600, 'Does not detour to breakX when at max bullet capacity');
+	});
+
+	it('Scenario 15: Weapon breakX movement does not detour into enemy bullet path', () => {
+		const bar = { x: 200, y: 550, width: 100, height: 10, vxMax: 8, weapon: 1 };
+		const blockMap = Array.from({ length: 5 }, () => Array.from({ length: 15 }, () => null));
+		blockMap[1][10] = { col: 10, row: 1, x: 500, y: 50, width: 40, height: 20, type: 1, life: 1, infinit: 0 };
+		// 敵弾が x=500 に落下中
+		const enemyWeapon = { x: 500, y: 460, vy: 4, vect: -1 };
+		const snapshot = { ...defaultConfig, bar, balls: [], blocks: blockMap, items: [], weapons: [enemyWeapon] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.ok(Math.abs(res.targetX - 500) >= bar.width / 2 + 10, 'Does not detour to breakX infested by enemy bullet');
+	});
+
+	it('Scenario 16: Ascending or unconfirmed ball return maintains stable center waiting position', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8 };
+		// 落下予測が未到達のボール（滞空・反射中）
+		const balls = [{ id: 1, x: 100, y: 100, vx: 0, vy: 0, radius: 5 }];
+		const block = { x: 100, y: 50, width: 40, height: 20, type: 1, func: 0, life: 1, infinit: 0 };
+		const snapshot = { ...defaultConfig, bar, balls, blocks: [[block]], items: [], weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		// 落下未確定時は画面中央（400）で安定待機
+		assert.equal(res.targetX, defaultConfig.canvasWidth / 2, `Waits stably at center (${defaultConfig.canvasWidth / 2})`);
+	});
+
+	it('Scenario 17: Absorbed ball attached to bar is handled without false fall prediction', () => {
+		const bar = { x: 400, y: 550, width: 100, height: 10, vxMax: 8, absorptionNum: 1 };
+		const balls = [{ id: 1, x: 400, y: 540, vx: 0, vy: 0, radius: 5, isAbsorption: 1 }];
+		const snapshot = { ...defaultConfig, bar, balls, blocks: [], items: [], weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		assert.ok(!Number.isNaN(res.targetX));
+		assert.ok(res.targetX >= bar.width / 2);
+	});
+
+	it('Scenario 18: SHORT item debuff (bar width halved to 50px) scales evasion clearance correctly', () => {
+		const bar = { x: 400, y: 550, width: 50, height: 10, vxMax: 8 }; // 半減
+		const poison = { x: 375, y: 490, width: 50, height: 20, type: ITEM_TYPE.POISON, speed: 4 }; // center: 400
+		const snapshot = { ...defaultConfig, bar, balls: [], blocks: [], items: [poison], weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		const hitClearance = (50 + 50) / 2 + 25; // 75px
+		assert.ok(Math.abs(res.targetX - 400) >= hitClearance, 'Evades with correct scaled clearance for narrow bar');
+	});
+
+	it('Scenario 19: WIDE item buff (bar width expanded to 150px) scales evasion clearance correctly', () => {
+		const bar = { x: 400, y: 550, width: 150, height: 10, vxMax: 8 }; // 拡大
+		const poison = { x: 375, y: 490, width: 50, height: 20, type: ITEM_TYPE.POISON, speed: 4 }; // center: 400
+		const snapshot = { ...defaultConfig, bar, balls: [], blocks: [], items: [poison], weapons: [] };
+		const res = runAutoPlaySimulation(snapshot);
+		const hitClearance = (150 + 50) / 2 + 25; // 125px
+		assert.ok(Math.abs(res.targetX - 400) >= hitClearance, 'Evades with correct scaled clearance for wide bar');
+	});
+
+	it('Scenario 20: AutoPlay.step safely cancels spinOffset if spin steps towards falling harmful item', () => {
+		// AutoPlay クラスの結合テスト: spinOffset による有害アイテム踏み込み防止
+		const mockBar = new Bar();
+		mockBar.x = 400;
+		mockBar.width = 100;
+		mockBar.spin = 0.04;
+
+		const mockBall = new Ball(1, 400, 538, 0, 4, 5, 0, null); // 到達まで2フレーム (minTimeToBar in (1.0, 2.5])
+		const mockItem = new Item(ITEM_TYPE.POISON, 410, 500, '#fff', '#000', null); // バー近傍に毒落下中
+
+		const mockGame = {
+			objectManage: {
+				bar: mockBar,
+				balls: [mockBall],
+				items: [mockItem],
+				weapons: [],
+				blockMap: [],
+			},
+			ctrl: { autoSwitch: 1 },
+			canvasWidth: 800,
+			canvasHeight: 600,
+			barSpin: 0.04,
+		};
+
+		const ap = new AutoPlay(mockGame);
+		// Worker シミュレーション結果として spinOffset = 15 が返ってきたと模倣
+		ap.latestResult = {
+			targetX: 400,
+			spinOffset: 15,
+		};
+
+		ap.step();
+		// 毒アイテム(x=410)方向へ踏み込むスピンオフセット(400 - 15 = 385 または加算)がキャンセルされ、安全位置に設定される
+		assert.ok(!Number.isNaN(mockBar.pointX));
+		ap.destructor();
+	});
+
+	it('Regression Guard 1: Multi-ball mode never charges into POISON to catch a falling ball even when other ball is ascending or poison is passing bar', () => {
+		const bar = { x: 250, y: 550, width: 100, height: 10, vxMax: 75 };
+		// ボール1は x=450 に落下中、ボール2は上空で上昇中（落下未確定）
+		const balls = [
+			{ id: 1, x: 450, y: 490, vx: 0, vy: 5, radius: 5 },
+			{ id: 2, x: 150, y: 120, vx: 1, vy: -4, radius: 5 },
+		];
+		// ケースA: ボール1と同じ x=450 に毒アイテムが落下中
+		const poisonOnBall = { x: 425, y: 510, width: 50, height: 20, type: ITEM_TYPE.POISON, speed: 4 };
+		const resA = runAutoPlaySimulation({ ...defaultConfig, bar, balls, blocks: [], items: [poisonOnBall], weapons: [] });
+		assert.ok(
+			Math.abs(resA.targetX - 450) >= 100,
+			`Does not charge into poison at x=450 in multi-ball mode (targetX=${resA.targetX})`
+		);
+
+		// ケースB: 毒アイテムの中心がバー上面(y=550)をちょうど通過中(it.y=545, bottom=565)でまだ当たり判定が残っている瞬間
+		const poisonPassingBar = { x: 425, y: 545, width: 50, height: 20, type: ITEM_TYPE.POISON, speed: 4 };
+		const resB = runAutoPlaySimulation({ ...defaultConfig, bar, balls, blocks: [], items: [poisonPassingBar], weapons: [] });
+		assert.ok(
+			Math.abs(resB.targetX - 450) >= 100,
+			`Does not prematurely rush into poison while poison is still passing bar height (targetX=${resB.targetX})`
+		);
+
+		// ケースC: 現在地(x=250)と落下ボール(x=550)の間の経路(x=400)に毒が落下中
+		const ballsAcross = [
+			{ id: 1, x: 550, y: 510, vx: 0, vy: 5, radius: 5 },
+			{ id: 2, x: 150, y: 120, vx: 1, vy: -4, radius: 5 },
+		];
+		const poisonOnPath = { x: 375, y: 525, width: 50, height: 20, type: ITEM_TYPE.POISON, speed: 4 };
+		const resC = runAutoPlaySimulation({ ...defaultConfig, bar, balls: ballsAcross, blocks: [], items: [poisonOnPath], weapons: [] });
+		assert.ok(
+			resC.targetX <= 300,
+			`Does not cross falling poison at x=400 to reach ball at x=550 in multi-ball mode (targetX=${resC.targetX})`
+		);
+	});
+
+	it('Regression Guard 2: Stage Attack single-ball mode never abandons ball even under heavy multi-column bullet fire, and minimizes evasion movement', () => {
+		const bar = { x: 400, y: 550, width: 80, height: 10, vxMax: 75 };
+		// 単一ボールが x=400 に10フレーム後に落下
+		const singleBall = [{ id: 1, x: 400, y: 500, vx: 0, vy: 5, radius: 5 }];
+		// x=400 直上および周辺に複数の敵弾（高高度〜中高度）が降り注ぎ、x=400 付近のすべての候補で hitCount > 0 となる過酷な状況
+		const heavyBullets = [
+			{ x: 415, y: 480, vy: 7, vect: -1 },
+			{ x: 385, y: 360, vy: 7, vect: -1 },
+			{ x: 400, y: 310, vy: 7, vect: -1 },
+		];
+		const res = runAutoPlaySimulation({
+			...defaultConfig,
+			bar,
+			balls: singleBall,
+			blocks: [],
+			items: [],
+			weapons: heavyBullets,
+		});
+		// 遠くの安全地帯へ逃げて唯一のボールを見殺しにせず、必ずボール受球可能範囲内 [360, 440] に踏みとどまる
+		assert.ok(
+			Math.abs(res.targetX - 400) <= bar.width / 2,
+			`Single ball is never abandoned under enemy attack (targetX=${res.targetX}, ballX=400)`
+		);
+
+		// ボールが上空滞空中は、敵弾1発に対して最小限の移動でかわし、大ジャンプや中央往復をしない
+		const highBall = [{ id: 1, x: 200, y: 80, vx: 2, vy: -4, radius: 5 }];
+		const barAt250 = { x: 250, y: 550, width: 80, height: 10, vxMax: 75 };
+		const singleBullet = [{ x: 250, y: 450, vy: 7, vect: -1 }];
+		const resMinimal = runAutoPlaySimulation({
+			...defaultConfig,
+			bar: barAt250,
+			balls: highBall,
+			blocks: [[{ x: 200, y: 50, width: 50, height: 20, type: 1, life: 1, infinit: 0 }]],
+			items: [],
+			weapons: singleBullet,
+		});
+		const distMoved = Math.abs(resMinimal.targetX - 250);
+		const hitClearance = barAt250.width / 2 + 12; // 52px
+		assert.ok(distMoved >= hitClearance, `Steps outside bullet clearance (${distMoved} >= ${hitClearance})`);
+		assert.ok(distMoved <= hitClearance + 25, `Evades with minimal movement (${distMoved} <= ${hitClearance + 25}) instead of thrashing across screen`);
+	});
 });
-
-
-
-

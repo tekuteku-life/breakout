@@ -213,18 +213,18 @@ export default class ObjectManage {
 		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
 		const sBarHeight = (this.game && this.game.statusBarHeight) || 0;
 
-		const stepX = vx < 0 ? -1 : 1;
-		const stepY = vy < 0 ? -1 : 1;
+		const prevX = x - vx;
+		const prevY = y - vy;
 
-		const startX = Math.floor((x - radius * stepX) / blkWidth);
-		const endX = Math.floor((x + radius * stepX) / blkWidth);
-		const startY = Math.floor((y - radius * stepY - sBarHeight) / blkHeight);
-		const endY = Math.floor((y + radius * stepY - sBarHeight) / blkHeight);
+		const minBoundX = Math.min(x, prevX) - radius;
+		const maxBoundX = Math.max(x, prevX) + radius;
+		const minBoundY = Math.min(y, prevY) - radius;
+		const maxBoundY = Math.max(y, prevY) + radius;
 
-		const minX = Math.max(0, Math.min(startX, endX));
-		const maxX = Math.max(startX, endX);
-		const minY = Math.max(0, Math.min(startY, endY));
-		const maxY = Math.max(startY, endY);
+		const minX = Math.max(0, Math.floor(minBoundX / blkWidth));
+		const maxX = Math.floor(maxBoundX / blkWidth);
+		const minY = Math.max(0, Math.floor((minBoundY - sBarHeight) / blkHeight));
+		const maxY = Math.floor((maxBoundY - sBarHeight) / blkHeight);
 
 		const candidates = [];
 		for (let i = minY; i <= maxY; i++) {
@@ -237,6 +237,19 @@ export default class ObjectManage {
 				}
 			}
 		}
+
+		if (candidates.length > 1) {
+			candidates.sort((a, b) => {
+				const midAX = a.x + a.width / 2;
+				const midAY = a.y + a.height / 2;
+				const midBX = b.x + b.width / 2;
+				const midBY = b.y + b.height / 2;
+				const distA = (prevX - midAX) ** 2 + (prevY - midAY) ** 2;
+				const distB = (prevX - midBX) ** 2 + (prevY - midBY) ** 2;
+				return distA - distB;
+			});
+		}
+
 		return candidates;
 	}
 
@@ -537,8 +550,17 @@ export default class ObjectManage {
 	}
 
 	spawnWeapon(type, x, y = null, vect = null) {
-		const targetY = (y !== null && y !== undefined) ? y : (this.bar ? ~~(this.bar.getTopY()) : 0);
 		const targetVect = (vect !== null && vect !== undefined) ? vect : 1;
+		if (targetVect > 0) {
+			const maxNum = (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
+			const canFire = this.bar && (typeof this.bar.canFireWeapon === 'function'
+				? this.bar.canFireWeapon(this.weapons, maxNum, type)
+				: (this.bar.weaponInter <= 0));
+			if (!canFire) {
+				return null;
+			}
+		}
+		const targetY = (y !== null && y !== undefined) ? y : (this.bar ? ~~(this.bar.getTopY()) : 0);
 		const w = new Weapon(type, x, targetY, targetVect, this.game);
 		this.weapons.push(w);
 		if (this.bar && targetVect > 0) {

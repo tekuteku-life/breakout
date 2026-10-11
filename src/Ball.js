@@ -61,7 +61,6 @@ export default class Ball
 		this.getEventBus().addOnEvent('input:mouseDownTime', this.onMouseDownHandler);
 		this.getEventBus().addOnEvent('ball:resetStatus', this.onResetStatusHandler);
 
-
 		//--------------------------------------------------
 		// 発射
 		//--------------------------------------------------
@@ -70,7 +69,6 @@ export default class Ball
 			const bar = origin || (this.game && this.game.objectManage && this.game.objectManage.bar) || null;
 			const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
 			const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
-
 
 			// ため打ち時間の計算
 			var diffTime = 0;
@@ -168,7 +166,6 @@ export default class Ball
 		return (this.game && this.game.statusBarHeight) || DEFAULT_CONFIG.statusBarHeight;
 	}
 
-
 	//--------------------------------------------------
 	// コピー
 	//--------------------------------------------------
@@ -255,7 +252,6 @@ export default class Ball
 		return obj;
 	}
 
-
 	//--------------------------------------------------
 	// 上下・左右・中央座標取得
 	//--------------------------------------------------
@@ -278,7 +274,6 @@ export default class Ball
 	getBottomY() {
 		return this.y + this.radius;
 	}
-
 
 	//--------------------------------------------------
 	// 落下
@@ -581,6 +576,7 @@ export default class Ball
 		const blkWidth = block.width || DEFAULT_CONFIG.blockWidth;
 		const blkHeight = block.height || DEFAULT_CONFIG.blockHeight;
 		const sBarHeight = (typeof block.getStatusBarHeight === 'function') ? block.getStatusBarHeight() : this.getStatusBarHeight();
+		const canvasWidth = this.getCanvasWidth();
 
 		const col = (block.col !== undefined && block.func !== BLOCK_FUNCTION.VERTICAL_MOVE) ? block.col : Math.round(block.x / blkWidth);
 		const row = (block.row !== undefined && block.func !== BLOCK_FUNCTION.VERTICAL_MOVE) ? block.row : Math.round((block.y - sBarHeight) / blkHeight);
@@ -590,17 +586,22 @@ export default class Ball
 			return this.simulate === 0 ? b.type !== 0 : b.simulate !== 0;
 		};
 
-		// 4方向の隣接ブロック（面を塞ぐ）
-		const hasLeftBlock = !!(blockMap && blockMap[row] && isBlockActive(blockMap[row][col - 1]));
-		const hasRightBlock = !!(blockMap && blockMap[row] && isBlockActive(blockMap[row][col + 1]));
-		const hasTopBlock = !!(blockMap && blockMap[row - 1] && isBlockActive(blockMap[row - 1][col]));
+		// 壁・天井と接しているか（天井や壁の外側は物理的に完全遮蔽）
+		const isTopCeiling = bTop <= sBarHeight + 0.5;
+		const isLeftWall = bLeft <= 0.5;
+		const isRightWall = bRight >= canvasWidth - 0.5;
+
+		// 4方向の隣接ブロック・壁（面を塞ぐ）
+		const hasLeftBlock = isLeftWall || !!(blockMap && blockMap[row] && isBlockActive(blockMap[row][col - 1]));
+		const hasRightBlock = isRightWall || !!(blockMap && blockMap[row] && isBlockActive(blockMap[row][col + 1]));
+		const hasTopBlock = isTopCeiling || !!(blockMap && blockMap[row - 1] && isBlockActive(blockMap[row - 1][col]));
 		const hasBottomBlock = !!(blockMap && blockMap[row + 1] && isBlockActive(blockMap[row + 1][col]));
 
-		// 対角4方向の隣接ブロック（角を塞ぐ）
-		const hasTopLeftBlock = !!(blockMap && blockMap[row - 1] && isBlockActive(blockMap[row - 1][col - 1]));
-		const hasTopRightBlock = !!(blockMap && blockMap[row - 1] && isBlockActive(blockMap[row - 1][col + 1]));
-		const hasBottomLeftBlock = !!(blockMap && blockMap[row + 1] && isBlockActive(blockMap[row + 1][col - 1]));
-		const hasBottomRightBlock = !!(blockMap && blockMap[row + 1] && isBlockActive(blockMap[row + 1][col + 1]));
+		// 対角4方向の隣接ブロック・壁（角を塞ぐ）
+		const hasTopLeftBlock = isTopCeiling || isLeftWall || !!(blockMap && blockMap[row - 1] && isBlockActive(blockMap[row - 1][col - 1]));
+		const hasTopRightBlock = isTopCeiling || isRightWall || !!(blockMap && blockMap[row - 1] && isBlockActive(blockMap[row - 1][col + 1]));
+		const hasBottomLeftBlock = isLeftWall || !!(blockMap && blockMap[row + 1] && isBlockActive(blockMap[row + 1][col - 1]));
+		const hasBottomRightBlock = isRightWall || !!(blockMap && blockMap[row + 1] && isBlockActive(blockMap[row + 1][col + 1]));
 
 		const prevX = (this.prevX !== undefined) ? this.prevX : (this.histX && this.histX.length > 0 ? this.histX[0] : (this.x - this.vx));
 		const prevY = (this.prevY !== undefined) ? this.prevY : (this.histY && this.histY.length > 0 ? this.histY[0] : (this.y - this.vy));
@@ -774,29 +775,60 @@ export default class Ball
 			}
 		}
 
-		// 3. 幾何学的な面判定（交差判定で決定しなかった場合）
+		// 3. 幾何学的な面判定（交差判定で決定しなかった場合：進入面を厳格に優先）
 		if (directVectX === 0 && directVectY === 0) {
 			const midX = bLeft + blkWidth / 2;
 			const midY = bTop + blkHeight / 2;
 
+			// 反対側への突き抜け（トンネリング）を完全に禁止する制約
+			const forbidLeft = (prevX >= bRight && this.vx <= 0); // 右から飛んできたのに左へ突き抜けるのを禁止
+			const forbidRight = (prevX <= bLeft && this.vx >= 0); // 左から飛んできたのに右へ突き抜けるのを禁止
+			const forbidTop = (prevY >= bBottom && this.vy <= 0); // 下から飛んできたのに上へ突き抜けるのを禁止
+			const forbidBottom = (prevY <= bTop && this.vy >= 0); // 上から飛んできたのに下へ突き抜けるのを禁止
+
+			const validLeft = !hasLeftBlock && !forbidLeft;
+			const validRight = !hasRightBlock && !forbidRight;
+			const validTop = !hasTopBlock && !forbidTop;
+			const validBottom = !hasBottomBlock && !forbidBottom;
+
 			// (A) ボールの中心がブロックの水平範囲内にある場合 -> 純粋な縦面衝突
 			if (this.x >= bLeft && this.x <= bRight) {
-				if (this.y <= midY) {
-					if (!hasTopBlock) { directVectY = -1; }
-					else if (!hasBottomBlock) { directVectY = 1; }
-				} else {
-					if (!hasBottomBlock) { directVectY = 1; }
-					else if (!hasTopBlock) { directVectY = -1; }
+				if (this.vy < 0 && prevY >= bBottom && validBottom) {
+					directVectY = 1;
+				} else if (this.vy > 0 && prevY <= bTop && validTop) {
+					directVectY = -1;
+				} else if (this.y >= midY && validBottom) {
+					directVectY = 1;
+				} else if (this.y <= midY && validTop) {
+					directVectY = -1;
+				} else if (validBottom && !validTop) {
+					directVectY = 1;
+				} else if (validTop && !validBottom) {
+					directVectY = -1;
+				} else if (this.vx > 0 && validLeft) {
+					directVectX = -1;
+				} else if (this.vx < 0 && validRight) {
+					directVectX = 1;
 				}
 			}
 			// (B) ボールの中心がブロックの垂直範囲内にある場合 -> 純粋な横面衝突
 			else if (this.y >= bTop && this.y <= bBottom) {
-				if (this.x <= midX) {
-					if (!hasLeftBlock) { directVectX = -1; }
-					else if (!hasRightBlock) { directVectX = 1; }
-				} else {
-					if (!hasRightBlock) { directVectX = 1; }
-					else if (!hasLeftBlock) { directVectX = -1; }
+				if (this.vx > 0 && prevX <= bLeft && validLeft) {
+					directVectX = -1;
+				} else if (this.vx < 0 && prevX >= bRight && validRight) {
+					directVectX = 1;
+				} else if (this.x >= midX && validRight) {
+					directVectX = 1;
+				} else if (this.x <= midX && validLeft) {
+					directVectX = -1;
+				} else if (validLeft && !validRight) {
+					directVectX = -1;
+				} else if (validRight && !validLeft) {
+					directVectX = 1;
+				} else if (this.vy < 0 && validBottom) {
+					directVectY = 1;
+				} else if (this.vy > 0 && validTop) {
+					directVectY = -1;
 				}
 			}
 			// (C) ボールが角の外側領域にいる場合
@@ -804,81 +836,50 @@ export default class Ball
 				const absVx = Math.abs(this.vx);
 				const absVy = Math.abs(this.vy);
 
-				if (this.x < bLeft && this.y > bBottom) {
-					if (!hasLeftBlock && !hasBottomBlock) {
-						if (absVx > absVy) { directVectX = -1; }
-						else { directVectY = 1; }
-					} else if (!hasBottomBlock) {
-						directVectY = 1;
-					} else if (!hasLeftBlock) {
-						directVectX = -1;
-					}
-				} else if (this.x > bRight && this.y > bBottom) {
-					if (!hasRightBlock && !hasBottomBlock) {
-						if (absVx > absVy) { directVectX = 1; }
-						else { directVectY = 1; }
-					} else if (!hasBottomBlock) {
-						directVectY = 1;
-					} else if (!hasRightBlock) {
-						directVectX = 1;
-					}
-				} else if (this.x < bLeft && this.y < bTop) {
-					if (!hasLeftBlock && !hasTopBlock) {
-						if (absVx > absVy) { directVectX = -1; }
-						else { directVectY = -1; }
-					} else if (!hasTopBlock) {
-						directVectY = -1;
-					} else if (!hasLeftBlock) {
-						directVectX = -1;
-					}
-				} else if (this.x > bRight && this.y < bTop) {
-					if (!hasRightBlock && !hasTopBlock) {
-						if (absVx > absVy) { directVectX = 1; }
-						else { directVectY = -1; }
-					} else if (!hasTopBlock) {
-						directVectY = -1;
-					} else if (!hasRightBlock) {
-						directVectX = 1;
-					}
+				if (absVx >= absVy) {
+					if (this.vx > 0 && validLeft) { directVectX = -1; }
+					else if (this.vx < 0 && validRight) { directVectX = 1; }
+					else if (this.vy < 0 && validBottom) { directVectY = 1; }
+					else if (this.vy > 0 && validTop) { directVectY = -1; }
+				} else {
+					if (this.vy < 0 && validBottom) { directVectY = 1; }
+					else if (this.vy > 0 && validTop) { directVectY = -1; }
+					else if (this.vx > 0 && validLeft) { directVectX = -1; }
+					else if (this.vx < 0 && validRight) { directVectX = 1; }
 				}
 			}
 		}
 
-		// 4. めり込み時のフォールバック（露出面までの距離が最も近い面へ脱出）
+		// 4. めり込み時のフォールバック（進入可能な露出面のうち、最も近い面へ脱出）
 		if (directVectX === 0 && directVectY === 0) {
-			const midX = bLeft + blkWidth / 2;
-			const midY = bTop + blkHeight / 2;
-			const canEscapeLeft = !hasLeftBlock && (this.x <= midX || this.vx >= 0);
-			const canEscapeRight = !hasRightBlock && (this.x >= midX || this.vx <= 0);
-			const canEscapeTop = !hasTopBlock && (this.y <= midY || this.vy >= 0);
-			const canEscapeBottom = !hasBottomBlock && (this.y >= midY || this.vy <= 0);
+			const forbidLeft = (prevX >= bRight && this.vx <= 0);
+			const forbidRight = (prevX <= bLeft && this.vx >= 0);
+			const forbidTop = (prevY >= bBottom && this.vy <= 0);
+			const forbidBottom = (prevY <= bTop && this.vy >= 0);
 
-			if (this.x < midX && this.y < midY && canEscapeLeft && canEscapeTop) {
-				if (Math.abs(this.vx) > Math.abs(this.vy)) { directVectX = -1; }
-				else { directVectY = -1; }
-			} else if (this.x > midX && this.y < midY && canEscapeRight && canEscapeTop) {
-				if (Math.abs(this.vx) > Math.abs(this.vy)) { directVectX = 1; }
-				else { directVectY = -1; }
-			} else if (this.x < midX && this.y > midY && canEscapeLeft && canEscapeBottom) {
-				if (Math.abs(this.vx) > Math.abs(this.vy)) { directVectX = -1; }
-				else { directVectY = 1; }
-			} else if (this.x > midX && this.y > midY && canEscapeRight && canEscapeBottom) {
-				if (Math.abs(this.vx) > Math.abs(this.vy)) { directVectX = 1; }
-				else { directVectY = 1; }
+			const validLeft = !hasLeftBlock && !forbidLeft;
+			const validRight = !hasRightBlock && !forbidRight;
+			const validTop = !hasTopBlock && !forbidTop;
+			const validBottom = !hasBottomBlock && !forbidBottom;
+
+			const distL = validLeft ? Math.abs(this.x - bLeft) : Infinity;
+			const distR = validRight ? Math.abs(this.x - bRight) : Infinity;
+			const distT = validTop ? Math.abs(this.y - bTop) : Infinity;
+			const distB = validBottom ? Math.abs(this.y - bBottom) : Infinity;
+			const minDist = Math.min(distL, distR, distT, distB);
+
+			if (minDist !== Infinity) {
+				if (minDist === distL) { directVectX = -1; }
+				else if (minDist === distR) { directVectX = 1; }
+				else if (minDist === distT) { directVectY = -1; }
+				else if (minDist === distB) { directVectY = 1; }
 			} else {
-				// 露出面までの距離を計算し、最も近い露出面を選択
-				const distL = canEscapeLeft ? Math.abs(this.x - bLeft) : Infinity;
-				const distR = canEscapeRight ? Math.abs(this.x - bRight) : Infinity;
-				const distT = canEscapeTop ? Math.abs(this.y - bTop) : Infinity;
-				const distB = canEscapeBottom ? Math.abs(this.y - bBottom) : Infinity;
-				const minDist = Math.min(distL, distR, distT, distB);
-
-				if (minDist !== Infinity) {
-					if (minDist === distL) { directVectX = -1; }
-					else if (minDist === distR) { directVectX = 1; }
-					else if (minDist === distT) { directVectY = -1; }
-					else if (minDist === distB) { directVectY = 1; }
-				} else if (Math.abs(this.vx) > Math.abs(this.vy)) {
+				// すべての進行方向側進入面が塞がれている極端なケース
+				if (!hasBottomBlock && this.vy <= 0) { directVectY = 1; }
+				else if (!hasTopBlock && this.vy >= 0) { directVectY = -1; }
+				else if (!hasLeftBlock && this.vx >= 0) { directVectX = -1; }
+				else if (!hasRightBlock && this.vx <= 0) { directVectX = 1; }
+				else if (Math.abs(this.vx) > Math.abs(this.vy)) {
 					directVectX = this.vx > 0 ? -1 : 1;
 				} else {
 					directVectY = this.vy > 0 ? -1 : 1;
@@ -941,6 +942,17 @@ export default class Ball
 
 				this.vy = (directVectY < 0 ? -1 : 1) * Math.abs(this.vy);
 				this.lastHitAxis = 'y';
+			}
+
+			// 天井および左右壁との接合ブロックにおける画面外・隙間侵入クランプ
+			if (isTopCeiling && this.y - this.radius < sBarHeight) {
+				this.y = sBarHeight + this.radius;
+			}
+			if (isLeftWall && this.x - this.radius < 0) {
+				this.x = this.radius;
+			}
+			if (isRightWall && this.x + this.radius > canvasWidth) {
+				this.x = canvasWidth - this.radius;
 			}
 		} else {
 			this.lastHitAxis = null;

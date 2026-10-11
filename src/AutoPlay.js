@@ -7,7 +7,7 @@ import {
 	WEAPON_PARAM,
 } from "./const.js";
 import EventBus from "./EventBus.js";
-import { runAutoPlaySimulation, cloneBlockMap, evaluateWeaponFire, isHarmfulItem } from "./AutoPlaySimulation.js";
+import { runAutoPlaySimulation, cloneBlockMap, evaluateWeaponFire, isHarmfulItem, getItemMetrics } from "./AutoPlaySimulation.js";
 
 //--------------------------------------------------
 // 自動プレイ（オートパイロット制御）
@@ -170,18 +170,31 @@ export default class AutoPlay
 				absorptionPoint: b.absorptionPoint || [0, 0],
 			})),
 			blocks: cloneBlockMap(blockMap),
-			items: items.map(it => ({
-				x: typeof it.getCenterX === 'function' ? it.getCenterX() : it.x,
-				y: typeof it.getCenterY === 'function' ? it.getCenterY() : it.y,
-				type: it.type,
-				speed: it.speed,
-			})),
+			items: items.map(it => {
+				const centerX = typeof it.getCenterX === 'function' ? it.getCenterX() : (it.width !== undefined ? it.x + it.width / 2 : it.x);
+				const centerY = typeof it.getCenterY === 'function' ? it.getCenterY() : (it.height !== undefined ? it.y + it.height / 2 : it.y);
+				const topY = typeof it.getTopY === 'function' ? it.getTopY() : (it.height !== undefined ? it.y : it.y - (blkHeight / 2));
+				const bottomY = typeof it.getBottomY === 'function' ? it.getBottomY() : (it.height !== undefined ? it.y + it.height : it.y + (blkHeight / 2));
+				return {
+					x: centerX,
+					y: centerY,
+					centerX,
+					centerY,
+					topY,
+					bottomY,
+					width: it.width || blkWidth,
+					height: it.height || blkHeight,
+					type: it.type,
+					speed: it.speed,
+				};
+			}),
 			weapons: weapons.map(w => ({
 				x: w.x,
 				y: w.y,
 				vy: w.vy,
 				vect: w.vect,
 				type: w.type,
+				size: w.size || 1,
 			})),
 			simuData: this.simuData || {},
 		};
@@ -290,6 +303,12 @@ export default class AutoPlay
 			// 最優先ボールのバー到達予測（残りフレーム数）
 			let minTimeToBar = Infinity;
 			const barTopY = typeof bar.getTopY === 'function' ? bar.getTopY() : (bar.y || 0);
+			const barCenterX = typeof bar.getCenterX === 'function' ? bar.getCenterX() : (bar.x || 0);
+			const barW = bar.width || DEFAULT_CONFIG.barDefaultWidth || 100;
+			const moveSpeed = bar.vxMax || (this.game && this.game.barDefaultSpeed) || DEFAULT_CONFIG.barDefaultSpeed || 8;
+			const canvasHeight = (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight || 530;
+			const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth || 50;
+			const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight || 20;
 
 			for (let i = 0; i < balls.length; i++) {
 				const b = balls[i];
@@ -316,21 +335,42 @@ export default class AutoPlay
 				plusSpeed = spinOffset;
 			}
 
-			// 落下中の有害アイテムとの干渉チェック（plusSpeedによる危険ゾーンへの踏み込み・かすり被弾を絶対防止）
-			if (plusSpeed !== 0) {
-				const items = this.getItems();
-				if (items.length > 0) {
-					const barW = bar.width || 100;
-					for (let i = 0; i < items.length; i++) {
-						const it = items[i];
-						if (!it || !isHarmfulItem(it.type)) continue;
-						const itY = typeof it.getCenterY === 'function' ? it.getCenterY() : it.y;
-						if (itY >= barTopY) continue;
-						const itX = typeof it.getCenterX === 'function' ? it.getCenterX() : (it.width ? (it.x + it.width / 2) : it.x);
-						const hitRadius = (barW + (it.width || 50)) / 2;
-						if (Math.abs((targetX - plusSpeed) - itX) < hitRadius + 18) {
+			// メインスレッド・リアルタイム安全ガード（Worker非同期遅延中も有害アイテムへの突入・スピン接触を絶対阻止）
+			const items = this.getItems();
+			if (items.length > 0) {
+				const barMetricsRef = { width: barW, y: barTopY };
+				const cfgMetricsRef = { canvasHeight, blkWidth, blkHeight };
+				const minBarX = barW / 2;
+				const maxBarX = canvasWidth - barW / 2;
+
+				for (let i = 0; i < items.length; i++) {
+					const it = items[i];
+					if (!it || !isHarmfulItem(it.type)) continue;
+					const m = getItemMetrics(it, barMetricsRef, cfgMetricsRef);
+					if (!m.isActive) continue;
+
+					// 1) plusSpeed による危険ゾーンへの踏み込み防止
+					if (plusSpeed !== 0 && m.hitStartTime <= 50) {
+						if (Math.abs((targetX - plusSpeed) - m.itemX) < m.safeDist) {
 							plusSpeed = 0;
-							break;
+						}
+					}
+
+					// 2) 複数ボール存在時（または単一ボールが直近でない時）、古いWorker結果のtargetXで有害アイテムへ突っ込むのをリアルタイム阻止
+					if (m.hitStartTime <= 45 && (ballNum > 1 || minTimeToBar > 15)) {
+						const hitsTarget = Math.abs(targetX - m.itemX) < m.safeDist;
+						const crossesPath = (barCenterX < m.itemX - m.hitRadius * 0.5 && targetX > m.itemX) ||
+							(barCenterX > m.itemX + m.hitRadius * 0.5 && targetX < m.itemX);
+						const crossTime = (Math.abs(m.itemX - barCenterX) + m.safeDist) / moveSpeed;
+						if (hitsTarget || (crossesPath && m.hitStartTime <= crossTime + 12)) {
+							const avoidLeft = Math.max(minBarX, m.itemX - m.safeDist);
+							const avoidRight = Math.min(maxBarX, m.itemX + m.safeDist);
+							if (barCenterX <= m.itemX) {
+								targetX = (m.itemX - m.safeDist >= minBarX) ? avoidLeft : avoidRight;
+							} else {
+								targetX = (m.itemX + m.safeDist <= maxBarX) ? avoidRight : avoidLeft;
+							}
+							plusSpeed = 0;
 						}
 					}
 				}
@@ -342,16 +382,18 @@ export default class AutoPlay
 
 		//----------武器使用（リアルタイム即時判定＆発射）----------
 		if (bar && bar.weapon > 0) {
-			// 1) Workerシミュレーションからの発射指示があれば即座に発射
-			if (result && result.fireWeapon) {
-				EventBus.emitEvent('weapon:spawn', result.fireWeapon);
-				result.fireWeapon = null;
-			}
-			// 2) メインスレッドでのリアルタイム即時発射判定（バーがブロック直下を通過した一瞬を逃さず発射）
-			else if (bar.weaponInter <= 0) {
-				const weapons = this.getWeapons();
-				const weaponMaxNum = (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
-				if (weapons.length < weaponMaxNum[bar.weapon - 1]) {
+			const weapons = this.getWeapons();
+			const weaponMaxNum = (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
+			const canFire = bar.canFireWeapon && bar.canFireWeapon(weapons, weaponMaxNum);
+
+			if (canFire) {
+				// 1) Workerシミュレーションからの発射指示があれば即座に発射
+				if (result && result.fireWeapon) {
+					EventBus.emitEvent('weapon:spawn', result.fireWeapon);
+					result.fireWeapon = null;
+				}
+				// 2) メインスレッドでのリアルタイム即時発射判定（バーがブロック直下を通過した一瞬を逃さず発射）
+				else {
 					const fireImmediate = evaluateWeaponFire(
 						bar,
 						weapons,
@@ -366,6 +408,9 @@ export default class AutoPlay
 						EventBus.emitEvent('weapon:spawn', fireImmediate);
 					}
 				}
+			} else if (result && result.fireWeapon) {
+				// 発射制限中は古い指示を破棄
+				result.fireWeapon = null;
 			}
 		}
 	}

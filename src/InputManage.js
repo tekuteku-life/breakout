@@ -421,7 +421,10 @@ export default class InputManage {
 		}
 
 		// 武器の発射（EventBus経由で通知）
-		if (bar && bar.weapon != 0 && weapons && weapons.length < weaponMaxNum[bar.weapon - 1] && bar.weaponInter <= 0) {
+		const canFire = bar && (typeof bar.canFireWeapon === 'function'
+			? bar.canFireWeapon(weapons, weaponMaxNum)
+			: (bar.weapon != 0 && bar.weaponInter <= 0));
+		if (canFire) {
 			EventBus.emitEvent('weapon:spawn', {
 				type: bar.weapon,
 				x: bar.getCenterX()
@@ -610,7 +613,7 @@ export default class InputManage {
 					EventBus.emitEvent('ball:launch', { mouseDownTime: this.mouseDownTime });
 					this.mouseDownTime = 0;
 					EventBus.emitEvent('input:mouseDownTime', 0);
-				} else if (bar && bar.weapon != 0 && weapons.length < weaponMaxNum[bar.weapon - 1] && bar.weaponInter <= 0) {
+				} else if (bar && bar.canFireWeapon && bar.canFireWeapon(weapons, weaponMaxNum)) {
 					EventBus.emitEvent('weapon:spawn', {
 						type: bar.weapon,
 						x: bar.getCenterX()
