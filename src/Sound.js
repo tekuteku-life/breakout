@@ -22,7 +22,7 @@ export default class Sound
 
 		// Web Audio API の初期化（利用可能な場合）
 		const AudioContextClass = typeof window !== 'undefined'
-			? (window.AudioContext || window.webkitAudioContext)
+			? window.AudioContext
 			: (typeof AudioContext !== 'undefined' ? AudioContext : null);
 
 		this.audioCtx = null;

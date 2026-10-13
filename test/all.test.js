@@ -19,6 +19,7 @@ import './unit/ScoreManage.test.js';
 import './unit/Sound.test.js';
 import './unit/StatusManage.test.js';
 import './unit/Weapon.test.js';
+import './unit/RecordScreenControl.test.js';
 import './unit/screen.test.js';
 
 // Integration tests

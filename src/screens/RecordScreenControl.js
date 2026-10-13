@@ -3,7 +3,35 @@
 
 import ScreenControl from "./ScreenControl.js";
 import MessageBox from "../MessageBox.js";
+import PresetManage from "../PresetManage.js";
 import { AWARD_KEY_LIST } from "../const.js";
+
+const DEFAULT_RECORD_TEMPLATE = `
+				<h2 class="little_title">Record</h2>
+				<div class="record_title">-スコア成績-</div>
+				<form class="record_form">
+					Record Type: <select id="record_type"></select> / Stage: <select id="record_stage"></select><input type="button" value="Reload" id="reload_record" style="margin-left: 1em;">
+				</form>
+				<ul class="record">
+					<li>------------------------------------</li>
+					<li>プレイ回数：<!--play_num-->times</li>
+					<li>クリア回数：<!--clear_num-->times (勝率：<!--clear_ratio-->%）</li>
+					<li>残りライフ数：<!--remainder_life_num-->lives</li>
+					<li>ボール個数：<!--ball_number_num-->balls</li>
+					<li>無敵・強化状態クリア：<!--strengthened_clear_num--></li>
+					<li>連続破壊数：<!--continuous_break_number_num-->blocks</li>
+					<li>連続破壊クリア：<!--continuous_break_clear_num-->balls</li>
+					<li>クリア時間：<!--clear_time_num-->sec</li>
+					<li>アイテム取得数：<!--get_item_number_num-->items</li>
+					<li>落下球数：<!--fall_ball_number_num-->balls</li>
+					<li>------------------------------------</li>
+					<li>得点：<!--stageScor-->pt</li>
+				</ul>
+				<form class="record_form">
+					<input type="button" value="Reset all" id="reset_record">
+				</form>
+				<a href="javascript:screenManage.closeScreen('screen_record');" class="barButton">Back</a>
+`;
 
 export default class RecordScreenControl extends ScreenControl {
 	constructor(screenManage, screenId = 'screen_record', storage = null, scoreMng = null) {
@@ -12,11 +40,14 @@ export default class RecordScreenControl extends ScreenControl {
 		this.scoreMng = scoreMng;
 		this.recordTypeTitle = ["Best", "Average", "Worst"];
 		this.recordTypeCtrl = ["best", "ave", "worst"];
+		this.template = null;
 	}
 
 	getStorage() {
 		if (this.storage) return this.storage;
 		if (this.screenManage && this.screenManage.game && this.screenManage.game.storage) return this.screenManage.game.storage;
+		if (typeof window !== 'undefined' && window.localStorage) return window.localStorage;
+		if (typeof localStorage !== 'undefined') return localStorage;
 		return null;
 	}
 
@@ -24,6 +55,33 @@ export default class RecordScreenControl extends ScreenControl {
 		if (this.scoreMng) return this.scoreMng;
 		if (this.screenManage && this.screenManage.game && this.screenManage.game.scoreMng) return this.screenManage.game.scoreMng;
 		return null;
+	}
+
+	onOpen() {
+		this.render();
+	}
+
+	getTemplate() {
+		if (!this.template) {
+			const saved = this.screenManage ? this.screenManage.getScreenData(this.screenId) : null;
+			if (saved && saved.indexOf('<!--play_num-->') !== -1) {
+				this.template = saved;
+			} else {
+				const elem = document.getElementById(this.screenId);
+				if (elem && elem.innerHTML && elem.innerHTML.indexOf('<!--play_num-->') !== -1) {
+					this.template = elem.innerHTML;
+					if (this.screenManage) {
+						this.screenManage.screenData[this.screenId] = this.template;
+					}
+				} else {
+					this.template = DEFAULT_RECORD_TEMPLATE;
+					if (this.screenManage) {
+						this.screenManage.screenData[this.screenId] = this.template;
+					}
+				}
+			}
+		}
+		return this.template;
 	}
 
 	printRecordScreen(recordType = null, recordStage = null) {
@@ -37,12 +95,11 @@ export default class RecordScreenControl extends ScreenControl {
 		const typeElem = document.getElementById('record_type');
 		const stageElem = document.getElementById('record_stage');
 
-		if (recordType === null && recordStage === null) {
-			recordType = typeElem ? typeElem.selectedIndex : 0;
-			recordStage = stageElem ? stageElem.selectedIndex : 0;
-		} else {
-			if (recordType === null) recordType = typeElem ? typeElem.selectedIndex : 0;
-			if (recordStage === null) recordStage = stageElem ? stageElem.selectedIndex : 0;
+		if (recordType === null || recordType === undefined) {
+			recordType = typeElem && typeElem.selectedIndex >= 0 ? typeElem.selectedIndex : 0;
+		}
+		if (recordStage === null || recordStage === undefined) {
+			recordStage = stageElem && stageElem.selectedIndex >= 0 ? stageElem.selectedIndex : 0;
 		}
 
 		if (recordType < 0) recordType = 0;
@@ -51,6 +108,7 @@ export default class RecordScreenControl extends ScreenControl {
 		const stageTitles = (this.preset && this.preset.stageTitle)
 			|| (this.screenManage && this.screenManage.preset && this.screenManage.preset.stageTitle)
 			|| (this.screenManage && this.screenManage.game && this.screenManage.game.stageTitle)
+			|| (PresetManage.getDefaultPreset().stageTitle)
 			|| [];
 		const stageNameRaw = stageTitles[recordStage] || 'Stage_' + (recordStage + 1);
 		const stageName = String(stageNameRaw).replace(/_/g, '__');
@@ -73,7 +131,7 @@ export default class RecordScreenControl extends ScreenControl {
 			clearRatio = Math.floor(Number(record.clearNum) / Number(record.playNum) * 10000) / 100;
 		}
 
-		let screenData = String(this.screenManage.getScreenData('screen_record'));
+		let screenData = String(this.getTemplate());
 		screenData = screenData.replace('<!--play_num-->', record.playNum);
 		screenData = screenData.replace('<!--clear_num-->', record.clearNum);
 		screenData = screenData.replace('<!--clear_ratio-->', clearRatio);
@@ -87,7 +145,7 @@ export default class RecordScreenControl extends ScreenControl {
 		screenData = screenData.replace('<!--fall_ball_number_num-->', record.fallBallNum);
 		screenData = screenData.replace('<!--stageScor-->', record.stageScore);
 
-		this.screenManage.replaceScreenData('screen_record', screenData);
+		this.screenManage.replaceScreenData(this.screenId, screenData);
 
 		this.setupSelectors(recordType, recordStage, stageTitles);
 		this.setupButtons();
@@ -95,6 +153,8 @@ export default class RecordScreenControl extends ScreenControl {
 
 	setupSelectors(recordType, recordStage, stageTitles) {
 		const stageSelector = document.getElementById('record_stage');
+		const typeSelector = document.getElementById('record_type');
+
 		if (stageSelector) {
 			while (stageSelector.firstChild) {
 				stageSelector.removeChild(stageSelector.firstChild);
@@ -107,12 +167,12 @@ export default class RecordScreenControl extends ScreenControl {
 				stageSelector.appendChild(option);
 			}
 			stageSelector.onchange = () => {
-				this.render(recordType, stageSelector.selectedIndex);
+				const curType = typeSelector && typeSelector.selectedIndex >= 0 ? typeSelector.selectedIndex : recordType;
+				this.render(curType, stageSelector.selectedIndex);
 				stageSelector.focus();
 			};
 		}
 
-		const typeSelector = document.getElementById('record_type');
 		if (typeSelector) {
 			while (typeSelector.firstChild) {
 				typeSelector.removeChild(typeSelector.firstChild);
@@ -125,7 +185,8 @@ export default class RecordScreenControl extends ScreenControl {
 				typeSelector.appendChild(option);
 			}
 			typeSelector.onchange = () => {
-				this.render(typeSelector.selectedIndex, recordStage);
+				const curStage = stageSelector && stageSelector.selectedIndex >= 0 ? stageSelector.selectedIndex : recordStage;
+				this.render(typeSelector.selectedIndex, curStage);
 			};
 		}
 	}
@@ -165,9 +226,9 @@ export default class RecordScreenControl extends ScreenControl {
 		if (stageSelector) stageSelector.onchange = null;
 		const typeSelector = document.getElementById('record_type');
 		if (typeSelector) typeSelector.onchange = null;
+		this.template = null;
 		this.storage = null;
 		this.scoreMng = null;
 		super.destructor();
 	}
 }
-

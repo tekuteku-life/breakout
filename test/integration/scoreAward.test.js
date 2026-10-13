@@ -138,6 +138,7 @@ describe('Integration Test: Score Calculation, Award Bonuses, and Stage Completi
 
 	it('handles stage clear flow in gameOver() when player is alive', () => {
 		const g = window.gameManage;
+		const stage0Name = g.stageTitle[0];
 		g.statusMng.life = 2;
 		g.statusMng.blockNum = 0;
 		g.ctrl.stageIndex = 0;
@@ -151,10 +152,15 @@ describe('Integration Test: Score Calculation, Award Bonuses, and Stage Completi
 		assert.equal(g.ctrl.stageIndex, 1);
 		assert.ok(Number(g.storage.getItem('continue_score')) >= 5000);
 		assert.ok(Number(g.storage.getItem('record_hiScore')) >= 5000);
+		// Should have recorded stage clear
+		assert.equal(g.storage.getItem(`record_${stage0Name}_playNum`), '1');
+		assert.equal(g.storage.getItem(`record_${stage0Name}_clearNum`), '1');
+		assert.ok(Number(g.storage.getItem(`record_best_${stage0Name}_stageScore`)) > 0);
 	});
 
 	it('handles game over flow in gameOver() when player life is 0', () => {
 		const g = window.gameManage;
+		const stage1Name = g.stageTitle[1];
 		g.statusMng.life = 0;
 		g.ctrl.stageIndex = 1;
 		g.scoreMng.score = 3000;
@@ -165,13 +171,18 @@ describe('Integration Test: Score Calculation, Award Bonuses, and Stage Completi
 		// Should reset continue data
 		assert.equal(Number(g.storage.getItem('continue_score')), 0);
 		assert.equal(Number(g.storage.getItem('continue_time')), 0);
+		// Should record play count but clearNum remains 0
+		assert.equal(g.storage.getItem(`record_${stage1Name}_playNum`), '1');
+		assert.equal(g.storage.getItem(`record_${stage1Name}_clearNum`), '0');
 	});
 
 	it('handles all clear flow when final stage is beaten', () => {
 		const g = window.gameManage;
+		const finalIdx = g.blockMapSet.length - 1;
+		const finalStageName = g.stageTitle[finalIdx];
 		g.statusMng.life = 2;
 		g.statusMng.blockNum = 0;
-		g.ctrl.stageIndex = g.blockMapSet.length - 1;
+		g.ctrl.stageIndex = finalIdx;
 		g.ctrl.stageEnded = 1;
 		g.scoreMng.score = 99999;
 
@@ -179,5 +190,8 @@ describe('Integration Test: Score Calculation, Award Bonuses, and Stage Completi
 
 		assert.equal(Number(g.storage.getItem('continue_stageIndex')), 0);
 		assert.ok(Number(g.storage.getItem('record_hiScore')) >= 99999);
+		// Final stage should record clear
+		assert.equal(g.storage.getItem(`record_${finalStageName}_playNum`), '1');
+		assert.equal(g.storage.getItem(`record_${finalStageName}_clearNum`), '1');
 	});
 });

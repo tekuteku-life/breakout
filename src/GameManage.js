@@ -57,7 +57,15 @@ export default class GameManage {
 		this.staticCtx = null;
 		this.canvasBg = null;
 
-		this.storage = null;
+		if (options && options.storage) {
+			this.storage = options.storage;
+		} else if (typeof window !== 'undefined' && window.localStorage !== undefined) {
+			this.storage = window.localStorage;
+		} else if (typeof localStorage !== 'undefined') {
+			this.storage = localStorage;
+		} else {
+			this.storage = null;
+		}
 		this.ctrl = null;
 		this.statusMng = null;
 		this.scoreMng = null;
@@ -699,7 +707,7 @@ export default class GameManage {
 		// ストレージへの記録
 		if (this.storage != null) {
 			const hiScore = this.storage.getItem("record_hiScore");
-			if (hiScore == null || hiScore < this.scoreMng.score) {
+			if (hiScore == null || Number(hiScore) < this.scoreMng.score) {
 				this.storage.setItem("record_hiScore", this.scoreMng.score);
 			}
 

@@ -44,6 +44,61 @@ describe('System Test SYS-09: Record Management and Viewing', () => {
 		reloadBtn.onclick();
 	});
 
+	it('SYS-09: automatically records game results upon stage clear or game over and displays on open', () => {
+		const g = window.gameManage;
+		g.init(0);
+
+		// Simulate playing stage 0 (Beginner): score points, then clear all blocks
+		window.eventBus.emitEvent('score:add', 1200);
+		g.statusMng.blockNum = 0;
+		g.gameOver();
+
+		const stage0Name = g.stageTitle[0] || 'Beginner';
+		assert.equal(g.storage.getItem(`record_${stage0Name}_playNum`), '1');
+		assert.equal(g.storage.getItem(`record_${stage0Name}_clearNum`), '1');
+		const bestScore = g.storage.getItem(`record_best_${stage0Name}_stageScore`);
+		assert.ok(Number(bestScore) >= 1200, `Expected score >= 1200, got ${bestScore}`);
+
+		// User navigates to record screen via openScreen
+		window.screenManage.openScreen('screen_record');
+
+		const screenRecord = document.getElementById('screen_record');
+		assert.ok(screenRecord.innerHTML.includes('1times'), 'Should display 1 play times');
+		assert.ok(screenRecord.innerHTML.includes('1times (勝率：100%）'), 'Should display 1 clear and 100% win rate');
+		assert.ok(screenRecord.innerHTML.includes(`${bestScore}pt`), `Should display stage score ${bestScore}pt`);
+
+		// Verify stage selector options are populated
+		const stageSel = document.getElementById('record_stage');
+		assert.ok(stageSel.options.length >= 13, `Expected at least 13 stage options, got ${stageSel.options.length}`);
+		assert.equal(stageSel.options[0].innerHTML, stage0Name);
+
+		// Now simulate game over on stage 1 (Square)
+		g.init(1);
+		window.eventBus.emitEvent('score:add', 300);
+		g.statusMng.life = 0;
+		g.gameOver();
+
+		const stage1Name = g.stageTitle[1] || 'Square';
+		assert.equal(g.storage.getItem(`record_${stage1Name}_playNum`), '1');
+		assert.equal(g.storage.getItem(`record_${stage1Name}_clearNum`), '0');
+
+		// Re-open record screen and switch dropdown to stage 1
+		window.screenManage.openScreen('screen_record');
+		stageSel.selectedIndex = 1;
+		stageSel.onchange();
+
+		assert.ok(screenRecord.innerHTML.includes('1times'), 'Should display 1 play time for stage 1');
+		assert.ok(screenRecord.innerHTML.includes('0times (勝率：0%）'), 'Should display 0 clears and 0% win rate');
+
+		// Switch record type to Worst: stage index 1 should be retained
+		const typeSel = document.getElementById('record_type');
+		typeSel.selectedIndex = 2; // Worst
+		typeSel.onchange();
+
+		const updatedStageSel = document.getElementById('record_stage');
+		assert.equal(updatedStageSel.selectedIndex, 1, 'Stage selection should be retained when changing record type');
+	});
+
 	it('SYS-09: handles record reset confirmation and deletion', () => {
 		const g = window.gameManage;
 		const stageName = g.stageTitle[0];

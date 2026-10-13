@@ -153,12 +153,14 @@ window.onload = async function()
 	const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
 	if (isNode) {
 		gameManage.init(0);
+		gameManage.screenManage.printRecordScreen(0, 0);
 		gameManage.screenManage.openScreen('screen_start');
 		return;
 	}
 
 	// ブラウザ環境：プレイ準備完了までのロード画面を表示しつつ非同期初期化
 	return gameManage.initAsync(0).then(() => {
+		gameManage.screenManage.printRecordScreen(0, 0);
 		gameManage.screenManage.openScreen('screen_start');
 	});
 };

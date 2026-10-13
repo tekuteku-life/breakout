@@ -47,6 +47,10 @@ export class MockElement {
 		return this.children[0] || null;
 	}
 
+	get options() {
+		return this.children.filter(c => c.tagName === 'OPTION');
+	}
+
 	appendChild(child) {
 		if (!child) return null;
 		if (child.parentNode) {

@@ -28,8 +28,14 @@ export default class ScoreManage
 
 		// ハイスコアの取得
 		const storage = this.getStorage();
-		if( storage != null && storage.getItem("record_hiScore") != null ) {
+		if (storage != null && storage.getItem("record_hiScore") != null) {
 			this.hiScore = storage.getItem("record_hiScore");
+		}
+
+		for (var i = 0, len = AWARD_KEY_LIST.length; i < len; i++) {
+			var key = AWARD_KEY_LIST[i];
+			this.awardNum[key] = 0;
+			this.awardPt[key] = 0;
 		}
 
 		// EventBus経由でスコア・アワード追加要求を購読
@@ -91,7 +97,9 @@ export default class ScoreManage
 	}
 
 	getStorage() {
-		return (this.game && this.game.storage) || null;
+		return (this.game && this.game.storage)
+			|| (typeof window !== 'undefined' && window.localStorage)
+			|| (typeof localStorage !== 'undefined' ? localStorage : null);
 	}
 
 	getStatusMng() {
@@ -268,24 +276,23 @@ export default class ScoreManage
 		const ctrl = this.getCtrl();
 		if( storage == null || !ctrl ) { return; }
 
-		const stageTitles = (this.game && this.game.stageTitle) || (this.preset && this.preset.stageTitle) || [];
+		const stageTitles = (this.game && this.game.stageTitle)
+			|| (this.preset && this.preset.stageTitle)
+			|| (PresetManage.getDefaultPreset().stageTitle)
+			|| [];
 		// 記録用のステージ名を作成
-		var stageName = String(stageTitles[ctrl.stageIndex] || ('Stage_' + ctrl.stageIndex));
+		var stageName = String(stageTitles[ctrl.stageIndex] || ('Stage_' + (ctrl.stageIndex + 1)));
 		stageName = stageName.replace(/_/g, '__');
 
 		//----------アワード以外の記録を保存----------
 		// プレイ回数
 		var playNumKey = "record_" + stageName + "_playNum";
-		var playNum = storage.getItem(playNumKey);
-		if( playNum == null ) { playNum = 0; }
-		playNum++;
+		var playNum = Number(storage.getItem(playNumKey) || 0) + 1;
 		storage.setItem(playNumKey, playNum);
 
 		// クリア回数
 		var clearNumKey = "record_" + stageName + "_clearNum";
-		var clearNum = storage.getItem(clearNumKey);
-		if( clearNum == null ) { clearNum = 0; }
-		clearNum = Number(clearNum) + Number(_clearNum);
+		var clearNum = Number(storage.getItem(clearNumKey) || 0) + Number(_clearNum || 0);
 		storage.setItem(clearNumKey, clearNum);
 
 		// ステージスコア
@@ -295,54 +302,72 @@ export default class ScoreManage
 		var bestOldStageScore = storage.getItem(bestStageScoreKey);
 		var aveOldStageScore = storage.getItem(aveStageScoreKey);
 		var worstOldStageScore = storage.getItem(worstStageScoreKey);
-		if( bestOldStageScore == null || this.stageScore > bestOldStageScore ) {
-			// ベストスコア
+
+		var bestOld = bestOldStageScore != null ? Number(bestOldStageScore) : null;
+		var worstOld = worstOldStageScore != null ? Number(worstOldStageScore) : null;
+		var aveOld = aveOldStageScore != null ? Number(aveOldStageScore) : 0;
+
+		if (bestOld == null || this.stageScore > bestOld) {
 			storage.setItem(bestStageScoreKey, this.stageScore);
 		}
-		if( worstOldStageScore == null || this.stageScore < worstOldStageScore ) {
-			// ワーストスコア
+		if (worstOld == null || this.stageScore < worstOld) {
 			storage.setItem(worstStageScoreKey, this.stageScore);
 		}
-		// 平均スコア
-		storage.setItem(aveStageScoreKey, ~~(((playNum - 1) * aveOldStageScore + this.stageScore) / playNum * 100)/100);
+		storage.setItem(aveStageScoreKey, ~~(((playNum - 1) * aveOld + this.stageScore) / playNum * 100) / 100);
 		//----------アワード以外の記録を保存----------
 
 
 		// アワードの種類ごとに保存
 		for( var i = 0, len = AWARD_KEY_LIST.length; i < len; i++ ) {
-			var recordName = AWARD_KEY_LIST[i];
-			var awardKey = recordName;
+			var awardKey = AWARD_KEY_LIST[i];
+			var recordName = awardKey.replace(/_/g, '__');
 
-			// アワード名から記録用keyの作成
-			recordName.replace(/_/g, '__');
 			var bestRecordKey = "record_best_" + stageName + "_" + recordName;
 			var aveRecordKey = "record_ave_" + stageName + "_" + recordName;
 			var worstRecordKey = "record_worst_" + stageName + "_" + recordName;
 
 			// 新旧データの取得
-			var newRecord = this.awardNum[awardKey];
+			var newRecord = Number(this.awardNum[awardKey] || 0);
 			var bestOldRecord = storage.getItem(bestRecordKey);
 			var aveOldRecord = storage.getItem(aveRecordKey);
 			var worstOldRecord = storage.getItem(worstRecordKey);
 
-			// ベストスコアの書き込み
-			if( bestOldRecord == null
-				|| ((awardKey == 'clearTime' || awardKey == 'fallBallNum') && bestOldRecord > newRecord)
-				|| ((awardKey != 'clearTime' && awardKey != 'fallBallNum') && bestOldRecord < newRecord)
-			) {
-				storage.setItem(bestRecordKey, newRecord);
+			var bestOld = bestOldRecord != null ? Number(bestOldRecord) : null;
+			var worstOld = worstOldRecord != null ? Number(worstOldRecord) : null;
+			var aveOld = aveOldRecord != null ? Number(aveOldRecord) : 0;
+
+			if (awardKey === 'clearTime') {
+				if (Number(_clearNum) > 0 && newRecord > 0) {
+					if (bestOld == null || newRecord < bestOld) {
+						storage.setItem(bestRecordKey, newRecord);
+					}
+					if (worstOld == null || newRecord > worstOld) {
+						storage.setItem(worstRecordKey, newRecord);
+					}
+					var clears = Number(clearNum);
+					var newAve = clears > 1 ? ~~(((clears - 1) * aveOld + newRecord) / clears * 100) / 100 : newRecord;
+					storage.setItem(aveRecordKey, newAve);
+				}
+				continue;
 			}
 
-			// 平均スコアの書き込み
-			storage.setItem(aveRecordKey, ~~(((playNum - 1) * aveOldRecord + newRecord) / playNum * 100)/100);
-
-			// ワーストスコアの書き込み
-			if( worstOldRecord == null
-				|| ((awardKey == 'clearTime' || awardKey == 'fallBallNum') && worstOldRecord < newRecord)
-				|| ((awardKey != 'clearTime' && awardKey != 'fallBallNum') && worstOldRecord > newRecord)
-			) {
-				storage.setItem(worstRecordKey, newRecord);
+			if (awardKey === 'fallBallNum') {
+				if (bestOld == null || newRecord < bestOld) {
+					storage.setItem(bestRecordKey, newRecord);
+				}
+				if (worstOld == null || newRecord > worstOld) {
+					storage.setItem(worstRecordKey, newRecord);
+				}
+			} else {
+				if (bestOld == null || newRecord > bestOld) {
+					storage.setItem(bestRecordKey, newRecord);
+				}
+				if (worstOld == null || newRecord < worstOld) {
+					storage.setItem(worstRecordKey, newRecord);
+				}
 			}
+
+			storage.setItem(aveRecordKey, ~~(((playNum - 1) * aveOld + newRecord) / playNum * 100) / 100);
 		}
 	}
 
@@ -369,7 +394,7 @@ export default class ScoreManage
 		new MessageBox("プレイ成績を全消去しました。", false, null);
 
 		// 画面の更新（EventBus経由で通知）
-		EventBus.emitEvent('screen:printRecord', { stageIdx: null, mode: null });
+		EventBus.emitEvent('screen:printRecord', { type: null, stage: null });
 		return 0;
 	}
 }

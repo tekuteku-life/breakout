@@ -110,6 +110,66 @@ test('ScoreManage class unit tests', async (t) => {
 		assert.doesNotThrow(() => sm.recordScore(1));
 	});
 
+	await t.test('recordScore correctly compares scores numerically when storage returns string values', () => {
+		const game = createMockGame();
+		const sm = new ScoreManage(game);
+		const stageName = String(game.stageTitle[game.ctrl.stageIndex]).replace(/_/g, '__');
+
+		// In lexicographical order: "100" < "90". In numeric order: 100 > 90.
+		storage.setItem(`record_best_${stageName}_stageScore`, '90');
+		storage.setItem(`record_worst_${stageName}_stageScore`, '1000');
+		storage.setItem(`record_ave_${stageName}_stageScore`, '90');
+		storage.setItem(`record_${stageName}_playNum`, '1');
+
+		sm.stageScore = 100;
+		sm.recordScore(1);
+
+		assert.equal(Number(storage.getItem(`record_best_${stageName}_stageScore`)), 100, 'Best score should be 100 (numeric 100 > 90)');
+		assert.equal(Number(storage.getItem(`record_worst_${stageName}_stageScore`)), 100, 'Worst score should be 100 (numeric 100 < 1000)');
+	});
+
+	await t.test('recordScore does not record 0 for clearTime on game over and records valid clearTime on stage clear', () => {
+		storage.clear();
+		const game = createMockGame();
+		const sm = new ScoreManage(game);
+		const stageName = String(game.stageTitle[game.ctrl.stageIndex]).replace(/_/g, '__');
+
+		// Game Over: clearNum is 0 and clearTime is 0
+		sm.awardNum.clearTime = 0;
+		sm.recordScore(0);
+
+		// Best clearTime must not be recorded as 0
+		assert.equal(storage.getItem(`record_best_${stageName}_clearTime`), null, 'Game over should not set best clearTime to 0');
+		assert.equal(storage.getItem(`record_${stageName}_playNum`), '1');
+		assert.equal(storage.getItem(`record_${stageName}_clearNum`), '0');
+
+		// Subsequent Stage Clear: clearNum is 1 and clearTime is 42
+		sm.awardNum.clearTime = 42;
+		sm.recordScore(1);
+
+		assert.equal(Number(storage.getItem(`record_best_${stageName}_clearTime`)), 42, 'Clear time should record 42');
+		assert.equal(Number(storage.getItem(`record_${stageName}_playNum`)), 2);
+		assert.equal(Number(storage.getItem(`record_${stageName}_clearNum`)), 1);
+
+		// Another Stage Clear with worse time: 55
+		sm.awardNum.clearTime = 55;
+		sm.recordScore(1);
+		assert.equal(Number(storage.getItem(`record_best_${stageName}_clearTime`)), 42, 'Best clear time should remain 42 (minimum)');
+		assert.equal(Number(storage.getItem(`record_worst_${stageName}_clearTime`)), 55, 'Worst clear time should be 55 (maximum)');
+	});
+
+	await t.test('recordScore falls back to Stage_<N+1> when stageTitle has no entry for that index', () => {
+		const game = createMockGame({ ctrl: { stageIndex: 99 } });
+		const sm = new ScoreManage(game);
+
+		sm.stageScore = 300;
+		sm.recordScore(1);
+
+		// When stageIndex is 99 and stageTitle has no index 99, fallback should be Stage_100 (escaped as Stage__100)
+		assert.equal(storage.getItem('record_Stage__100_playNum'), '1');
+		assert.equal(storage.getItem('record_best_Stage__100_stageScore'), '300');
+	});
+
 	await t.test('deleteRecord removes all record_ keys and calls MessageBox', () => {
 		const game = createMockGame();
 		const sm = new ScoreManage(game);
