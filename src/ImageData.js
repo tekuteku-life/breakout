@@ -280,10 +280,24 @@ export default class ImageData
 		const curItemTextColor = itemTextColor[stageIdx] || (itemTextColor[0] || []);
 		const curItemText = itemText[stageIdx] || (itemText[0] || []);
 
-		const bcolor = curItemColor[_type] || '';
-		const lcolor = curItemLineColor[_type] || '';
-		const txtColor = curItemTextColor[_type] || '#000000';
-		const txt = curItemText[_type] || '';
+		let bcolor = curItemColor[_type] || '';
+		let lcolor = curItemLineColor[_type] || '';
+		let txtColor = curItemTextColor[_type] || '#000000';
+		let txt = curItemText[_type] || '';
+
+		if (!bcolor) {
+			if (_type === 7) {
+				bcolor = '#0088cc';
+				lcolor = '#ffffff';
+				txtColor = '#ffffff';
+				if (!txt) txt = 'SpeedUp';
+			} else if (_type === 8) {
+				bcolor = '#6b7280';
+				lcolor = '#ffffff';
+				txtColor = '#ffffff';
+				if (!txt) txt = 'SpeedDown';
+			}
+		}
 
 		// アイテムの枠を描画
 		dynamicCtx.beginPath();

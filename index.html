@@ -138,42 +138,58 @@
 				<h2 class="little_title">Item</h2>
 				<ul>
 					<li>
+						<canvas class="help_preview_item" id="help_item_double" data-item-type="0" width="50" height="20"></canvas>
 						<span class="description_title">球倍増</span> … 球が二倍に増えます。但し、一定個数以上は増えません。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_hard" data-item-type="1" width="50" height="20"></canvas>
 						<span class="description_title">強化状態[t]</span> … 固定ブロック以外のすべてのブロックを一撃で破壊でき、衝突時に速度が最大となります。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_fire" data-item-type="2" width="50" height="20"></canvas>
 						<span class="description_title">無敵状態[t]</span> … 固定ブロックを含むすべてのブロックを一撃で破壊でき、反射しません。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_long" data-item-type="3" width="50" height="20"></canvas>
+						<canvas class="help_preview_item" id="help_item_short" data-item-type="4" width="50" height="20"></canvas>
 						<span class="description_title">バー伸長・縮小[t]</span> … 反射バーが一定の割合で伸び縮みします。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_life" data-item-type="5" width="50" height="20"></canvas>
+						<canvas class="help_preview_item" id="help_item_poison" data-item-type="6" width="50" height="20"></canvas>
 						<span class="description_title">ライフ増加・減少</span> … ライフが増減します。これにより、ライフが０となるとゲームは終了します。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_speed_up" data-item-type="7" width="50" height="20"></canvas>
+						<canvas class="help_preview_item" id="help_item_speed_down" data-item-type="8" width="50" height="20"></canvas>
 						<span class="description_title">球加速・減速</span> … 球の速度が一定の割合で加速・減速します。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_gun" data-item-type="9" width="50" height="20"></canvas>
 						<span class="description_title">銃[t]</span> … 反射バーから銃を撃ってブロックを破壊することができます。但し、威力は普通球と同じです。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_missile" data-item-type="10" width="50" height="20"></canvas>
 						<span class="description_title">ミサイル[t]</span> … 反射バーからミサイルを撃ってブロックを破壊することができます。但し、威力は無敵球と同じです。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_slow" data-item-type="11" width="50" height="20"></canvas>
 						<span class="description_title">バー速度鈍化[t]</span> … バーの移動速度が一定の割合で低下します。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_vibrate" data-item-type="12" width="50" height="20"></canvas>
 						<span class="description_title">バー振動[t]</span> … バーが左右に振動します。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_absorb" data-item-type="13" width="50" height="20"></canvas>
 						<span class="description_title">球の吸着[t]</span> … バーに球が吸着し、クリックで再発射出来るようになります。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_immortal" data-item-type="14" width="50" height="20"></canvas>
 						<span class="description_title">不死身[t]</span> … 球を落としてもライフが減らなくなります。
 					</li>
 					<li>
+						<canvas class="help_preview_item" id="help_item_disturb" data-item-type="15" width="50" height="20"></canvas>
 						<span class="description_title">画面難視化[t]</span> … 画面が見づらくなります。
 					</li>
 				</ul>
@@ -186,48 +202,66 @@
 				<h2 class="little_title">Block</h2>
 				<ul>
 					<li>
+						<canvas class="help_preview_block" id="help_block_normal" data-block-type="3" width="50" height="20"></canvas>
 						<span class="description_title">通常</span> … 一度で破壊でき、球は反射します。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_through" data-block-type="6" width="50" height="20"></canvas>
 						<span class="description_title">脆弱</span> … 一度で破壊でき、球は反射しません。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_wall" data-block-type="4" width="50" height="20"></canvas>
 						<span class="description_title">破壊不可</span> … 通常は破壊不可能で、衝突すると球は反射します。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_hard" data-block-type="1" width="50" height="20"></canvas>
 						<span class="description_title">強化</span> … 複数回球を衝突させないと破壊できません。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_bomb" data-block-type="2" width="50" height="20"></canvas>
 						<span class="description_title">爆弾</span> … 爆発するブロックです。一度で破壊でき、周りのブロックも一緒に破壊されます。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_fuel" data-block-type="5" width="50" height="20"></canvas>
 						<span class="description_title">燃料</span> … 爆弾ブロックによって爆発するブロックですが、球の衝突による破壊は通常ブロックと同じとなります。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_speed" data-block-type="speed" width="50" height="20"></canvas>
 						<span class="description_title">球変速</span> … 衝突した球が強く・弱く反射します。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_napalm" data-block-type="7" width="50" height="20"></canvas>
 						<span class="description_title">爆弾＋無敵状態化</span> … 爆弾ブロックと同じですが、衝突した球を無敵状態にします。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_regen" data-block-type="8" width="50" height="20"></canvas>
 						<span class="description_title">時限回復式</span> … 強化ブロックと同じですが、カウントダウンが終わるまでに再度衝突させないと元に戻ります。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_move" data-block-type="9" width="50" height="20"></canvas>
 						<span class="description_title">移動</span> … 一定速度で横へ移動していき、端又は他のブロックまで行くと反対へ進み、これを繰り返します。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_oneway_up" data-block-type="10" width="50" height="20"></canvas>
+						<canvas class="help_preview_block" id="help_block_oneway_down" data-block-type="11" width="50" height="20"></canvas>
 						<span class="description_title">透過</span> … 球が一定方向に衝突したときのみ、透過します。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_warp_in" data-block-type="12" width="50" height="20"></canvas>
+						<canvas class="help_preview_block" id="help_block_warp_out" data-block-type="13" width="50" height="20"></canvas>
 						<span class="description_title">ワープ</span> … 入口から入った球は出口にワープします。出口ブロックはランダムに選択されます。決して破壊できません。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_magnet" data-block-type="14" width="50" height="20"></canvas>
+						<canvas class="help_preview_block" id="help_block_repull" data-block-type="15" width="50" height="20"></canvas>
 						<span class="description_title">引力・斥力</span> … ブロックの近傍を通過するときに、球が引力又は斥力を受けます。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_blink" data-block-type="16" width="50" height="20"></canvas>
 						<span class="description_title">点滅</span> … ブロックが消えたり現れたりを繰り返します。
 					</li>
 					<li>
+						<canvas class="help_preview_block" id="help_block_attack" data-block-type="17" width="50" height="20"></canvas>
 						<span class="description_title">攻撃</span> … 武器を発射してきます。この攻撃を一定回数を受けるとライフが減少します。
 					</li>
 				</ul>
@@ -342,7 +376,6 @@
 
 			<div id="screen_improvementGoals" style="font-size: 0.9em;">
 				<ul style="margin: 1em 0 0 0; padding: 0 0 0 2.5em;">
-					<li>ヘルプ画面でのブロック等の説明に実物を表示（canvas＋idで判別→描画？）</li>
 					<li>
 						システム関係
 						<ul>

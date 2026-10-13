@@ -86,6 +86,30 @@ export class MockElement {
 		return result;
 	}
 
+	getElementsByClassName(className) {
+		const result = [];
+		const walk = (node) => {
+			for (const c of node.children) {
+				if (c.className && c.className.split(/\s+/).includes(className)) {
+					result.push(c);
+				}
+				walk(c);
+			}
+		};
+		walk(this);
+		return result;
+	}
+
+	querySelectorAll(selector) {
+		if (selector === 'canvas') {
+			return this.getElementsByTagName('canvas');
+		}
+		if (selector && selector.startsWith('.')) {
+			return this.getElementsByClassName(selector.slice(1));
+		}
+		return [];
+	}
+
 	setAttribute(name, val) {
 		this.attributes[name] = String(val);
 		if (name === 'id') this.id = val;
@@ -345,6 +369,28 @@ export function setupEnvironment() {
 		const sc = getOrCreate(screenId, 'div');
 		sc.innerHTML = innerContent;
 		screenStock.appendChild(sc);
+
+		// Parse canvas elements within this screen
+		const canvasTagRegex = /<canvas\b([^>]*)>/g;
+		let cm;
+		while ((cm = canvasTagRegex.exec(innerContent)) !== null) {
+			const attrs = cm[1];
+			const idMatch = attrs.match(/id="([^"]+)"/);
+			const classMatch = attrs.match(/class="([^"]+)"/);
+			const wMatch = attrs.match(/width="([^"]+)"/);
+			const hMatch = attrs.match(/height="([^"]+)"/);
+			const dataBlockMatch = attrs.match(/data-block-type="([^"]+)"/);
+			const dataItemMatch = attrs.match(/data-item-type="([^"]+)"/);
+
+			const canvasId = idMatch ? idMatch[1] : '';
+			const cEl = canvasId ? getOrCreate(canvasId, 'canvas') : new MockElement('canvas', '');
+			if (classMatch) cEl.className = classMatch[1];
+			if (wMatch) cEl.width = Number(wMatch[1]);
+			if (hMatch) cEl.height = Number(hMatch[1]);
+			if (dataBlockMatch) cEl.setAttribute('data-block-type', dataBlockMatch[1]);
+			if (dataItemMatch) cEl.setAttribute('data-item-type', dataItemMatch[1]);
+			sc.appendChild(cEl);
+		}
 	}
 
 	// Loading screen progress elements

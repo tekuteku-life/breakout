@@ -13,6 +13,8 @@ import AllClearScreenControl from '../../src/screens/AllClearScreenControl.js';
 import GameOverScreenControl from '../../src/screens/GameOverScreenControl.js';
 import AboutScreenControl from '../../src/screens/AboutScreenControl.js';
 import LoadingScreenControl from '../../src/screens/LoadingScreenControl.js';
+import BlockScreenControl from '../../src/screens/BlockScreenControl.js';
+import ItemScreenControl from '../../src/screens/ItemScreenControl.js';
 
 describe('ScreenManage and ScreenControllers unit tests', () => {
 	beforeEach(() => {
@@ -29,6 +31,8 @@ describe('ScreenManage and ScreenControllers unit tests', () => {
 		assert.ok(sm.getController('screen_gameOver') instanceof GameOverScreenControl);
 		assert.ok(sm.getController('screen_about') instanceof AboutScreenControl);
 		assert.ok(sm.getController('screen_loading') instanceof LoadingScreenControl);
+		assert.ok(sm.getController('screen_block') instanceof BlockScreenControl);
+		assert.ok(sm.getController('screen_item') instanceof ItemScreenControl);
 
 		// Custom controller registration
 		const custom = new ScreenControl(sm, 'custom_screen');

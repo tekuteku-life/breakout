@@ -9,6 +9,8 @@ import AllClearScreenControl from "./screens/AllClearScreenControl.js";
 import GameOverScreenControl from "./screens/GameOverScreenControl.js";
 import AboutScreenControl from "./screens/AboutScreenControl.js";
 import LoadingScreenControl from "./screens/LoadingScreenControl.js";
+import BlockScreenControl from "./screens/BlockScreenControl.js";
+import ItemScreenControl from "./screens/ItemScreenControl.js";
 import PresetManage from "./PresetManage.js";
 import EventBus from "./EventBus.js";
 
@@ -27,6 +29,8 @@ export default class ScreenManage {
 		this.registerController('screen_gameOver', new GameOverScreenControl(this, 'screen_gameOver'));
 		this.registerController('screen_about', new AboutScreenControl(this, 'screen_about'));
 		this.registerController('screen_loading', new LoadingScreenControl(this, 'screen_loading'));
+		this.registerController('screen_block', new BlockScreenControl(this, 'screen_block'));
+		this.registerController('screen_item', new ItemScreenControl(this, 'screen_item'));
 
 		// EventBus経由で画面操作要求を購読
 		this.onOpenHandler = (screenName) => this.openScreen(screenName);
