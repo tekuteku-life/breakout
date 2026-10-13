@@ -1,0 +1,25 @@
+{
+	"popBalloonBackColor": "#B5F002",
+	"popBalloonFontColor": "#000000",
+	"defaultWidth": 50,
+	"defaultHeight": 20,
+	"defaultAlpha": 1,
+	"defaultFontSize": 16,
+	"contBreakBalloon": {
+		"width": 25,
+		"height": 10,
+		"alpha": 0.13,
+		"fontSize": 12
+	},
+	"damageBalloon": {
+		"width": 25,
+		"height": 10,
+		"alpha": 0.13,
+		"backColor": "#000000",
+		"fontColor": "#ff0000",
+		"fontSize": 12,
+		"offsetX": -10,
+		"offsetY": -15
+	}
+}
+

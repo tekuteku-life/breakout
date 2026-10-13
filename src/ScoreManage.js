@@ -7,6 +7,7 @@ import {
 	AWARD_KEY_LIST,
 } from "./const.js";
 import EventBus from "./EventBus.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // 得点管理
@@ -48,14 +49,21 @@ export default class ScoreManage
 			const currentMax = this.awardNum.continuousBreakNum || 0;
 			if (data.breakNum > currentMax) {
 				this.awardNum.continuousBreakNum = data.breakNum;
-				const balloonData = {
-					text: data.breakNum,
-					x: data.x,
-					y: data.y,
+				const def = PresetManage.getDefaultPreset();
+				const contCfg = (this.game && this.game.contBreakBalloon) || (this.preset && this.preset.contBreakBalloon) || def.contBreakBalloon || {
 					width: 25,
 					height: 10,
 					alpha: 0.13,
 					fontSize: 12,
+				};
+				const balloonData = {
+					text: data.breakNum,
+					x: data.x,
+					y: data.y,
+					width: contCfg.width !== undefined ? contCfg.width : 25,
+					height: contCfg.height !== undefined ? contCfg.height : 10,
+					alpha: contCfg.alpha !== undefined ? contCfg.alpha : 0.13,
+					fontSize: contCfg.fontSize !== undefined ? contCfg.fontSize : 12,
 				};
 				if (data.backColor !== undefined) balloonData.backColor = data.backColor;
 				if (data.fontColor !== undefined) balloonData.fontColor = data.fontColor;
@@ -99,6 +107,10 @@ export default class ScoreManage
 	}
 
 
+	applyPreset(preset = null) {
+		this.preset = preset || null;
+	}
+
 	//--------------------------------------------------
 	// 得点の集計
 	//--------------------------------------------------
@@ -108,15 +120,16 @@ export default class ScoreManage
 		const ctrl = this.getCtrl();
 		const balls = this.getBalls();
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
+		const cfg = (this.game && this.game.pointPerLife ? this.game : this.preset) || this.game || {};
 
-		const pointPerLife = (this.game && this.game.pointPerLife) || [];
-		const pointPerBall = (this.game && this.game.pointPerBall) || [];
-		const strongBallClear = (this.game && this.game.strongBallClear) || [];
-		const pointPerContBreak = (this.game && this.game.pointPerContBreak) || [];
-		const clearTimeThreashould = (this.game && this.game.clearTimeThreashould) || [];
-		const pointPerClearTime = (this.game && this.game.pointPerClearTime) || [];
-		const pointPerGetItem = (this.game && this.game.pointPerGetItem) || [];
-		const pointPerFallBall = (this.game && this.game.pointPerFallBall) || [];
+		const pointPerLife = cfg.pointPerLife || [];
+		const pointPerBall = cfg.pointPerBall || [];
+		const strongBallClear = cfg.strongBallClear || [];
+		const pointPerContBreak = cfg.pointPerContBreak || [];
+		const clearTimeThreashould = cfg.clearTimeThreashould || [];
+		const pointPerClearTime = cfg.pointPerClearTime || [];
+		const pointPerGetItem = cfg.pointPerGetItem || [];
+		const pointPerFallBall = cfg.pointPerFallBall || [];
 
 		// 残りライフ数
 		if( statusMng && typeof statusMng.isAlive === 'function' ? statusMng.isAlive() && statusMng.life > 1 : (statusMng && statusMng.life > 1) )
@@ -255,7 +268,7 @@ export default class ScoreManage
 		const ctrl = this.getCtrl();
 		if( storage == null || !ctrl ) { return; }
 
-		const stageTitles = (this.game && this.game.stageTitle) || [];
+		const stageTitles = (this.game && this.game.stageTitle) || (this.preset && this.preset.stageTitle) || [];
 		// 記録用のステージ名を作成
 		var stageName = String(stageTitles[ctrl.stageIndex] || ('Stage_' + ctrl.stageIndex));
 		stageName = stageName.replace(/_/g, '__');

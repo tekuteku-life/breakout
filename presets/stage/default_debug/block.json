@@ -1,0 +1,16 @@
+{
+	"types": [
+		{ "id": 0, "key": "empty", "color": "", "lineColor": "", "text": "", "textColor": "", "life": 0, "through": 0, "infinit": 0, "breakLimit": 0, "func": 0 },
+		{ "id": 1, "key": "hard", "color": "#aa5500", "lineColor": "#ffffff", "text": "", "textColor": "", "life": 1, "through": 0, "infinit": 0, "breakLimit": 0, "func": 0 },
+		{ "id": 2, "key": "bomb", "color": "#ff0000", "lineColor": "#ffffff", "text": "Bomb", "textColor": "#000000", "life": 0, "through": 0, "infinit": 0, "breakLimit": 0, "func": 1 },
+		{ "id": 3, "key": "normal", "color": "#aa9900", "lineColor": "#ffffff", "text": "", "textColor": "", "life": 0, "through": 0, "infinit": 0, "breakLimit": 0, "func": 0 },
+		{ "id": 4, "key": "wall", "color": "#331100", "lineColor": "#ffffff", "text": "", "textColor": "", "life": 0, "through": 0, "infinit": 1, "breakLimit": 0, "func": 0 },
+		{ "id": 5, "key": "fuel", "color": "#ff7700", "lineColor": "#ffffff", "text": "Fuel", "textColor": "#000000", "life": 0, "through": 0, "infinit": 0, "breakLimit": 0, "func": 2 },
+		{ "id": 6, "key": "through", "color": "#D7D7D7", "lineColor": "#ffffff", "text": "", "textColor": "", "life": 0, "through": 0, "infinit": 0, "breakLimit": 0, "func": 3 },
+		{ "id": 7, "key": "napalm", "color": "#aa0000", "lineColor": "#ffffff", "text": "Napalm", "textColor": "#ffffff", "life": 0, "through": 0, "infinit": 0, "breakLimit": 0, "func": 6 },
+		{ "id": 8, "key": "regen", "color": "#bbbbbb", "lineColor": "#ffffff", "text": "", "textColor": "#2f2f00", "life": 1, "through": 0, "infinit": 0, "breakLimit": 2, "func": 0 },
+		{ "id": 9, "key": "move", "color": "#408080", "lineColor": "#ffffff", "text": "Move", "textColor": "#ffffff", "life": 0, "through": 0, "infinit": 1, "breakLimit": 0, "func": 7 },
+		{ "id": 10, "key": "oneway_up", "color": "#4a4a4a", "lineColor": "#ffffff", "text": "↑↑↑", "textColor": "#ffffff", "life": 0, "through": 1, "infinit": 1, "breakLimit": 0, "func": 0 },
+		{ "id": 11, "key": "oneway_down", "color": "#4a4a4a", "lineColor": "#ffffff", "text": "↓↓↓", "textColor": "#ffffff", "life": 0, "through": 3, "infinit": 1, "breakLimit": 0, "func": 0 }
+	]
+}

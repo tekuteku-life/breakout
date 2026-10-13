@@ -14,6 +14,7 @@ import './unit/Heart.test.js';
 import './unit/ImageData.test.js';
 import './unit/Item.test.js';
 import './unit/MessageBox.test.js';
+import './unit/PresetManage.test.js';
 import './unit/ScoreManage.test.js';
 import './unit/Sound.test.js';
 import './unit/StatusManage.test.js';

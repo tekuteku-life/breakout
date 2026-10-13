@@ -4,10 +4,9 @@
 import {
 	BALL_STATUS,
 	BLOCK_FUNCTION,
-	BLOCK_PARAM,
-	DEFAULT_CONFIG,
 } from "./const.js";
 import EventBus from "./EventBus.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // ブロック
@@ -17,13 +16,14 @@ export default class Block
 	constructor(x, y, type, func, life, infinit, through, game = null)
 	{
 		this.game = game;
-		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
-		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
+		const def = PresetManage.getDefaultPreset();
+		const blkWidth = (this.game && this.game.blockWidth) || def.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || def.blockHeight;
 		const sBarHeight = this.getStatusBarHeight();
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
-		const bMoveInter = (this.game && this.game.blockMoveInter !== undefined) ? this.game.blockMoveInter : DEFAULT_CONFIG.blockMoveInter;
-		const bBlinkInter = (this.game && this.game.blockBlinkInter !== undefined) ? this.game.blockBlinkInter : DEFAULT_CONFIG.blockBlinkInter;
-		const bAttackInter = (this.game && this.game.blockAttackInter !== undefined) ? this.game.blockAttackInter : DEFAULT_CONFIG.blockAttackInter;
+		const fps = (this.game && this.game.FPS) || def.FPS;
+		const bMoveInter = (this.game && this.game.blockMoveInter !== undefined) ? this.game.blockMoveInter : def.blockMoveInter;
+		const bBlinkInter = (this.game && this.game.blockBlinkInter !== undefined) ? this.game.blockBlinkInter : def.blockBlinkInter;
+		const bAttackInter = (this.game && this.game.blockAttackInter !== undefined) ? this.game.blockAttackInter : def.blockAttackInter;
 		const imgSource = (this.game && this.game.imgData) ? this.game.imgData : null;
 
 		this.width = blkWidth;									// ブロックの横幅
@@ -84,15 +84,15 @@ export default class Block
 
 
 	getCanvasWidth() {
-		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+		return (this.game && this.game.canvasWidth) || PresetManage.getDefaultPreset().canvasWidth;
 	}
 
 	getCanvasHeight() {
-		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+		return (this.game && this.game.canvasHeight) || PresetManage.getDefaultPreset().canvasHeight;
 	}
 
 	getStatusBarHeight() {
-		return (this.game && this.game.statusBarHeight) || DEFAULT_CONFIG.statusBarHeight;
+		return (this.game && this.game.statusBarHeight) || PresetManage.getDefaultPreset().statusBarHeight;
 	}
 
 
@@ -219,7 +219,8 @@ export default class Block
 	//--------------------------------------------------
 	updateState(hasBalls = true)
 	{
-		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
 		const blockLife = (this.game && this.game.blockLife) || [];
 		const staticCtx = this.getStaticCtx();
 
@@ -266,8 +267,9 @@ export default class Block
 	{
 		if( this.type == 0 || this.func !== BLOCK_FUNCTION.VERTICAL_MOVE ) { return; }
 
-		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
-		const blockMoveInter = (this.game && this.game.blockMoveInter !== undefined) ? this.game.blockMoveInter : DEFAULT_CONFIG.blockMoveInter;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
+		const blockMoveInter = (this.game && this.game.blockMoveInter !== undefined) ? this.game.blockMoveInter : def.blockMoveInter;
 		const blockMap = blockMapParam || (this.game && this.game.objectManage && this.game.objectManage.blockMap) || [];
 		const canvasWidth = this.getCanvasWidth();
 		const statusBarHeight = this.getStatusBarHeight();
@@ -314,8 +316,9 @@ export default class Block
 		if( this.type == 0 || this.func !== BLOCK_FUNCTION.ATTACK ) { return; }
 		if( !hasBalls ) { return; }
 
-		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
-		const blockAttackInter = (this.game && this.game.blockAttackInter !== undefined) ? this.game.blockAttackInter : DEFAULT_CONFIG.blockAttackInter;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
+		const blockAttackInter = (this.game && this.game.blockAttackInter !== undefined) ? this.game.blockAttackInter : def.blockAttackInter;
 
 		// 経過時間のカウント
 		this.attackInter--;
@@ -343,8 +346,9 @@ export default class Block
 	{
 		if( this.func !== BLOCK_FUNCTION.BLINK || this.blinkSwitch === 0 ) { return; }
 
-		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
-		const blockBlinkInter = (this.game && this.game.blockBlinkInter !== undefined) ? this.game.blockBlinkInter : DEFAULT_CONFIG.blockBlinkInter;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
+		const blockBlinkInter = (this.game && this.game.blockBlinkInter !== undefined) ? this.game.blockBlinkInter : def.blockBlinkInter;
 		const staticCtx = this.getStaticCtx();
 
 		// 経過時間のカウント
@@ -370,9 +374,6 @@ export default class Block
 		}
 	}
 
-
-
-
 	//--------------------------------------------------
 	// 引力・斥力の適用
 	//--------------------------------------------------
@@ -382,8 +383,14 @@ export default class Block
 		if (this.type === 0) { return; }
 		if (this.func !== BLOCK_FUNCTION.MAGNET && this.func !== BLOCK_FUNCTION.REPULL) { return; }
 
-		const blockDrawingDistance = (this.game && this.game.blockDrawingDistance !== undefined) ? this.game.blockDrawingDistance : DEFAULT_CONFIG.blockDrawingDistance;
-		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed !== undefined) ? this.game.ballDefaultSpeed : DEFAULT_CONFIG.ballDefaultSpeed;
+		const def = PresetManage.getDefaultPreset();
+		const blockDrawingDistance = (this.game && this.game.blockDrawingDistance !== undefined) ? this.game.blockDrawingDistance : def.blockDrawingDistance;
+		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed !== undefined) ? this.game.ballDefaultSpeed : def.ballDefaultSpeed;
+		const magnetAccelBase = (this.game && this.game.blockMagnetAccelBase !== undefined) ? this.game.blockMagnetAccelBase : (def.blockMagnetAccelBase !== undefined ? def.blockMagnetAccelBase : 50);
+		const magnetDistPow = (this.game && this.game.blockMagnetDistPow !== undefined) ? this.game.blockMagnetDistPow : (def.blockMagnetDistPow !== undefined ? def.blockMagnetDistPow : 1.5);
+		const magnetVxRatio = (this.game && this.game.blockMagnetVxRatio !== undefined) ? this.game.blockMagnetVxRatio : (def.blockMagnetVxRatio !== undefined ? def.blockMagnetVxRatio : 0.8);
+		const magnetVyRelNegRatio = (this.game && this.game.blockMagnetVyRelNegRatio !== undefined) ? this.game.blockMagnetVyRelNegRatio : (def.blockMagnetVyRelNegRatio !== undefined ? def.blockMagnetVyRelNegRatio : 1.0);
+		const magnetVyRelPosRatio = (this.game && this.game.blockMagnetVyRelPosRatio !== undefined) ? this.game.blockMagnetVyRelPosRatio : (def.blockMagnetVyRelPosRatio !== undefined ? def.blockMagnetVyRelPosRatio : 0.2);
 
 		const powVect = (this.func === BLOCK_FUNCTION.MAGNET) ? -1 : 1;
 
@@ -395,17 +402,17 @@ export default class Block
 		const dist = Math.sqrt(Math.pow(relX, 2) + Math.pow(relY, 2));
 		if( dist <= blockDrawingDistance ) {
 			// 加速度の計算
-			const acceleration = ballDefaultSpeed * BLOCK_PARAM.MAGNET_ACCEL_BASE / Math.pow(dist, BLOCK_PARAM.MAGNET_DIST_POW);
+			const acceleration = ballDefaultSpeed * magnetAccelBase / Math.pow(dist, magnetDistPow);
 
 			// 横方向の球速の変更
-			ball.vx += acceleration * BLOCK_PARAM.MAGNET_VX_RATIO * (relX < 0 ? -1 : 1) * powVect;
+			ball.vx += acceleration * magnetVxRatio * (relX < 0 ? -1 : 1) * powVect;
 			if( Math.abs(ball.vx) <= ballDefaultSpeed * 0.1 ) { ball.vx = ballDefaultSpeed * 0.1 * (ball.vx >= 0 ? 1 : -1); }
 
 			// 縦方向の球速の変更
 			if( ball.vy * relY < 0 ) {
-				ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_NEG_RATIO * (relY < 0 ? -1 : 1) * powVect;
+				ball.vy += acceleration * magnetVyRelNegRatio * (relY < 0 ? -1 : 1) * powVect;
 			} else {
-				ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_POS_RATIO * (relY < 0 ? -1 : 1) * powVect;
+				ball.vy += acceleration * magnetVyRelPosRatio * (relY < 0 ? -1 : 1) * powVect;
 			}
 		}
 	}
@@ -422,16 +429,18 @@ export default class Block
 		const canvasHeight = this.getCanvasHeight();
 		const statusBarHeight = this.getStatusBarHeight();
 
-		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
-		const blockMotionTime = (this.game && this.game.blockMotionTime !== undefined) ? this.game.blockMotionTime : DEFAULT_CONFIG.blockMotionTime;
-		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint !== undefined) ? this.game.blockDefaultPoint : DEFAULT_CONFIG.blockDefaultPoint;
-		const ballStatusTime = (this.game && this.game.ballStatusTime !== undefined) ? this.game.ballStatusTime : DEFAULT_CONFIG.ballStatusTime;
-		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed !== undefined) ? this.game.ballDefaultSpeed : DEFAULT_CONFIG.ballDefaultSpeed;
-		const ballMaxSpeed = (this.game && this.game.ballMaxSpeed !== undefined) ? this.game.ballMaxSpeed : DEFAULT_CONFIG.ballMaxSpeed;
-		const ballSize = (this.game && this.game.ballSize !== undefined) ? this.game.ballSize : DEFAULT_CONFIG.ballSize;
-		const blockIncrPoint = (this.game && this.game.blockIncrPoint !== undefined) ? this.game.blockIncrPoint : DEFAULT_CONFIG.blockIncrPoint;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
+		const blockMotionTime = (this.game && this.game.blockMotionTime !== undefined) ? this.game.blockMotionTime : def.blockMotionTime;
+		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint !== undefined) ? this.game.blockDefaultPoint : def.blockDefaultPoint;
+		const ballStatusTime = (this.game && this.game.ballStatusTime !== undefined) ? this.game.ballStatusTime : def.ballStatusTime;
+		const ballDefaultSpeed = (this.game && this.game.ballDefaultSpeed !== undefined) ? this.game.ballDefaultSpeed : def.ballDefaultSpeed;
+		const ballMaxSpeed = (this.game && this.game.ballMaxSpeed !== undefined) ? this.game.ballMaxSpeed : def.ballMaxSpeed;
+		const ballSize = (this.game && this.game.ballSize !== undefined) ? this.game.ballSize : def.ballSize;
+		const blockIncrPoint = (this.game && this.game.blockIncrPoint !== undefined) ? this.game.blockIncrPoint : def.blockIncrPoint;
 		const blockBreakLimit = (this.game && this.game.blockBreakLimit) || [];
-		const ballInfBoundCancel = (this.game && this.game.ballInfBoundCancel !== undefined) ? this.game.ballInfBoundCancel : DEFAULT_CONFIG.ballInfBoundCancel;
+		const ballInfBoundCancel = (this.game && this.game.ballInfBoundCancel !== undefined) ? this.game.ballInfBoundCancel : def.ballInfBoundCancel;
+		const maxDuarationLimit = (this.game && this.game.blockMaxDuarationLimit !== undefined) ? this.game.blockMaxDuarationLimit : (def.blockMaxDuarationLimit !== undefined ? def.blockMaxDuarationLimit : 20);
 
 		// 接触音（EventBus経由で通知）
 		if( ball != null && ball.simulate == 0 )
@@ -632,7 +641,7 @@ export default class Block
 			duaration = ball.duaration;
 
 			// 無限ループ回避
-			if( ballInfBoundCancel == 1 && duaration > BLOCK_PARAM.MAX_DUARATION_LIMIT )
+			if( ballInfBoundCancel == 1 && duaration > maxDuarationLimit )
 			{
 				// 速度を変更
 				ball.vx += ~~((Math.random()*2)*2 - 1) * (Math.random()*0.5 + 0.5) * ballDefaultSpeed / 10;
@@ -708,8 +717,9 @@ export default class Block
 	//--------------------------------------------------
 	decreaseLife()
 	{
+		const def = PresetManage.getDefaultPreset();
 		const staticCtx = this.getStaticCtx();
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const fps = (this.game && this.game.FPS) || def.FPS;
 		const blockBreakLimit = (this.game && this.game.blockBreakLimit) || [];
 
 		// 耐久性の減少
@@ -728,11 +738,12 @@ export default class Block
 	//--------------------------------------------------
 	explode(x, y, area, ball, blockMapParam = null)
 	{
+		const def = PresetManage.getDefaultPreset();
 		const blockMap = blockMapParam || (this.game && this.game.objectManage && this.game.objectManage.blockMap) || [];
-		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
-		const blockMotionTime = (this.game && this.game.blockMotionTime !== undefined) ? this.game.blockMotionTime : DEFAULT_CONFIG.blockMotionTime;
-		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint !== undefined) ? this.game.blockDefaultPoint : DEFAULT_CONFIG.blockDefaultPoint;
-		const blockIncrPoint = (this.game && this.game.blockIncrPoint !== undefined) ? this.game.blockIncrPoint : DEFAULT_CONFIG.blockIncrPoint;
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
+		const blockMotionTime = (this.game && this.game.blockMotionTime !== undefined) ? this.game.blockMotionTime : def.blockMotionTime;
+		const blockDefaultPoint = (this.game && this.game.blockDefaultPoint !== undefined) ? this.game.blockDefaultPoint : def.blockDefaultPoint;
+		const blockIncrPoint = (this.game && this.game.blockIncrPoint !== undefined) ? this.game.blockIncrPoint : def.blockIncrPoint;
 
 		for(var i = -area + y; i <= area + y; i++)
 		{

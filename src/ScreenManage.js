@@ -9,7 +9,7 @@ import AllClearScreenControl from "./screens/AllClearScreenControl.js";
 import GameOverScreenControl from "./screens/GameOverScreenControl.js";
 import AboutScreenControl from "./screens/AboutScreenControl.js";
 import LoadingScreenControl from "./screens/LoadingScreenControl.js";
-import { DEFAULT_CONFIG } from "./const.js";
+import PresetManage from "./PresetManage.js";
 import EventBus from "./EventBus.js";
 
 export default class ScreenManage {
@@ -80,6 +80,15 @@ export default class ScreenManage {
 		return this.controllers.get(screenId) || null;
 	}
 
+	applyPreset(preset = null) {
+		this.preset = preset || null;
+		for (const ctrl of this.controllers.values()) {
+			if (ctrl && typeof ctrl.applyPreset === 'function') {
+				ctrl.applyPreset(this.preset);
+			}
+		}
+	}
+
 	//----------------------------------------
 	// 画面を開く
 	//----------------------------------------
@@ -89,8 +98,9 @@ export default class ScreenManage {
 		if (screen) {
 			EventBus.emitEvent('input:exitPointerLock');
 			const dynamicCanvas = (this.game && this.game.dynamicCanvas) || (typeof document !== 'undefined' ? document.getElementById('dynamic') : null);
-			const canvasWidth = (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
-			const canvasHeight = (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+			const def = PresetManage.getDefaultPreset();
+			const canvasWidth = (this.game && this.game.canvasWidth) || (this.preset && this.preset.canvasWidth) || def.canvasWidth;
+			const canvasHeight = (this.game && this.game.canvasHeight) || (this.preset && this.preset.canvasHeight) || def.canvasHeight;
 
 			screen.style.display = 'block';
 			if (dynamicCanvas) {

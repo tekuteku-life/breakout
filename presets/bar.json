@@ -1,0 +1,22 @@
+{
+	"defaultWidth": 80,
+	"maxWidth": 140,
+	"minWidth": 50,
+	"defaultHeight": 7,
+	"color": "#114400",
+	"defaultSpeed": 75,
+	"minSpeed": 10,
+	"statusDefaultTime": 10,
+	"weaponDefaultTime": 8,
+	"edge": 0.04,
+	"spin": 0.2,
+	"immortalColor": "#ffff00",
+	"defaultHP": 5,
+	"speedDownHeightRatio": 1.6,
+	"longWidthRatio": 1.3,
+	"shortWidthRatio": 0.7,
+	"blinkTimeRatio": 0.25,
+	"blinkAlphaStep": 0.05,
+	"blinkAlphaMin": 0.1
+}
+

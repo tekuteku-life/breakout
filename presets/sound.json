@@ -1,0 +1,20 @@
+{
+	"bufSize": 4,
+	"soundFile": {
+		"bomb": "./sound/bomb.wav",
+		"block": "./sound/block.wav",
+		"spBlock": "./sound/sp_block.wav",
+		"bar": "./sound/bar.wav",
+		"fall": "./sound/fall.wav",
+		"clear": "./sound/clear.wav",
+		"wall": "./sound/bar.wav",
+		"warp": "./sound/warp.wav",
+		"gun": "./sound/gun.wav",
+		"missile": "./sound/missile.wav",
+		"plusItem": "./sound/plus_item.wav",
+		"minusItem": "./sound/minus_item.wav",
+		"touchButton": "./sound/touch_button.wav",
+		"game_over": "./sound/game_over.wav"
+	}
+}
+

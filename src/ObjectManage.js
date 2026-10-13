@@ -9,18 +9,14 @@ import Weapon from "./Weapon.js";
 import Balloon from "./Balloon.js";
 import Cloud from "./Cloud.js";
 import {
-	DEFAULT_CONFIG,
 	BALL_CREATE_MODE,
 	BALL_COPY_MODE,
 	BALL_STATUS,
 	ITEM_TYPE,
-	BALL_PARAM,
-	BAR_PARAM,
 	BLOCK_FUNCTION,
 	WEAPON_TYPE,
-	WEAPON_PARAM,
-	BALLOON_PARAM,
 } from "./const.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // オブジェクト管理（Ball, Block, Item, Weapon, Bar 等の統合管理）
@@ -135,6 +131,10 @@ export default class ObjectManage {
 		this.eventBusSetup = false;
 	}
 
+	applyPreset(preset = null) {
+		this.preset = preset || null;
+	}
+
 	init(stageIndex = 0) {
 		this.clearEntities();
 		this.initBar();
@@ -163,9 +163,9 @@ export default class ObjectManage {
 			this.blockMap = [];
 		}
 
-		const blockMapSet = (this.game && this.game.blockMapSet) || [];
+		const blockMapSet = (this.game && this.game.blockMapSet) || (this.preset && this.preset.blockMapSet) || [];
 		if (blockMapSet[stageIndex] && typeof blockMapSet[stageIndex].copyMap === 'function') {
-			this.blockMap = blockMapSet[stageIndex].copyMap(this.game);
+			this.blockMap = blockMapSet[stageIndex].copyMap(this.game || this.preset);
 		} else {
 			this.blockMap = [];
 		}
@@ -220,9 +220,10 @@ export default class ObjectManage {
 	//--------------------------------------------------
 	getNearbyBlocks(x, y, radius, vx = 0, vy = 0) {
 		if (!this.blockMap) { return []; }
-		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
-		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
-		const sBarHeight = (this.game && this.game.statusBarHeight) || 0;
+		const def = PresetManage.getDefaultPreset();
+		const blkWidth = (this.game && this.game.blockWidth) || (this.preset && this.preset.blockWidth) || def.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || (this.preset && this.preset.blockHeight) || def.blockHeight;
+		const sBarHeight = (this.game && this.game.statusBarHeight) || (this.preset && this.preset.statusBarHeight) || def.statusBarHeight || 0;
 
 		const prevX = x - vx;
 		const prevY = y - vy;
@@ -396,9 +397,10 @@ export default class ObjectManage {
 	// 衝突解決フェーズ（衝突判定と調停）
 	//--------------------------------------------------
 	resolveCollisions() {
-		const canvasWidth = (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
-		const canvasHeight = (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
-		const statusBarHeight = (this.game && this.game.statusBarHeight) || 0;
+		const def = PresetManage.getDefaultPreset();
+		const canvasWidth = (this.game && this.game.canvasWidth) || (this.preset && this.preset.canvasWidth) || def.canvasWidth;
+		const canvasHeight = (this.game && this.game.canvasHeight) || (this.preset && this.preset.canvasHeight) || def.canvasHeight;
+		const statusBarHeight = (this.game && this.game.statusBarHeight) || (this.preset && this.preset.statusBarHeight) || def.statusBarHeight || 0;
 
 		// 1. ボール vs バー・壁・ブロック
 		for (let i = this.balls.length - 1; i >= 0; i--) {
@@ -496,17 +498,27 @@ export default class ObjectManage {
 			} else if (weapon.vect < 0 && this.bar) {
 				if (weapon.checkCollision(this.bar) === true) {
 					this.bar.endamage(1);
-					const balloonCfg = BALLOON_PARAM.DAMAGE_BALLOON;
+					const def = PresetManage.getDefaultPreset();
+					const balloonCfg = (this.game && this.game.damageBalloon) || (this.preset && this.preset.damageBalloon) || def.damageBalloon || {
+						offsetX: 10,
+						offsetY: -10,
+						width: 25,
+						height: 10,
+						alpha: 0.13,
+						backColor: "#FFFFFF",
+						fontColor: "#F00B3F",
+						fontSize: 12,
+					};
 					EventBus.emitEvent('balloon:spawn', {
 						text: Math.max(0, this.bar.hitPoint),
-						x: this.bar.getCenterX() + balloonCfg.OFFSET_X,
-						y: this.bar.getTopY() + balloonCfg.OFFSET_Y,
-						width: balloonCfg.WIDTH,
-						height: balloonCfg.HEIGHT,
-						alpha: balloonCfg.ALPHA,
-						backColor: balloonCfg.BACK_COLOR,
-						fontColor: balloonCfg.FONT_COLOR,
-						fontSize: balloonCfg.FONT_SIZE,
+						x: this.bar.getCenterX() + (balloonCfg.offsetX !== undefined ? balloonCfg.offsetX : (balloonCfg.OFFSET_X || 10)),
+						y: this.bar.getTopY() + (balloonCfg.offsetY !== undefined ? balloonCfg.offsetY : (balloonCfg.OFFSET_Y || -10)),
+						width: balloonCfg.width !== undefined ? balloonCfg.width : (balloonCfg.WIDTH || 25),
+						height: balloonCfg.height !== undefined ? balloonCfg.height : (balloonCfg.HEIGHT || 10),
+						alpha: balloonCfg.alpha !== undefined ? balloonCfg.alpha : (balloonCfg.ALPHA || 0.13),
+						backColor: balloonCfg.backColor || balloonCfg.BACK_COLOR || "#FFFFFF",
+						fontColor: balloonCfg.fontColor || balloonCfg.FONT_COLOR || "#F00B3F",
+						fontSize: balloonCfg.fontSize !== undefined ? balloonCfg.fontSize : (balloonCfg.FONT_SIZE || 12),
 					});
 					weapon.destructor();
 				}
@@ -542,14 +554,16 @@ export default class ObjectManage {
 	}
 
 	relaunchBall(barVx = null) {
-		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		const def = PresetManage.getDefaultPreset();
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || (this.preset && this.preset.ballDefaultSpeed) || def.ballDefaultSpeed;
+		const bSpin = (this.game && this.game.barSpin !== undefined) ? this.game.barSpin : ((this.preset && this.preset.barSpin !== undefined) ? this.preset.barSpin : (def.barSpin !== undefined ? def.barSpin : 0.05));
 		const effectiveBarVx = (barVx !== null && barVx !== undefined) ? barVx : (this.bar ? this.bar.vx : 0);
 		for (let i = 0, len = this.balls.length; i < len; i++) {
 			const ball = this.balls[i];
 			if (ball && ball.isAbsorption === 1) {
 				ball.isAbsorption = 0;
 				if (Math.abs(effectiveBarVx) > bDefaultSpeed * 0.3) {
-					ball.vx = effectiveBarVx * BAR_PARAM.SPIN_RATIO;
+					ball.vx = effectiveBarVx * bSpin;
 				} else {
 					ball.vx *= Math.random() * 0.7 + 0.3;
 				}
@@ -567,10 +581,11 @@ export default class ObjectManage {
 	}
 
 	spawnWeapon(type = null, x = null, y = null, vect = null) {
+		const def = PresetManage.getDefaultPreset();
 		const targetVect = (vect !== null && vect !== undefined) ? vect : 1;
 		const targetType = (type !== null && type !== undefined) ? type : (this.bar ? this.bar.weapon : 0);
 		if (targetVect > 0) {
-			const maxNum = (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
+			const maxNum = (this.game && this.game.weaponMaxNum) || (this.preset && this.preset.weaponMaxNum) || def.weaponMaxNum || [5, 3];
 			const canFire = this.bar && (typeof this.bar.canFireWeapon === 'function'
 				? this.bar.canFireWeapon(this.weapons, maxNum, targetType)
 				: (targetType !== 0 && this.bar.weaponInter <= 0));
@@ -586,7 +601,8 @@ export default class ObjectManage {
 		const w = new Weapon(targetType, targetX, targetY, targetVect, this.game);
 		this.weapons.push(w);
 		if (this.bar && targetVect > 0) {
-			this.bar.weaponInter = WEAPON_PARAM.FIRE_INTERVAL;
+			const fireInterval = (this.game && this.game.weaponFireInterval !== undefined) ? this.game.weaponFireInterval : ((this.preset && this.preset.weaponFireInterval !== undefined) ? this.preset.weaponFireInterval : (def.weaponFireInterval !== undefined ? def.weaponFireInterval : 10));
+			this.bar.weaponInter = fireInterval;
 		}
 		return w;
 	}
@@ -594,8 +610,8 @@ export default class ObjectManage {
 	spawnItem(data) {
 		if (!data) { return null; }
 		const stageIdx = (this.game && this.game.ctrl) ? this.game.ctrl.stageIndex : 0;
-		const itemLineColor = (this.game && this.game.itemLineColor) || [];
-		const itemColor = (this.game && this.game.itemColor) || [];
+		const itemLineColor = (this.game && this.game.itemLineColor) || (this.preset && this.preset.itemLineColor) || [];
+		const itemColor = (this.game && this.game.itemColor) || (this.preset && this.preset.itemColor) || [];
 		const lineColor = (data.lineColor !== undefined)
 			? data.lineColor
 			: ((itemLineColor[stageIdx] && itemLineColor[stageIdx][data.type]) || '#ffffff');
@@ -610,31 +626,43 @@ export default class ObjectManage {
 
 	spawnBalloon(data) {
 		if (!data) { return null; }
+		const def = PresetManage.getDefaultPreset();
 		const backColor = (data.backColor !== undefined)
 			? data.backColor
-			: ((this.game && this.game.popBalloonBackColor !== undefined) ? this.game.popBalloonBackColor : DEFAULT_CONFIG.popBalloonBackColor);
+			: ((this.game && this.game.popBalloonBackColor !== undefined)
+				? this.game.popBalloonBackColor
+				: ((this.preset && this.preset.popBalloonBackColor !== undefined) ? this.preset.popBalloonBackColor : def.popBalloonBackColor));
 		const fontColor = (data.fontColor !== undefined)
 			? data.fontColor
-			: ((this.game && this.game.popBalloonFontColor !== undefined) ? this.game.popBalloonFontColor : DEFAULT_CONFIG.popBalloonFontColor);
+			: ((this.game && this.game.popBalloonFontColor !== undefined)
+				? this.game.popBalloonFontColor
+				: ((this.preset && this.preset.popBalloonFontColor !== undefined) ? this.preset.popBalloonFontColor : def.popBalloonFontColor));
+		const defaultWidth = (this.game && this.game.balloonDefaultWidth !== undefined) ? this.game.balloonDefaultWidth : ((this.preset && this.preset.balloonDefaultWidth !== undefined) ? this.preset.balloonDefaultWidth : (def.balloonDefaultWidth !== undefined ? def.balloonDefaultWidth : 50));
+		const defaultHeight = (this.game && this.game.balloonDefaultHeight !== undefined) ? this.game.balloonDefaultHeight : ((this.preset && this.preset.balloonDefaultHeight !== undefined) ? this.preset.balloonDefaultHeight : (def.balloonDefaultHeight !== undefined ? def.balloonDefaultHeight : 20));
+		const defaultAlpha = (this.game && this.game.balloonDefaultAlpha !== undefined) ? this.game.balloonDefaultAlpha : ((this.preset && this.preset.balloonDefaultAlpha !== undefined) ? this.preset.balloonDefaultAlpha : (def.balloonDefaultAlpha !== undefined ? def.balloonDefaultAlpha : 1));
+		const defaultFontSize = (this.game && this.game.balloonDefaultFontSize !== undefined) ? this.game.balloonDefaultFontSize : ((this.preset && this.preset.balloonDefaultFontSize !== undefined) ? this.preset.balloonDefaultFontSize : (def.balloonDefaultFontSize !== undefined ? def.balloonDefaultFontSize : 16));
 
 		const balloon = new Balloon(
 			data.text,
 			data.x,
 			data.y,
-			data.width !== undefined ? data.width : 50,
-			data.height !== undefined ? data.height : 20,
-			data.alpha !== undefined ? data.alpha : 1,
+			data.width !== undefined ? data.width : defaultWidth,
+			data.height !== undefined ? data.height : defaultHeight,
+			data.alpha !== undefined ? data.alpha : defaultAlpha,
 			backColor,
 			fontColor,
-			data.fontSize !== undefined ? data.fontSize : 16
+			data.fontSize !== undefined ? data.fontSize : defaultFontSize
 		);
 		this.balloons.push(balloon);
 		return balloon;
 	}
 
 	applyBallItem(type) {
-		const ballMaxNum = (this.game && this.game.ballMaxNum) || DEFAULT_CONFIG.ballMaxNum;
-		const ballStatusTime = (this.game && this.game.ballStatusTime) || BALL_PARAM.STATUS_TIME_SEC;
+		const def = PresetManage.getDefaultPreset();
+		const ballMaxNum = (this.game && this.game.ballMaxNum) || (this.preset && this.preset.ballMaxNum) || def.ballMaxNum;
+		const ballStatusTime = (this.game && this.game.ballStatusTime !== undefined) ? this.game.ballStatusTime : ((this.preset && this.preset.ballStatusTime !== undefined) ? this.preset.ballStatusTime : def.ballStatusTime);
+		const speedUpRatio = (this.game && this.game.ballSpeedUpRatio !== undefined) ? this.game.ballSpeedUpRatio : ((this.preset && this.preset.ballSpeedUpRatio !== undefined) ? this.preset.ballSpeedUpRatio : (def.ballSpeedUpRatio !== undefined ? def.ballSpeedUpRatio : 1.2));
+		const speedDownRatio = (this.game && this.game.ballSpeedDownRatio !== undefined) ? this.game.ballSpeedDownRatio : ((this.preset && this.preset.ballSpeedDownRatio !== undefined) ? this.preset.ballSpeedDownRatio : (def.ballSpeedDownRatio !== undefined ? def.ballSpeedDownRatio : 0.8));
 		const ballNum = this.balls.length;
 
 		// 2倍増殖
@@ -664,16 +692,16 @@ export default class ObjectManage {
 		} else if (type === ITEM_TYPE.SPEED_UP) {
 			for (let i = 0; i < ballNum; i++) {
 				if (this.balls[i]) {
-					this.balls[i].vx *= BALL_PARAM.SPEED_UP_RATIO;
-					this.balls[i].vy *= BALL_PARAM.SPEED_UP_RATIO;
+					this.balls[i].vx *= speedUpRatio;
+					this.balls[i].vy *= speedUpRatio;
 				}
 			}
 		// ボール速度減少
 		} else if (type === ITEM_TYPE.SPEED_DOWN) {
 			for (let i = 0; i < ballNum; i++) {
 				if (this.balls[i]) {
-					this.balls[i].vx *= BALL_PARAM.SPEED_DOWN_RATIO;
-					this.balls[i].vy *= BALL_PARAM.SPEED_DOWN_RATIO;
+					this.balls[i].vx *= speedDownRatio;
+					this.balls[i].vy *= speedDownRatio;
 				}
 			}
 		}

@@ -1,7 +1,7 @@
 // src/ImageData.js
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
-import { DEFAULT_CONFIG } from "./const.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // 描画イメージ
@@ -48,6 +48,13 @@ export default class ImageData
 		return (this.game && this.game.ctrl) || null;
 	}
 
+	applyPreset(preset = null) {
+		this.preset = preset || null;
+	}
+
+	getConfigSource() {
+		return this.preset || this.game || {};
+	}
 
 	//--------------------------------------------------
 	// 初期化
@@ -57,18 +64,19 @@ export default class ImageData
 		var baseCtx = this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
 		if (!baseCtx && typeof document === 'undefined') { return; }
 
-		const g = this.game || {};
-		const ballSize = g.ballSize !== undefined ? g.ballSize : DEFAULT_CONFIG.ballSize;
-		const canvasWidth = g.canvasWidth !== undefined ? g.canvasWidth : DEFAULT_CONFIG.canvasWidth;
-		const canvasHeight = g.canvasHeight !== undefined ? g.canvasHeight : DEFAULT_CONFIG.canvasHeight;
-		const blockColor = (g.blockColor !== undefined ? g.blockColor : (typeof window !== 'undefined' ? window.blockColor : [])) || [];
-		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : (typeof window !== 'undefined' && window.blockWidth !== undefined ? window.blockWidth : DEFAULT_CONFIG.blockWidth);
-		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : (typeof window !== 'undefined' && window.blockHeight !== undefined ? window.blockHeight : DEFAULT_CONFIG.blockHeight);
+		const def = PresetManage.getDefaultPreset();
+		const g = this.getConfigSource();
+		const ballSize = g.ballSize !== undefined ? g.ballSize : def.ballSize;
+		const canvasWidth = g.canvasWidth !== undefined ? g.canvasWidth : def.canvasWidth;
+		const canvasHeight = g.canvasHeight !== undefined ? g.canvasHeight : def.canvasHeight;
+		const blockColor = g.blockColor !== undefined ? g.blockColor : def.blockColor;
+		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : def.blockWidth;
+		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : def.blockHeight;
 		const ctrl = this.getCtrl();
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
-		const itemColor = (g.itemColor !== undefined ? g.itemColor : (typeof window !== 'undefined' ? window.itemColor : [])) || [];
-		const heartWidth = g.heartWidth !== undefined ? g.heartWidth : DEFAULT_CONFIG.heartWidth;
-		const heartHeight = g.heartHeight !== undefined ? g.heartHeight : DEFAULT_CONFIG.heartHeight;
+		const itemColor = g.itemColor !== undefined ? g.itemColor : def.itemColor;
+		const heartWidth = g.heartWidth !== undefined ? g.heartWidth : def.heartWidth;
+		const heartHeight = g.heartHeight !== undefined ? g.heartHeight : def.heartHeight;
 
 		// オフスクリーンキャンバス（willReadFrequently: true）を用意して描画・読み出し
 		let renderCtx = baseCtx;
@@ -156,7 +164,6 @@ export default class ImageData
 		}
 	}
 
-
 	//--------------------------------------------------
 	// 描画イメージの取得
 	//--------------------------------------------------
@@ -166,7 +173,6 @@ export default class ImageData
 		return data != null ? (data[name] ?? null) : null;
 	}
 
-
 	//--------------------------------------------------
 	// 描画イメージ配列の取得
 	//--------------------------------------------------
@@ -174,7 +180,6 @@ export default class ImageData
 	{
 		return this.imgData[category];
 	}
-
 
 	//--------------------------------------------------
 	// ボールの描画
@@ -184,11 +189,12 @@ export default class ImageData
 		var dynamicCtx = targetCtx || this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
 		if (!dynamicCtx) { return; }
 
-		const g = this.game || {};
-		const ballSize = g.ballSize !== undefined ? g.ballSize : DEFAULT_CONFIG.ballSize;
-		const ballColor = g.ballColor !== undefined ? g.ballColor : DEFAULT_CONFIG.ballColor;
-		const ballStrongColor = g.ballStrongColor !== undefined ? g.ballStrongColor : DEFAULT_CONFIG.ballStrongColor;
-		const ballUltimateColor = g.ballUltimateColor !== undefined ? g.ballUltimateColor : DEFAULT_CONFIG.ballUltimateColor;
+		const def = PresetManage.getDefaultPreset();
+		const g = this.getConfigSource();
+		const ballSize = g.ballSize !== undefined ? g.ballSize : def.ballSize;
+		const ballColor = g.ballColor !== undefined ? g.ballColor : def.ballColor;
+		const ballStrongColor = g.ballStrongColor !== undefined ? g.ballStrongColor : def.ballStrongColor;
+		const ballUltimateColor = g.ballUltimateColor !== undefined ? g.ballUltimateColor : def.ballUltimateColor;
 
 		// 色の選択
 		if( stat == 0 ) { dynamicCtx.fillStyle = ballColor; }
@@ -208,7 +214,6 @@ export default class ImageData
 		dynamicCtx.globalAlpha = 1;
 	}
 
-
 	//--------------------------------------------------
 	// ブロックの描画
 	//--------------------------------------------------
@@ -217,14 +222,15 @@ export default class ImageData
 		var dynamicCtx = targetCtx || this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
 		if (!dynamicCtx) { return; }
 
-		const g = this.game || {};
-		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : (typeof window !== 'undefined' && window.blockWidth !== undefined ? window.blockWidth : DEFAULT_CONFIG.blockWidth);
-		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : (typeof window !== 'undefined' && window.blockHeight !== undefined ? window.blockHeight : DEFAULT_CONFIG.blockHeight);
-		const blockColor = (g.blockColor !== undefined ? g.blockColor : (typeof window !== 'undefined' ? window.blockColor : [])) || [];
-		const blockLineColor = (g.blockLineColor !== undefined ? g.blockLineColor : (typeof window !== 'undefined' ? window.blockLineColor : [])) || [];
-		const blockFontSize = g.blockFontSize !== undefined ? g.blockFontSize : (typeof window !== 'undefined' && window.blockFontSize !== undefined ? window.blockFontSize : 15);
-		const blockText = (g.blockText !== undefined ? g.blockText : (typeof window !== 'undefined' ? window.blockText : [])) || [];
-		const blockTextColor = (g.blockTextColor !== undefined ? g.blockTextColor : (typeof window !== 'undefined' ? window.blockTextColor : [])) || [];
+		const def = PresetManage.getDefaultPreset();
+		const g = this.getConfigSource();
+		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : def.blockWidth;
+		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : def.blockHeight;
+		const blockColor = g.blockColor !== undefined ? g.blockColor : def.blockColor;
+		const blockLineColor = g.blockLineColor !== undefined ? g.blockLineColor : def.blockLineColor;
+		const blockFontSize = g.blockFontSize !== undefined ? g.blockFontSize : def.blockFontSize;
+		const blockText = g.blockText !== undefined ? g.blockText : def.blockText;
+		const blockTextColor = g.blockTextColor !== undefined ? g.blockTextColor : def.blockTextColor;
 
 		const bcolor = blockColor[_type] || '';
 		const lcolor = blockLineColor[_type] || '';
@@ -249,7 +255,6 @@ export default class ImageData
 		}
 	}
 
-
 	//--------------------------------------------------
 	// アイテムの描画
 	//--------------------------------------------------
@@ -258,16 +263,17 @@ export default class ImageData
 		var dynamicCtx = targetCtx || this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
 		if (!dynamicCtx) { return; }
 
-		const g = this.game || {};
-		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : (typeof window !== 'undefined' && window.blockWidth !== undefined ? window.blockWidth : DEFAULT_CONFIG.blockWidth);
-		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : (typeof window !== 'undefined' && window.blockHeight !== undefined ? window.blockHeight : DEFAULT_CONFIG.blockHeight);
-		const itemFontSize = g.itemFontSize !== undefined ? g.itemFontSize : (typeof window !== 'undefined' && window.itemFontSize !== undefined ? window.itemFontSize : DEFAULT_CONFIG.itemFontSize);
+		const def = PresetManage.getDefaultPreset();
+		const g = this.getConfigSource();
+		const blockWidth = g.blockWidth !== undefined ? g.blockWidth : def.blockWidth;
+		const blockHeight = g.blockHeight !== undefined ? g.blockHeight : def.blockHeight;
+		const itemFontSize = g.itemFontSize !== undefined ? g.itemFontSize : def.itemFontSize;
 		const ctrl = this.getCtrl();
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
-		const itemColor = (g.itemColor !== undefined ? g.itemColor : (typeof window !== 'undefined' ? window.itemColor : [])) || [];
-		const itemLineColor = (g.itemLineColor !== undefined ? g.itemLineColor : (typeof window !== 'undefined' ? window.itemLineColor : [])) || [];
-		const itemTextColor = (g.itemTextColor !== undefined ? g.itemTextColor : (typeof window !== 'undefined' ? window.itemTextColor : [])) || [];
-		const itemText = (g.itemText !== undefined ? g.itemText : (typeof window !== 'undefined' ? window.itemText : [])) || [];
+		const itemColor = g.itemColor !== undefined ? g.itemColor : def.itemColor;
+		const itemLineColor = g.itemLineColor !== undefined ? g.itemLineColor : def.itemLineColor;
+		const itemTextColor = g.itemTextColor !== undefined ? g.itemTextColor : def.itemTextColor;
+		const itemText = g.itemText !== undefined ? g.itemText : def.itemText;
 
 		const curItemColor = itemColor[stageIdx] || (itemColor[0] || []);
 		const curItemLineColor = itemLineColor[stageIdx] || (itemLineColor[0] || []);
@@ -298,7 +304,6 @@ export default class ImageData
 		}
 	}
 
-
 	//--------------------------------------------------
 	// ハートの描画
 	//--------------------------------------------------
@@ -307,10 +312,11 @@ export default class ImageData
 		var dynamicCtx = targetCtx || this.dynamicCtx || (this.game && this.game.dynamicCtx) || null;
 		if (!dynamicCtx) { return; }
 
-		const g = this.game || {};
-		const heartColor = g.heartColor !== undefined ? g.heartColor : DEFAULT_CONFIG.heartColor;
-		const heartWidth = g.heartWidth !== undefined ? g.heartWidth : DEFAULT_CONFIG.heartWidth;
-		const heartHeight = g.heartHeight !== undefined ? g.heartHeight : DEFAULT_CONFIG.heartHeight;
+		const def = PresetManage.getDefaultPreset();
+		const g = this.getConfigSource();
+		const heartColor = g.heartColor !== undefined ? g.heartColor : def.heartColor;
+		const heartWidth = g.heartWidth !== undefined ? g.heartWidth : def.heartWidth;
+		const heartHeight = g.heartHeight !== undefined ? g.heartHeight : def.heartHeight;
 
 		// 円の描画
 		dynamicCtx.beginPath();

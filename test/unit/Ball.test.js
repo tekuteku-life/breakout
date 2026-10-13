@@ -5,7 +5,8 @@ import Ball from '../../src/Ball.js';
 import ImageData from '../../src/ImageData.js';
 import Block from '../../src/Block.js';
 import EventBus from '../../src/EventBus.js';
-import { BLOCK_FUNCTION, BALL_STATUS, BALL_CREATE_MODE, BALL_COPY_MODE, SYSTEM_PARAM } from '../../src/const.js';
+import PresetManage from '../../src/PresetManage.js';
+import { BLOCK_FUNCTION, BALL_STATUS, BALL_CREATE_MODE, BALL_COPY_MODE } from '../../src/const.js';
 
 test('Ball class unit tests', async (t) => {
 	setupEnvironment();
@@ -345,7 +346,7 @@ test('Ball class unit tests', async (t) => {
 
 		ball.movePosition();
 		ball.checkCollision(targetBlock);
-		assert.equal(ball.histX.length, SYSTEM_PARAM.BALL_HIST_MAX);
+		assert.equal(ball.histX.length, PresetManage.getDefaultPreset().ballHistMax);
 	});
 
 	await t.test('Ball getters and destructor via standard Array', () => {

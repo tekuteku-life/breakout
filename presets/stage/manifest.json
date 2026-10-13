@@ -1,0 +1,29 @@
+{
+	"defaultPreset": "default",
+	"presets": {
+		"default": {
+			"title": "Default",
+			"dir": "./default",
+			"files": {
+				"blockmap": "blockmap.json",
+				"block": "block.json",
+				"item": "item.json",
+				"weapon": "weapon.json",
+				"award": "award.json",
+				"ball": "ball.json"
+			}
+		},
+		"default_debug": {
+			"title": "Debug Mode",
+			"dir": "./default_debug",
+			"files": {
+				"blockmap": "blockmap.json",
+				"block": "block.json",
+				"item": "item.json",
+				"weapon": "weapon.json",
+				"award": "award.json",
+				"ball": "ball.json"
+			}
+		}
+	}
+}

@@ -11,15 +11,41 @@ import Sound from "./Sound.js";
 import ImageData from "./ImageData.js";
 import AutoPlay from "./AutoPlay.js";
 import ObjectManage from "./ObjectManage.js";
-import {
-	DEFAULT_CONFIG,
-	GAME_LOOP_PARAM,
-	SYSTEM_PARAM,
-	AWARD_KEY_LIST,
-} from "./const.js";
+import PresetManage from "./PresetManage.js";
+import { AWARD_KEY_LIST } from "./const.js";
+
+const PRESET_CONFIG_KEYS = Object.freeze([
+	'canvasWidth', 'canvasHeight', 'statusBarHeight', 'FPS', 'lowFPSAlartRatio',
+	'stepTime', 'maxAccumulator', 'simulateMaxPredict', 'pointerLockSwitch', 'disturbOverlayColor',
+	'defaultLife', 'maxLife', 'heartColor', 'heartWidth', 'heartHeight',
+	'barDefaultWidth', 'barMaxWidth', 'barMinWidth', 'barDefaultHeight',
+	'barColor', 'barDefaultSpeed', 'barMinSpeed', 'barStatusDefaultTime',
+	'barWeaponDefaultTime', 'barEdge', 'barSpin', 'barImmortalColor', 'barDefaultHP',
+	'barSpeedDownHeightRatio', 'barLongWidthRatio', 'barShortWidthRatio',
+	'barBlinkTimeRatio', 'barBlinkAlphaStep', 'barBlinkAlphaMin',
+	'ballSize', 'ballDefaultSpeed', 'ballMaxSpeed', 'ballColor', 'ballStrongColor',
+	'ballUltimateColor', 'ballMaxNum', 'ballStatusTime', 'ballInfBoundCancel',
+	'ballHistMax', 'ballDefaultPointIncr', 'ballMinVyRatio', 'ballMinVxRatio',
+	'ballEdgeAccelRatio', 'ballVyUpStep', 'ballVyDownStep', 'ballSpeedUpRatio', 'ballSpeedDownRatio',
+	'popBalloonBackColor', 'popBalloonFontColor', 'balloonDefaultWidth', 'balloonDefaultHeight',
+	'balloonDefaultAlpha', 'balloonDefaultFontSize', 'contBreakBalloon', 'damageBalloon',
+	'pointPerLife', 'pointPerBall', 'pointPerContBreak', 'strongBallClear',
+	'clearTimeThreashould', 'pointPerClearTime', 'pointPerGetItem', 'pointPerFallBall',
+	'itemFontSize', 'itemDefaultSpeed', 'itemSpeed', 'itemProb', 'itemColor', 'itemTextColor',
+	'itemLineColor', 'itemText',
+	'weaponFireInterval', 'weaponMissileAccelRatio', 'weaponSpeed', 'weaponMaxNum', 'weaponColor', 'weaponLineColor',
+	'blockWidth', 'blockHeight', 'blockMotionTime', 'blockDefaultPoint',
+	'blockIncrPoint', 'blockMoveInter', 'blockFontSize', 'blockBlinkInter',
+	'blockDrawingDistance', 'blockAttackInter', 'blockMagnetAccelBase', 'blockMagnetDistPow',
+	'blockMagnetVxRatio', 'blockMagnetVyRelNegRatio', 'blockMagnetVyRelPosRatio', 'blockMaxDuarationLimit',
+	'blockColor', 'blockLineColor', 'blockText', 'blockTextColor', 'blockLife', 'blockThrough', 'blockInfinit',
+	'blockBreakLimit', 'blockFunction',
+	'stageTitle', 'stageLifeUp', 'blockMapSet', 'backGroundImage', 'soundBufSize', 'soundFile',
+]);
 
 export default class GameManage {
 	constructor(options = {}) {
+		this.presetManage = options.presetManage || new PresetManage(this, options);
 		this.screenManage = options.screenManage || new ScreenManage(this);
 		this.inputManage = options.inputManage || new InputManage(this);
 		this.autoPlay = options.autoPlay || new AutoPlay(this);
@@ -42,7 +68,7 @@ export default class GameManage {
 		this.animFrameId = null;
 		this.isRunning = false;
 
-		// 設定変数のロード（options、windowおよびDEFAULT_CONFIG）
+		// 設定変数のロードおよび各クラスへの配布
 		this.loadSetupVariables(options);
 
 		// EventBusへの基本イベント登録
@@ -82,7 +108,11 @@ export default class GameManage {
 		if (this.autoPlay && typeof this.autoPlay.destructor === 'function') {
 			this.autoPlay.destructor();
 		}
+		if (this.presetManage && typeof this.presetManage.destructor === 'function') {
+			this.presetManage.destructor();
+		}
 
+		this.presetManage = null;
 		this.autoPlay = null;
 		this.ctrl = null;
 		this.statusMng = null;
@@ -137,40 +167,61 @@ export default class GameManage {
 	}
 
 	//--------------------------------------------------
-	// 設定変数の読み込み
+	// 設定変数の読み込み（PresetManageからのデータ取得とオプション反映）
 	//--------------------------------------------------
 	loadSetupVariables(options = {}) {
 		const opts = options || this.options || {};
-		const configKeys = [
-			'canvasWidth', 'canvasHeight', 'statusBarHeight', 'FPS', 'lowFPSAlartRatio',
-			'defaultLife', 'maxLife', 'heartColor', 'heartWidth', 'heartHeight',
-			'barDefaultWidth', 'barMaxWidth', 'barMinWidth', 'barDefaultHeight',
-			'barColor', 'barDefaultSpeed', 'barMinSpeed', 'barStatusDefaultTime',
-			'barWeaponDefaultTime', 'barEdge', 'barSpin', 'barImmortalColor', 'barDefaultHP',
-			'ballSize', 'ballDefaultSpeed', 'ballMaxSpeed', 'ballColor', 'ballStrongColor',
-			'ballUltimateColor', 'ballMaxNum', 'ballStatusTime', 'ballInfBoundCancel',
-			'popBalloonBackColor', 'popBalloonFontColor',
-			'pointPerLife', 'pointPerBall', 'pointPerContBreak', 'strongBallClear',
-			'clearTimeThreashould', 'pointPerClearTime', 'pointPerGetItem', 'pointPerFallBall',
-			'itemFontSize', 'itemSpeed', 'itemProb', 'itemColor', 'itemTextColor',
-			'itemLineColor', 'itemText',
-			'weaponSpeed', 'weaponMaxNum', 'weaponColor', 'weaponLineColor',
-			'blockWidth', 'blockHeight', 'blockMotionTime', 'blockDefaultPoint',
-			'blockIncrPoint', 'blockMoveInter', 'blockFontSize', 'blockBlinkInter',
-			'blockDrawingDistance', 'blockAttackInter', 'blockColor', 'blockLineColor',
-			'blockText', 'blockTextColor', 'blockLife', 'blockThrough', 'blockInfinit',
-			'blockBreakLimit', 'blockFunction',
-			'stageTitle', 'stageLifeUp', 'blockMapSet', 'backGroundImage', 'soundFile'
-		];
-		for (const key of configKeys) {
+		if (!this.presetManage) {
+			this.presetManage = new PresetManage(this, opts);
+		}
+		const presetData = this.presetManage.getPresetData() || {};
+		const defaultPreset = PresetManage.getDefaultPreset();
+
+		for (const key of PRESET_CONFIG_KEYS) {
 			if (opts && opts[key] !== undefined) {
 				this[key] = opts[key];
-			} else if (typeof window !== 'undefined' && window[key] !== undefined) {
-				this[key] = window[key];
-			} else if (this[key] === undefined && DEFAULT_CONFIG[key] !== undefined) {
-				this[key] = DEFAULT_CONFIG[key];
+			} else if (presetData[key] !== undefined) {
+				this[key] = presetData[key];
+			} else if (this[key] === undefined && defaultPreset[key] !== undefined) {
+				this[key] = defaultPreset[key];
 			}
 		}
+
+		this.distributePreset();
+	}
+
+	//--------------------------------------------------
+	// プリセットデータの各クラスへの配布
+	//--------------------------------------------------
+	distributePreset() {
+		const basePreset = (this.presetManage && this.presetManage.getPresetData()) || {};
+		const effectivePreset = {
+			...basePreset,
+		};
+		for (const key of PRESET_CONFIG_KEYS) {
+			if (this[key] !== undefined) {
+				effectivePreset[key] = this[key];
+			}
+		}
+
+		const targets = [
+			this.objectManage,
+			this.ctrl,
+			this.statusMng,
+			this.scoreMng,
+			this.sounds,
+			this.imgData,
+			this.screenManage,
+			this.inputManage,
+			this.autoPlay,
+		];
+		for (let i = 0; i < targets.length; i++) {
+			const target = targets[i];
+			if (target && typeof target.applyPreset === 'function') {
+				target.applyPreset(effectivePreset);
+			}
+		}
+		return effectivePreset;
 	}
 
 	//--------------------------------------------------
@@ -195,6 +246,14 @@ export default class GameManage {
 
 		this.screenManage.openScreen("screen_loading");
 		this.screenManage.setLoadingMessage("Initializing...");
+		if (!this.presetManage) {
+			this.presetManage = new PresetManage(this, this.options);
+		}
+		this.presetManage.loadPresetSync(this.presetManage.currentPresetKey, (ratio, text) => {
+			if (this.screenManage) {
+				this.screenManage.setLoadingMessage(text);
+			}
+		});
 		this.setupBasics(offsetStage);
 		this.setupSound();
 		this.screenManage.setLoadingMessage("Generating graphics...");
@@ -218,6 +277,9 @@ export default class GameManage {
 		if (!this.eventBusSetup) {
 			this.setupEventBus();
 			this.eventBusSetup = true;
+		}
+		if (!this.presetManage) {
+			this.presetManage = new PresetManage(this, this.options);
 		}
 		if (!this.screenManage) {
 			this.screenManage = new ScreenManage(this);
@@ -260,6 +322,7 @@ export default class GameManage {
 
 		// ゲーム制御
 		this.ctrl = new Control(this);
+		this.distributePreset();
 		this.ctrl.setStageIndex(offsetStage);
 
 		if (this.storage != null) {
@@ -280,16 +343,24 @@ export default class GameManage {
 		} else {
 			this.sounds.game = this;
 		}
+		this.distributePreset();
 	}
 
 	setupImageData() {
 		if (this.dynamicCtx) {
 			this.imgData = new ImageData(this.dynamicCtx, this);
+			this.distributePreset();
 			this.imgData.init();
 		}
 	}
 
 	setupEntities() {
+		// 得点管理・自動プレイ・ステータス管理の生成とプリセットデータの配布
+		this.scoreMng = new ScoreManage(this);
+		this.autoPlay = new AutoPlay(this);
+		this.statusMng = new StatusManage(this);
+		this.distributePreset();
+
 		// オブジェクト管理の初期化（ブロック配置の読み込み、Barの生成、エンティティクリア）
 		this.objectManage.init(this.ctrl.stageIndex);
 
@@ -302,17 +373,10 @@ export default class GameManage {
 			settingControl.bindControls();
 		}
 
-		// 得点管理
-		this.scoreMng = new ScoreManage(this);
 		this.scoreMng.init();
-
-		this.autoPlay = new AutoPlay(this);
-
-		// ステータス管理
-		this.statusMng = new StatusManage(this);
 		this.statusMng.countBlockNum();
 
-		const defaultLife = this.defaultLife || DEFAULT_CONFIG.defaultLife;
+		const defaultLife = this.defaultLife || PresetManage.getDefaultPreset().defaultLife;
 		if (this.storage != null && this.ctrl.continueSwitch == 1 && this.storage.getItem("continue_life") > 0) {
 			this.statusMng.life = this.storage.getItem("continue_life");
 		} else {
@@ -368,6 +432,15 @@ export default class GameManage {
 		updateProgress(0.05, "Initializing...");
 		await new Promise(resolve => setTimeout(resolve, 10));
 
+		if (!this.presetManage) {
+			this.presetManage = new PresetManage(this, this.options);
+		}
+		// プリセットJSONの非同期ロード（進捗 5% -> 15%）
+		await this.presetManage.loadPreset(this.presetManage.currentPresetKey, (presetRatio, presetText) => {
+			const current = 0.05 + presetRatio * 0.10;
+			updateProgress(current, presetText);
+		});
+
 		this.setupBasics(offsetStage);
 		this.setupSound();
 
@@ -409,8 +482,9 @@ export default class GameManage {
 		this.lastFrameTime = null;
 		this.accumulator = 0;
 
-		const stepTime = GAME_LOOP_PARAM.STEP_TIME;
-		const maxAccumulator = GAME_LOOP_PARAM.MAX_ACCUMULATOR;
+		const def = PresetManage.getDefaultPreset();
+		const stepTime = this.stepTime !== undefined ? this.stepTime : (def.stepTime !== undefined ? def.stepTime : 20);
+		const maxAccumulator = this.maxAccumulator !== undefined ? this.maxAccumulator : (def.maxAccumulator !== undefined ? def.maxAccumulator : 200);
 
 		const loop = (timestamp) => {
 			if (!this.isRunning) { return; }
@@ -535,10 +609,11 @@ export default class GameManage {
 
 		// 画面の難視化
 		if (this.objectManage && this.objectManage.bar && this.objectManage.bar.disturbStatusTime > 0) {
-			const blockWidth = this.blockWidth || DEFAULT_CONFIG.blockWidth;
+			const blockWidth = this.blockWidth || PresetManage.getDefaultPreset().blockWidth;
 			const disturbWidth = blockWidth;
 			const startPoint = ((Date.now() / 6) % disturbWidth) * 2 - disturbWidth;
-			dynamicCtx.fillStyle = SYSTEM_PARAM.DISTURB_OVERLAY_COLOR;
+			const disturbOverlayColor = this.disturbOverlayColor || PresetManage.getDefaultPreset().disturbOverlayColor || 'rgba(0, 0, 0, 0.85)';
+			dynamicCtx.fillStyle = disturbOverlayColor;
 			for (let i = startPoint; i < this.canvasWidth;) {
 				dynamicCtx.fillRect(i, 0, disturbWidth, this.canvasHeight);
 				i += disturbWidth * 2;
@@ -621,7 +696,7 @@ export default class GameManage {
 				this.storage.setItem("continue_score", this.scoreMng.score);
 				this.storage.setItem("continue_time", this.statusMng.playTime);
 			} else {
-				const defaultLife = this.defaultLife || DEFAULT_CONFIG.defaultLife;
+				const defaultLife = this.defaultLife || PresetManage.getDefaultPreset().defaultLife;
 				this.storage.setItem("continue_life", defaultLife);
 				this.storage.setItem("continue_score", 0);
 				this.storage.setItem("continue_time", 0);
@@ -667,27 +742,31 @@ export default class GameManage {
 		}
 	}
 
-	changeSetting(file) {
-		if (typeof document === 'undefined') { return; }
+	async changeSetting(presetName) {
 		if (this.screenManage) {
 			this.screenManage.openScreen('screen_loading');
-			this.screenManage.setLoadingMessage('Loading script...');
+			this.screenManage.setLoadingMessage('Loading preset...');
 		}
-		const oldScr = document.getElementById('setup');
-		if (oldScr && oldScr.parentNode) {
-			oldScr.parentNode.removeChild(oldScr);
+		if (!this.presetManage) {
+			this.presetManage = new PresetManage(this, this.options);
 		}
-
-		const newScr = document.createElement('script');
-		newScr.type = 'text/javascript';
-		newScr.src = file;
-		newScr.id = 'setup';
-		const head = document.getElementsByTagName('head')[0];
-		if (head) {
-			head.appendChild(newScr);
+		const isNode = typeof process !== 'undefined' && Boolean(process.versions && process.versions.node);
+		if (isNode) {
+			this.presetManage.loadPresetSync(presetName, (ratio, text) => {
+				if (this.screenManage) {
+					this.screenManage.setLoadingMessage(text);
+				}
+			});
+			this.loadSetupVariables(this.options);
+			this.init(0);
+			return;
 		}
-		newScr.onload = () => {
-			this.initAsync(0);
-		};
+		await this.presetManage.loadPreset(presetName, (ratio, text) => {
+			if (this.screenManage) {
+				this.screenManage.setLoadingMessage(text);
+			}
+		});
+		this.loadSetupVariables(this.options);
+		await this.initAsync(0);
 	}
 }

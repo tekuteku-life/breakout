@@ -1,0 +1,20 @@
+{
+	"types": [
+		{ "id": 0, "key": "double", "text": "Double", "color": "#463EDF", "textColor": "#ffffff", "lineColor": "#ffffff" },
+		{ "id": 1, "key": "hard", "text": "Hard", "color": "#224442", "textColor": "#ffffff", "lineColor": "#ffffff" },
+		{ "id": 2, "key": "fire", "text": "Fire", "color": "#E12F09", "textColor": "#000000", "lineColor": "#ffffff" },
+		{ "id": 3, "key": "long", "text": "Long", "color": "#C0C0C0", "textColor": "#000000", "lineColor": "#ffffff" },
+		{ "id": 4, "key": "short", "text": "Short", "color": "#AFAF61", "textColor": "#000000", "lineColor": "#ffffff" },
+		{ "id": 5, "key": "life", "text": "Life", "color": "#FFD1E9", "textColor": "#FF0000", "lineColor": "#ffffff" },
+		{ "id": 6, "key": "poison", "text": "Poison", "color": "#6B255A", "textColor": "#c5c5c5", "lineColor": "#ffffff" },
+		{ "id": 7, "key": "speed_up", "text": "SpeedUp", "color": "", "textColor": "", "lineColor": "" },
+		{ "id": 8, "key": "speed_down", "text": "SpeedDown", "color": "", "textColor": "", "lineColor": "" },
+		{ "id": 9, "key": "gun", "text": "Gun", "color": "#000000", "textColor": "#c0c0c0", "lineColor": "#ffffff" },
+		{ "id": 10, "key": "missile", "text": "Missile", "color": "#ffffff", "textColor": "#CC0000", "lineColor": "#000000" },
+		{ "id": 11, "key": "slow", "text": "Slow", "color": "#4E5344", "textColor": "#cccccc", "lineColor": "#ffffff" },
+		{ "id": 12, "key": "vibrate", "text": "Vibrate", "color": "#ffff00", "textColor": "#000000", "lineColor": "#000000" },
+		{ "id": 13, "key": "absorb", "text": "Absorb", "color": "#92D050", "textColor": "#FFFF00", "lineColor": "#000000" },
+		{ "id": 14, "key": "immortal", "text": "Immortal", "color": "#2E9260", "textColor": "#ffffff", "lineColor": "#ffffff" },
+		{ "id": 15, "key": "disturb", "text": "Disturb", "color": "#4F6228", "textColor": "#ffffff", "lineColor": "#ffffff" }
+	]
+}

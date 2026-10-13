@@ -1,11 +1,7 @@
 // src/AutoPlay.js
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
-import {
-	DEFAULT_CONFIG,
-	BAR_PARAM,
-	WEAPON_PARAM,
-} from "./const.js";
+import PresetManage from "./PresetManage.js";
 import EventBus from "./EventBus.js";
 import { runAutoPlaySimulation, cloneBlockMap, evaluateWeaponFire, isHarmfulItem, getItemMetrics } from "./AutoPlaySimulation.js";
 
@@ -25,6 +21,10 @@ export default class AutoPlay
 		this.workerIsBusy = false;
 		this.pendingSnapshot = null;
 		this.initWorker();
+	}
+
+	applyPreset(preset = null) {
+		this.preset = preset || null;
 	}
 
 	initWorker()
@@ -109,24 +109,26 @@ export default class AutoPlay
 	}
 
 	getCanvasWidth() {
-		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+		const def = PresetManage.getDefaultPreset();
+		return (this.game && this.game.canvasWidth) || def.canvasWidth;
 	}
 
 	captureSnapshot() {
 		const bar = this.getBar();
 		if (!bar) { return null; }
 
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS) || def.FPS;
 		const canvasWidth = this.getCanvasWidth();
-		const canvasHeight = (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
-		const statusBarHeight = (this.game && this.game.statusBarHeight) || DEFAULT_CONFIG.statusBarHeight;
-		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
-		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
-		const bDefaultSpeedBar = (this.game && this.game.barDefaultSpeed) || DEFAULT_CONFIG.barDefaultSpeed;
-		const bSpin = (this.game && this.game.barSpin !== undefined) ? this.game.barSpin : ((bar && bar.spin !== undefined) ? bar.spin : BAR_PARAM.SPIN_RATIO);
-		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
-		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
-		const bSize = (this.game && this.game.ballSize) || DEFAULT_CONFIG.ballSize;
+		const canvasHeight = (this.game && this.game.canvasHeight) || def.canvasHeight;
+		const statusBarHeight = (this.game && this.game.statusBarHeight !== undefined) ? this.game.statusBarHeight : def.statusBarHeight;
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || def.ballDefaultSpeed;
+		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || def.ballMaxSpeed;
+		const bDefaultSpeedBar = (this.game && this.game.barDefaultSpeed) || def.barDefaultSpeed;
+		const bSpin = (this.game && this.game.barSpin !== undefined) ? this.game.barSpin : ((bar && bar.spin !== undefined) ? bar.spin : (def.barSpin !== undefined ? def.barSpin : 0.05));
+		const blkWidth = (this.game && this.game.blockWidth) || def.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || def.blockHeight;
+		const bSize = (this.game && this.game.ballSize) || def.ballSize;
 
 		const balls = this.getBalls();
 		const items = this.getItems();
@@ -209,7 +211,8 @@ export default class AutoPlay
 		if (!bar) { return; }
 
 		const canvasWidth = this.getCanvasWidth();
-		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		const def = PresetManage.getDefaultPreset();
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || def.ballDefaultSpeed;
 		const balls = this.getBalls();
 		let ballNum = balls.length;
 
@@ -296,19 +299,20 @@ export default class AutoPlay
 
 		if (result && result.targetX !== undefined && result.targetX !== -1) {
 			let targetX = result.targetX;
+			const def = PresetManage.getDefaultPreset();
 			const bSpin = (this.game && this.game.barSpin !== undefined)
 				? this.game.barSpin
-				: ((bar && bar.spin !== undefined) ? bar.spin : BAR_PARAM.SPIN_RATIO);
+				: ((bar && bar.spin !== undefined) ? bar.spin : (def.barSpin !== undefined ? def.barSpin : 0.05));
 
 			// 最優先ボールのバー到達予測（残りフレーム数）
 			let minTimeToBar = Infinity;
 			const barTopY = typeof bar.getTopY === 'function' ? bar.getTopY() : (bar.y || 0);
 			const barCenterX = typeof bar.getCenterX === 'function' ? bar.getCenterX() : (bar.x || 0);
-			const barW = bar.width || DEFAULT_CONFIG.barDefaultWidth || 100;
-			const moveSpeed = bar.vxMax || (this.game && this.game.barDefaultSpeed) || DEFAULT_CONFIG.barDefaultSpeed || 8;
-			const canvasHeight = (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight || 530;
-			const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth || 50;
-			const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight || 20;
+			const barW = bar.width || def.barDefaultWidth || 100;
+			const moveSpeed = bar.vxMax || (this.game && this.game.barDefaultSpeed) || def.barDefaultSpeed || 8;
+			const canvasHeight = (this.game && this.game.canvasHeight) || def.canvasHeight || 530;
+			const blkWidth = (this.game && this.game.blockWidth) || def.blockWidth || 50;
+			const blkHeight = (this.game && this.game.blockHeight) || def.blockHeight || 20;
 
 			for (let i = 0; i < balls.length; i++) {
 				const b = balls[i];
@@ -328,7 +332,7 @@ export default class AutoPlay
 			let plusSpeed = 0;
 			const spinOffset = result.spinOffset !== undefined
 				? result.spinOffset
-				: (result.plusSpeed !== undefined ? result.plusSpeed : ((result.bestDvx || 0) / (bSpin || BAR_PARAM.SPIN_RATIO)));
+				: (result.plusSpeed !== undefined ? result.plusSpeed : ((result.bestDvx || 0) / (bSpin || 0.05)));
 
 			// 元コード準拠: 接触直前（残り1.0〜2.5フレーム）にバーを加速させてスピン速度を生み出し、接触時（残り1フレーム以下）は落下位置中心で受ける
 			if (minTimeToBar <= 2.5 && minTimeToBar > 1.0) {
@@ -383,7 +387,8 @@ export default class AutoPlay
 		//----------武器使用（リアルタイム即時判定＆発射）----------
 		if (bar && bar.weapon > 0) {
 			const weapons = this.getWeapons();
-			const weaponMaxNum = (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
+			const def = PresetManage.getDefaultPreset();
+			const weaponMaxNum = (this.game && this.game.weaponMaxNum) || def.weaponMaxNum || [5, 3];
 			const canFire = bar.canFireWeapon && bar.canFireWeapon(weapons, weaponMaxNum);
 
 			if (canFire) {
@@ -399,7 +404,7 @@ export default class AutoPlay
 						weapons,
 						this.getBlockMap(),
 						{
-							blkWidth: (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth,
+							blkWidth: (this.game && this.game.blockWidth) || def.blockWidth,
 							canvasWidth: canvasWidth,
 							weaponMaxNum: weaponMaxNum,
 						}

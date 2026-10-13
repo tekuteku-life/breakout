@@ -2,16 +2,13 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import {
-	SYSTEM_PARAM,
 	BALL_CREATE_MODE,
 	BALL_COPY_MODE,
 	BALL_STATUS,
-	BALL_PARAM,
-	BAR_PARAM,
 	BLOCK_FUNCTION,
-	DEFAULT_CONFIG,
 } from "./const.js";
 import EventBus from "./EventBus.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // ボール
@@ -21,8 +18,11 @@ export default class Ball
 	constructor(launch, game = null, initialMouseDownTime = 0, origin = null)
 	{
 		this.game = game;
-		const bSize = (this.game && this.game.ballSize !== undefined) ? this.game.ballSize : DEFAULT_CONFIG.ballSize;
-		const defPoint = (this.game && this.game.blockDefaultPoint !== undefined) ? this.game.blockDefaultPoint : BALL_PARAM.DEFAULT_POINT_INCR;
+		const def = PresetManage.getDefaultPreset();
+		const bSize = (this.game && this.game.ballSize !== undefined) ? this.game.ballSize : def.ballSize;
+		const defPoint = (this.game && this.game.ballDefaultPointIncr !== undefined)
+			? this.game.ballDefaultPointIncr
+			: (def.ballDefaultPointIncr !== undefined ? def.ballDefaultPointIncr : 10);
 		const imgSource = (this.game && this.game.imgData) ? this.game.imgData : null;
 
 		this.radius = bSize;									// ボールの半径
@@ -67,8 +67,8 @@ export default class Ball
 		if( launch == BALL_CREATE_MODE.LAUNCH ) {
 			const mdTime = this.inputMouseDownTime || 0;
 			const bar = origin || (this.game && this.game.objectManage && this.game.objectManage.bar) || null;
-			const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
-			const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
+			const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || def.ballDefaultSpeed;
+			const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || def.ballMaxSpeed;
 
 			// ため打ち時間の計算
 			var diffTime = 0;
@@ -126,10 +126,11 @@ export default class Ball
 	// ボール状態の設定（EventBusタイマーと連携）
 	//--------------------------------------------------
 	setStatus(status, durationSec = null) {
-		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
 		const bStatusTime = durationSec !== null
 			? durationSec
-			: ((this.game && this.game.ballStatusTime !== undefined) ? this.game.ballStatusTime : DEFAULT_CONFIG.ballStatusTime);
+			: ((this.game && this.game.ballStatusTime !== undefined) ? this.game.ballStatusTime : def.ballStatusTime);
 
 		this.status = status;
 		this.statusTime = Math.round(bStatusTime * fps);
@@ -155,15 +156,15 @@ export default class Ball
 	}
 
 	getCanvasWidth() {
-		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+		return (this.game && this.game.canvasWidth) || PresetManage.getDefaultPreset().canvasWidth;
 	}
 
 	getCanvasHeight() {
-		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+		return (this.game && this.game.canvasHeight) || PresetManage.getDefaultPreset().canvasHeight;
 	}
 
 	getStatusBarHeight() {
-		return (this.game && this.game.statusBarHeight) || DEFAULT_CONFIG.statusBarHeight;
+		return (this.game && this.game.statusBarHeight) || PresetManage.getDefaultPreset().statusBarHeight;
 	}
 
 	//--------------------------------------------------
@@ -171,7 +172,8 @@ export default class Ball
 	//--------------------------------------------------
 	copy(mode)
 	{
-		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
+		const def = PresetManage.getDefaultPreset();
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || def.ballDefaultSpeed;
 		var obj = new Ball(BALL_CREATE_MODE.OTHER, this.game);
 		obj.x = this.x;
 		obj.y = this.y;
@@ -184,7 +186,9 @@ export default class Ball
 		obj.simulate = 0;
 		obj.collisionNum = 0;
 		obj.breakNum = 0;
-		obj.pointIncr = 10;
+		obj.pointIncr = (this.game && this.game.ballDefaultPointIncr !== undefined)
+			? this.game.ballDefaultPointIncr
+			: (PresetManage.getDefaultPreset().ballDefaultPointIncr !== undefined ? PresetManage.getDefaultPreset().ballDefaultPointIncr : 10);
 		obj.duaration = this.duaration;
 
 		// 誤作動防止用データの追加
@@ -207,7 +211,7 @@ export default class Ball
 		// 特殊状態のタイマー設定（シミュレート以外で特殊状態の場合）
 		if (obj.simulate === 0 && this.status !== BALL_STATUS.NORMAL) {
 			const timer = this.getEventBus().getTimer(`ball:${this.ballId}:status`);
-			const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+			const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
 			let remainingSec = null;
 			if (timer) {
 				remainingSec = Math.max(0, timer.remaining) / 1000;
@@ -305,11 +309,12 @@ export default class Ball
 	//--------------------------------------------------
 	draw(ctx)
 	{
-		const bColor = (this.game && this.game.ballColor) || DEFAULT_CONFIG.ballColor;
-		const bStrongColor = (this.game && this.game.ballStrongColor) || DEFAULT_CONFIG.ballStrongColor;
-		const bUltimateColor = (this.game && this.game.ballUltimateColor) || DEFAULT_CONFIG.ballUltimateColor;
-		const bStatusTime = (this.game && this.game.ballStatusTime !== undefined) ? this.game.ballStatusTime : DEFAULT_CONFIG.ballStatusTime;
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const def = PresetManage.getDefaultPreset();
+		const bColor = (this.game && this.game.ballColor) || def.ballColor;
+		const bStrongColor = (this.game && this.game.ballStrongColor) || def.ballStrongColor;
+		const bUltimateColor = (this.game && this.game.ballUltimateColor) || def.ballUltimateColor;
+		const bStatusTime = (this.game && this.game.ballStatusTime !== undefined) ? this.game.ballStatusTime : def.ballStatusTime;
+		const fps = (this.game && this.game.FPS) || def.FPS;
 
 		// 色の選択
 		if( this.status == BALL_STATUS.NORMAL ) { ctx.fillStyle = bColor; }
@@ -346,8 +351,10 @@ export default class Ball
 	//--------------------------------------------------
 	movePosition(targetBar = null)
 	{
-		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
-		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
+		const def = PresetManage.getDefaultPreset();
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || def.ballDefaultSpeed;
+		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || def.ballMaxSpeed;
+		const minVyRatio = (this.game && this.game.ballMinVyRatio !== undefined) ? this.game.ballMinVyRatio : (def.ballMinVyRatio !== undefined ? def.ballMinVyRatio : 0.2);
 		const bar = targetBar || (this.game && this.game.objectManage && this.game.objectManage.bar) || null;
 
 		// 移動前の座標を保持
@@ -358,7 +365,7 @@ export default class Ball
 		// ボールの速度制限
 		if( Math.abs( this.vx ) > bMaxSpeed ) { this.vx = bMaxSpeed * (this.vx < 0 ? -1 : 1); }
 		if( Math.abs( this.vy ) > bMaxSpeed ) { this.vy = bMaxSpeed * (this.vy < 0 ? -1 : 1); }
-		else if( Math.abs( this.vy ) < bDefaultSpeed * BALL_PARAM.MIN_VY_RATIO ) { this.vy = bDefaultSpeed * BALL_PARAM.MIN_VY_RATIO * (this.vy < 0 ? -1 : 1); }
+		else if( Math.abs( this.vy ) < bDefaultSpeed * minVyRatio ) { this.vy = bDefaultSpeed * minVyRatio * (this.vy < 0 ? -1 : 1); }
 
 		// 吸着状態の場合，ここで処理終了
 		if( this.isAbsorption == 1 && bar )
@@ -389,10 +396,12 @@ export default class Ball
 	//--------------------------------------------------
 	updateHistory()
 	{
+		const def = PresetManage.getDefaultPreset();
+		const histMax = (this.game && this.game.ballHistMax !== undefined) ? this.game.ballHistMax : (def.ballHistMax !== undefined ? def.ballHistMax : 20);
 		if( this.isAbsorption == 0 && this.histX && this.histY ) {
 			this.histX.unshift(this.x);
 			this.histY.unshift(this.y);
-			if( this.histX.length > SYSTEM_PARAM.BALL_HIST_MAX ) {
+			if( this.histX.length > histMax ) {
 				this.histX.pop();
 				this.histY.pop();
 			}
@@ -474,9 +483,15 @@ export default class Ball
 		const x = this.x;
 		const vx = this.vx;
 		const vy = this.vy;
-		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || DEFAULT_CONFIG.ballDefaultSpeed;
-		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || DEFAULT_CONFIG.ballMaxSpeed;
-		const bSpin = (this.game && this.game.barSpin !== undefined) ? this.game.barSpin : ((bar && bar.spin !== undefined) ? bar.spin : BAR_PARAM.SPIN_RATIO);
+		const def = PresetManage.getDefaultPreset();
+		const bDefaultSpeed = (this.game && this.game.ballDefaultSpeed) || def.ballDefaultSpeed;
+		const bMaxSpeed = (this.game && this.game.ballMaxSpeed) || def.ballMaxSpeed;
+		const bSpin = (this.game && this.game.barSpin !== undefined) ? this.game.barSpin : ((bar && bar.spin !== undefined) ? bar.spin : (def.barSpin !== undefined ? def.barSpin : 0.05));
+		const edgeAccelRatio = (this.game && this.game.ballEdgeAccelRatio !== undefined) ? this.game.ballEdgeAccelRatio : (def.ballEdgeAccelRatio !== undefined ? def.ballEdgeAccelRatio : 0.05);
+		const vyUpStep = (this.game && this.game.ballVyUpStep !== undefined) ? this.game.ballVyUpStep : (def.ballVyUpStep !== undefined ? def.ballVyUpStep : 0.1);
+		const vyDownStep = (this.game && this.game.ballVyDownStep !== undefined) ? this.game.ballVyDownStep : (def.ballVyDownStep !== undefined ? def.ballVyDownStep : 0.1);
+		const minVxRatio = (this.game && this.game.ballMinVxRatio !== undefined) ? this.game.ballMinVxRatio : (def.ballMinVxRatio !== undefined ? def.ballMinVxRatio : 0.1);
+		const defPointIncr = (this.game && this.game.ballDefaultPointIncr !== undefined) ? this.game.ballDefaultPointIncr : (def.ballDefaultPointIncr !== undefined ? def.ballDefaultPointIncr : 10);
 
 		if (this.getBottomY() >= bar.getTopY() && Math.abs(x - bar.getCenterX()) <= bar.width / 2)
 		{
@@ -511,19 +526,19 @@ export default class Ball
 
 			// 両端の傾斜による速度変化
 			const barEdgeWidth = bar.width * ( 0.5 - bar.edge * ~~(bar.height / 2) );
-			if( x < bar.getCenterX() - barEdgeWidth && vx > 0 ) { this.vx -= Math.abs( bDefaultSpeed - vx ) * BALL_PARAM.EDGE_ACCEL_RATIO; }
-			else if( x > bar.getCenterX() + barEdgeWidth && vx < 0 ) { this.vx += Math.abs( bDefaultSpeed + vx ) * BALL_PARAM.EDGE_ACCEL_RATIO; }
+			if( x < bar.getCenterX() - barEdgeWidth && vx > 0 ) { this.vx -= Math.abs( bDefaultSpeed - vx ) * edgeAccelRatio; }
+			else if( x > bar.getCenterX() + barEdgeWidth && vx < 0 ) { this.vx += Math.abs( bDefaultSpeed + vx ) * edgeAccelRatio; }
 
 			// 縦方向速度の微調整
-			if( vy < -bDefaultSpeed ) { this.vy += BALL_PARAM.VY_UP_STEP; }
-			else if( vy > -bDefaultSpeed ) { this.vy -= BALL_PARAM.VY_DOWN_STEP; }
+			if( vy < -bDefaultSpeed ) { this.vy += vyUpStep; }
+			else if( vy > -bDefaultSpeed ) { this.vy -= vyDownStep; }
 
 			// 横方向速度の制御
 			if( Math.abs(this.vx) > bMaxSpeed ) { this.vx = bMaxSpeed * ( this.vx < 0 ? -1 : 1 ); }
-			if( Math.abs(this.vx) < bDefaultSpeed * BALL_PARAM.MIN_VX_RATIO ) { this.vx = bDefaultSpeed * BALL_PARAM.MIN_VX_RATIO; }
+			if( Math.abs(this.vx) < bDefaultSpeed * minVxRatio ) { this.vx = bDefaultSpeed * minVxRatio; }
 
 			// ポイント増分のリセット
-			this.pointIncr = BALL_PARAM.DEFAULT_POINT_INCR;
+			this.pointIncr = defPointIncr;
 			this.duaration = 0;
 
 			// 連続衝突回数のリセット
@@ -573,8 +588,9 @@ export default class Ball
 
 		//----------周囲のブロック配置の取得----------
 		const blockMap = blockMapParam || (this.game && this.game.objectManage && this.game.objectManage.blockMap) || (block.game && block.game.objectManage && block.game.objectManage.blockMap) || null;
-		const blkWidth = block.width || DEFAULT_CONFIG.blockWidth;
-		const blkHeight = block.height || DEFAULT_CONFIG.blockHeight;
+		const def = PresetManage.getDefaultPreset();
+		const blkWidth = block.width || (this.game && this.game.blockWidth) || def.blockWidth;
+		const blkHeight = block.height || (this.game && this.game.blockHeight) || def.blockHeight;
 		const sBarHeight = (typeof block.getStatusBarHeight === 'function') ? block.getStatusBarHeight() : this.getStatusBarHeight();
 		const canvasWidth = this.getCanvasWidth();
 

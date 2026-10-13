@@ -2,11 +2,10 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import {
-	DEFAULT_CONFIG,
 	ITEM_TYPE,
-	ITEM_PARAM,
 } from "./const.js";
 import EventBus from "./EventBus.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // アイテム
@@ -16,8 +15,9 @@ export default class Item
 	constructor(type, x, y, lcolor, color, game = null)
 	{
 		this.game = game;
-		const blkWidth = (this.game && this.game.blockWidth) || DEFAULT_CONFIG.blockWidth;
-		const blkHeight = (this.game && this.game.blockHeight) || DEFAULT_CONFIG.blockHeight;
+		const def = PresetManage.getDefaultPreset();
+		const blkWidth = (this.game && this.game.blockWidth) || def.blockWidth;
+		const blkHeight = (this.game && this.game.blockHeight) || def.blockHeight;
 		const ctrl = (this.game && this.game.ctrl) || null;
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
 		const itemTextList = (this.game && this.game.itemText) || [];
@@ -46,7 +46,7 @@ export default class Item
 	}
 
 	getCanvasHeight() {
-		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+		return (this.game && this.game.canvasHeight) || PresetManage.getDefaultPreset().canvasHeight;
 	}
 
 
@@ -90,10 +90,11 @@ export default class Item
 	//--------------------------------------------------
 	movePosition()
 	{
+		const def = PresetManage.getDefaultPreset();
 		const ctrl = (this.game && this.game.ctrl) || null;
 		const stageIdx = ctrl ? ctrl.stageIndex : 0;
-		const itemSpeedList = (this.game && this.game.itemSpeed) || ITEM_PARAM.DEFAULT_SPEED;
-		const speed = itemSpeedList[stageIdx] !== undefined ? itemSpeedList[stageIdx] : ITEM_PARAM.DEFAULT_SPEED[0];
+		const itemSpeedList = (this.game && this.game.itemSpeed) || def.itemSpeed;
+		const speed = itemSpeedList[stageIdx] !== undefined ? itemSpeedList[stageIdx] : ((def.itemSpeed && def.itemSpeed[0]) || 4);
 
 		// 位置の決定
 		this.y += speed;

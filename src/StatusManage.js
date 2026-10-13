@@ -3,7 +3,7 @@
 
 import Heart from "./Heart.js";
 import MessageBox from "./MessageBox.js";
-import { DEFAULT_CONFIG } from "./const.js";
+import PresetManage from "./PresetManage.js";
 import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
@@ -14,7 +14,8 @@ export default class StatusManage
 	constructor(game = null)
 	{
 		this.game = game;
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS) || def.FPS;
 
 		this.prevFPSTime = 0;													// 前回FPS計測時刻
 		this.realFPS = fps;														// 実際のFPS
@@ -92,12 +93,16 @@ export default class StatusManage
 		return (this.game && this.game.staticCtx) || null;
 	}
 
+	applyPreset(preset = null) {
+		this.preset = preset || null;
+	}
+
 	//--------------------------------------------------
 	// 初期化
 	//--------------------------------------------------
 	init()
 	{
-		const maxLife = (this.game && this.game.maxLife) || DEFAULT_CONFIG.maxLife;
+		const maxLife = (this.game && this.game.maxLife) || (this.preset && this.preset.maxLife) || PresetManage.getDefaultPreset().maxLife;
 		this.hearts = new Array();
 		// ハートインスタンスの生成
 		for( var i = 0; i < maxLife; i++ )
@@ -111,8 +116,11 @@ export default class StatusManage
 	//--------------------------------------------------
 	countFPS()
 	{
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
-		const lowFPSAlartRatio = (this.game && this.game.lowFPSAlartRatio !== undefined) ? this.game.lowFPSAlartRatio : DEFAULT_CONFIG.lowFPSAlartRatio;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS) || (this.preset && this.preset.FPS) || def.FPS;
+		const lowFPSAlartRatio = (this.game && this.game.lowFPSAlartRatio !== undefined)
+			? this.game.lowFPSAlartRatio
+			: ((this.preset && this.preset.lowFPSAlartRatio !== undefined) ? this.preset.lowFPSAlartRatio : def.lowFPSAlartRatio);
 		const balls = this.getBalls();
 		const ctrl = this.getCtrl();
 
@@ -252,7 +260,7 @@ export default class StatusManage
 	//--------------------------------------------------
 	addLife(_incr)
 	{
-		const maxLife = (this.game && this.game.maxLife) || DEFAULT_CONFIG.maxLife;
+		const maxLife = (this.game && this.game.maxLife) || (this.preset && this.preset.maxLife) || PresetManage.getDefaultPreset().maxLife;
 		const staticCtx = this.getStaticCtx();
 
 		// ライフの加算
@@ -287,7 +295,7 @@ export default class StatusManage
 	//--------------------------------------------------
 	drawLife(ctx)
 	{
-		const maxLife = (this.game && this.game.maxLife) || DEFAULT_CONFIG.maxLife;
+		const maxLife = (this.game && this.game.maxLife) || (this.preset && this.preset.maxLife) || PresetManage.getDefaultPreset().maxLife;
 		for(var i = 0; i < maxLife; i++)
 		{
 			if (this.hearts[i] && typeof this.hearts[i].draw === 'function') {
@@ -341,7 +349,7 @@ export default class StatusManage
 
 		const scoreMng = this.getScoreMng();
 		const ctrl = this.getCtrl();
-		const maxLife = this.game.maxLife || DEFAULT_CONFIG.maxLife;
+		const maxLife = this.game.maxLife || (this.preset && this.preset.maxLife) || PresetManage.getDefaultPreset().maxLife;
 		const lifeSpaceSize = maxLife * 17 + 5;
 
 		if (this.statusCache.lifeSpaceSize !== lifeSpaceSize) {
@@ -353,7 +361,7 @@ export default class StatusManage
 
 		const displayPoint = String(this.getDisplayPoint());
 		const hiScore = String(scoreMng.hiScore);
-		const stageTitles = this.game.stageTitle || [];
+		const stageTitles = this.game.stageTitle || (this.preset && this.preset.stageTitle) || [];
 		const stageTitleStr = String(stageTitles[ctrl.stageIndex] || '');
 		const playTimeMin = this.getPlayMinTime();
 		const playTimeSec = this.getPlaySecTime();

@@ -68,15 +68,22 @@ describe('System Test SYS-08: Settings, Storage, and Continue Mode', () => {
 		assert.equal(g.statusMng.playTime, '42', 'Play time should be restored from continue data');
 	});
 
-	it('SYS-08: executes changeSetting to switch script configuration', () => {
+	it('SYS-08: executes changeSetting to switch preset configuration via PresetManage', async () => {
 		const g = window.gameManage;
-		// Mock script replacement
-		g.changeSetting('./setup/default_debug.js');
-		const newScr = document.getElementById('setup');
-		assert.ok(newScr, 'New setup script should be injected');
-		assert.equal(newScr.src, './setup/default_debug.js');
-		// Trigger load callback
-		newScr.onload();
-		assert.ok(g.ctrl, 'init should run after script load');
+		assert.equal(g.presetManage.currentPresetKey, 'default');
+		assert.equal(g.ballSize, 5);
+		assert.equal(g.stageTitle.length, 13);
+
+		await g.changeSetting('default_debug');
+		assert.equal(g.presetManage.currentPresetKey, 'default_debug');
+		assert.equal(g.ballSize, 1);
+		assert.equal(g.ballMaxNum, 4000);
+		assert.equal(g.stageTitle.length, 9);
+		assert.ok(g.ctrl, 'init should run after preset change');
+
+		await g.changeSetting('default');
+		assert.equal(g.presetManage.currentPresetKey, 'default');
+		assert.equal(g.ballSize, 5);
+		assert.equal(g.stageTitle.length, 13);
 	});
 });

@@ -15,10 +15,12 @@ test('ScoreManage class unit tests', async (t) => {
 			getPlaySecTime: () => '30.0',
 			getPlayMinTime: () => '0',
 		},
-		balls: [
-			{ status: 1, breakNum: 5 },
-			{ status: 0, breakNum: 2 },
-		],
+		objectManage: {
+			balls: [
+				{ status: 1, breakNum: 5 },
+				{ status: 0, breakNum: 2 },
+			],
+		},
 		pointPerLife: [50],
 		pointPerBall: [100],
 		strongBallClear: [200],

@@ -1,7 +1,7 @@
 // src/Control.js
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
-import { DEFAULT_CONFIG } from "./const.js";
+import PresetManage from "./PresetManage.js";
 import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
@@ -113,27 +113,31 @@ export default class Control
 		this.game = null;
 	}
 
+	applyPreset(preset = null) {
+		this.preset = preset || null;
+	}
+
 	getStorage() {
 		return (this.game && this.game.storage) || null;
 	}
 
 	getBlockMapSet() {
-		return (this.game && this.game.blockMapSet) || [];
+		return (this.game && this.game.blockMapSet) || (this.preset && this.preset.blockMapSet) || [];
 	}
 
 	getDefaultLife() {
-		const g = this.game;
-		return (g && g.defaultLife) || DEFAULT_CONFIG.defaultLife;
+		const g = this.game || this.preset || PresetManage.getDefaultPreset();
+		return (g && g.defaultLife) || PresetManage.getDefaultPreset().defaultLife;
 	}
 
 	getCanvasWidth() {
-		const g = this.game;
-		return (g && g.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+		const g = this.game || this.preset || PresetManage.getDefaultPreset();
+		return (g && g.canvasWidth) || PresetManage.getDefaultPreset().canvasWidth;
 	}
 
 	getCanvasHeight() {
-		const g = this.game;
-		return (g && g.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+		const g = this.game || this.preset || PresetManage.getDefaultPreset();
+		return (g && g.canvasHeight) || PresetManage.getDefaultPreset().canvasHeight;
 	}
 
 	//--------------------------------------------------

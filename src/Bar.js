@@ -1,8 +1,9 @@
 // src/Bar.js
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
-import { DEFAULT_CONFIG, BAR_PARAM, ITEM_TYPE, WEAPON_PARAM } from "./const.js";
+import { ITEM_TYPE } from "./const.js";
 import EventBus from "./EventBus.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // 反射バー
@@ -12,15 +13,16 @@ export default class Bar
 	constructor(game = null)
 	{
 		this.game = game;
+		const def = PresetManage.getDefaultPreset();
 
-		const cHeight = (this.game && this.game.canvasHeight !== undefined) ? this.game.canvasHeight : DEFAULT_CONFIG.canvasHeight;
-		const px = (this.game && this.game.inputManage) ? this.game.inputManage.pointX : (DEFAULT_CONFIG.canvasWidth / 2);
-		const bDefHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : DEFAULT_CONFIG.barDefaultHeight;
-		const bDefSpeed = (this.game && this.game.barDefaultSpeed !== undefined) ? this.game.barDefaultSpeed : DEFAULT_CONFIG.barDefaultSpeed;
-		const bDefWidth = (this.game && this.game.barDefaultWidth !== undefined) ? this.game.barDefaultWidth : DEFAULT_CONFIG.barDefaultWidth;
-		const bEdge = (this.game && this.game.barEdge !== undefined) ? this.game.barEdge : DEFAULT_CONFIG.barEdge;
-		const bColor = (this.game && this.game.barColor !== undefined) ? this.game.barColor : DEFAULT_CONFIG.barColor;
-		const bDefHP = (this.game && this.game.barDefaultHP !== undefined) ? this.game.barDefaultHP : DEFAULT_CONFIG.barDefaultHP;
+		const cHeight = (this.game && this.game.canvasHeight !== undefined) ? this.game.canvasHeight : def.canvasHeight;
+		const px = (this.game && this.game.inputManage) ? this.game.inputManage.pointX : (def.canvasWidth / 2);
+		const bDefHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : def.barDefaultHeight;
+		const bDefSpeed = (this.game && this.game.barDefaultSpeed !== undefined) ? this.game.barDefaultSpeed : def.barDefaultSpeed;
+		const bDefWidth = (this.game && this.game.barDefaultWidth !== undefined) ? this.game.barDefaultWidth : def.barDefaultWidth;
+		const bEdge = (this.game && this.game.barEdge !== undefined) ? this.game.barEdge : def.barEdge;
+		const bColor = (this.game && this.game.barColor !== undefined) ? this.game.barColor : def.barColor;
+		const bDefHP = (this.game && this.game.barDefaultHP !== undefined) ? this.game.barDefaultHP : def.barDefaultHP;
 
 		this.pointX = px;										// 入力位置（EventBusイベント等で更新）
 		this.x = px;											// バー横軸位置
@@ -160,7 +162,7 @@ export default class Bar
 	}
 
 	getCanvasWidth() {
-		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+		return (this.game && this.game.canvasWidth) || PresetManage.getDefaultPreset().canvasWidth;
 	}
 
 	//--------------------------------------------------
@@ -168,15 +170,20 @@ export default class Bar
 	//--------------------------------------------------
 	draw(ctx)
 	{
-		const bStatusDefaultTime = BAR_PARAM.STATUS_TIME_SEC;
-		const fps = (this.game && this.game.FPS) || DEFAULT_CONFIG.FPS;
+		const def = PresetManage.getDefaultPreset();
+		const bStatusDefaultTime = (this.game && this.game.barStatusDefaultTime !== undefined) ? this.game.barStatusDefaultTime : def.barStatusDefaultTime;
+		const fps = (this.game && this.game.FPS) || def.FPS;
+
+		const blinkTimeRatio = (this.game && this.game.barBlinkTimeRatio !== undefined) ? this.game.barBlinkTimeRatio : (def.barBlinkTimeRatio !== undefined ? def.barBlinkTimeRatio : 0.2);
+		const blinkAlphaStep = (this.game && this.game.barBlinkAlphaStep !== undefined) ? this.game.barBlinkAlphaStep : (def.barBlinkAlphaStep !== undefined ? def.barBlinkAlphaStep : 0.1);
+		const blinkAlphaMin = (this.game && this.game.barBlinkAlphaMin !== undefined) ? this.game.barBlinkAlphaMin : (def.barBlinkAlphaMin !== undefined ? def.barBlinkAlphaMin : 0.2);
 
 		// バー状態解除前の点滅制御
-		if( (this.widthStatusTime != 0 && this.widthStatusTime <= bStatusDefaultTime * fps * BAR_PARAM.BLINK_TIME_RATIO) ||
-			(this.absorptionStatusTime != 0 && this.absorptionStatusTime <= bStatusDefaultTime * fps * BAR_PARAM.BLINK_TIME_RATIO)
+		if( (this.widthStatusTime != 0 && this.widthStatusTime <= bStatusDefaultTime * fps * blinkTimeRatio) ||
+			(this.absorptionStatusTime != 0 && this.absorptionStatusTime <= bStatusDefaultTime * fps * blinkTimeRatio)
 		) {
-			this.alpha -= BAR_PARAM.BLINK_ALPHA_STEP;
-			if( this.alpha < BAR_PARAM.BLINK_ALPHA_MIN ) { this.alpha = 1; }
+			this.alpha -= blinkAlphaStep;
+			if( this.alpha < blinkAlphaMin ) { this.alpha = 1; }
 		} else {
 			this.alpha = 1;
 		}
@@ -265,7 +272,6 @@ export default class Bar
 	}
 
 	//--------------------------------------------------
-	//--------------------------------------------------
 	// 位置移動と画面端制限
 	//--------------------------------------------------
 	movePosition()
@@ -333,7 +339,7 @@ export default class Bar
 		if (this.weaponInter > 0) {
 			return false;
 		}
-		const weaponMaxNum = customMaxNum || (this.game && this.game.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
+		const weaponMaxNum = customMaxNum || (this.game && this.game.weaponMaxNum) || PresetManage.getDefaultPreset().weaponMaxNum;
 		const maxAllowed = (weaponMaxNum && weaponMaxNum[currentWeapon - 1] !== undefined)
 			? weaponMaxNum[currentWeapon - 1]
 			: 1;
@@ -346,15 +352,16 @@ export default class Bar
 	//--------------------------------------------------
 	resetWidth()
 	{
-		const bDefaultWidth = (this.game && this.game.barDefaultWidth !== undefined) ? this.game.barDefaultWidth : DEFAULT_CONFIG.barDefaultWidth;
+		const bDefaultWidth = (this.game && this.game.barDefaultWidth !== undefined) ? this.game.barDefaultWidth : PresetManage.getDefaultPreset().barDefaultWidth;
 		this.width = bDefaultWidth;
 		this.widthStatusTime = 0;
 	}
 
 	resetSpeed()
 	{
-		const bDefaultSpeed = (this.game && this.game.barDefaultSpeed !== undefined) ? this.game.barDefaultSpeed : DEFAULT_CONFIG.barDefaultSpeed;
-		const bDefaultHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : DEFAULT_CONFIG.barDefaultHeight;
+		const def = PresetManage.getDefaultPreset();
+		const bDefaultSpeed = (this.game && this.game.barDefaultSpeed !== undefined) ? this.game.barDefaultSpeed : def.barDefaultSpeed;
+		const bDefaultHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : def.barDefaultHeight;
 		this.vxMax = bDefaultSpeed;
 		this.height = bDefaultHeight;
 		this.speedStatusTime = 0;
@@ -382,7 +389,7 @@ export default class Bar
 
 	resetImmortal()
 	{
-		const bColor = (this.game && this.game.barColor !== undefined) ? this.game.barColor : DEFAULT_CONFIG.barColor;
+		const bColor = (this.game && this.game.barColor !== undefined) ? this.game.barColor : PresetManage.getDefaultPreset().barColor;
 		this.immortalStatusTime = 0;
 		this.color = bColor;
 	}
@@ -410,7 +417,7 @@ export default class Bar
 	//--------------------------------------------------
 	endamage(_damage)
 	{
-		const bDefHP = (this.game && this.game.barDefaultHP !== undefined) ? this.game.barDefaultHP : DEFAULT_CONFIG.barDefaultHP;
+		const bDefHP = (this.game && this.game.barDefaultHP !== undefined) ? this.game.barDefaultHP : PresetManage.getDefaultPreset().barDefaultHP;
 
 		// HPの減少
 		this.hitPoint = Number(this.hitPoint) - Number(_damage);
@@ -431,20 +438,22 @@ export default class Bar
 	//--------------------------------------------------
 	applyItemEffect(type)
 	{
-		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
-		const barMaxWidth = (this.game && this.game.barMaxWidth !== undefined) ? this.game.barMaxWidth : DEFAULT_CONFIG.barMaxWidth;
-		const barMinWidth = (this.game && this.game.barMinWidth !== undefined) ? this.game.barMinWidth : DEFAULT_CONFIG.barMinWidth;
-		const barStatusDefaultTime = (this.game && this.game.barStatusDefaultTime !== undefined) ? this.game.barStatusDefaultTime : DEFAULT_CONFIG.barStatusDefaultTime;
-		const barWeaponDefaultTime = (this.game && this.game.barWeaponDefaultTime !== undefined) ? this.game.barWeaponDefaultTime : DEFAULT_CONFIG.barWeaponDefaultTime;
-		const barMinSpeed = (this.game && this.game.barMinSpeed !== undefined) ? this.game.barMinSpeed : DEFAULT_CONFIG.barMinSpeed;
-		const barImmortalColor = (this.game && this.game.barImmortalColor !== undefined) ? this.game.barImmortalColor : DEFAULT_CONFIG.barImmortalColor;
+		const def = PresetManage.getDefaultPreset();
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
+		const barMaxWidth = (this.game && this.game.barMaxWidth !== undefined) ? this.game.barMaxWidth : def.barMaxWidth;
+		const barMinWidth = (this.game && this.game.barMinWidth !== undefined) ? this.game.barMinWidth : def.barMinWidth;
+		const barStatusDefaultTime = (this.game && this.game.barStatusDefaultTime !== undefined) ? this.game.barStatusDefaultTime : def.barStatusDefaultTime;
+		const barWeaponDefaultTime = (this.game && this.game.barWeaponDefaultTime !== undefined) ? this.game.barWeaponDefaultTime : def.barWeaponDefaultTime;
+		const barMinSpeed = (this.game && this.game.barMinSpeed !== undefined) ? this.game.barMinSpeed : def.barMinSpeed;
+		const barImmortalColor = (this.game && this.game.barImmortalColor !== undefined) ? this.game.barImmortalColor : def.barImmortalColor;
 
 		const statusDurationMs = barStatusDefaultTime * 1000;
 		const weaponDurationMs = barWeaponDefaultTime * 1000;
 
 		// バー幅伸長
 		if (type === ITEM_TYPE.LONG) {
-			this.width = ~~(this.width * BAR_PARAM.LONG_WIDTH_RATIO);
+			const longWidthRatio = (this.game && this.game.barLongWidthRatio !== undefined) ? this.game.barLongWidthRatio : (def.barLongWidthRatio !== undefined ? def.barLongWidthRatio : 1.4);
+			this.width = ~~(this.width * longWidthRatio);
 			if (this.width > barMaxWidth) { this.width = barMaxWidth; }
 			this.widthStatusTime = barStatusDefaultTime * fps;
 			this.getEventBus().addTimer('bar:width', statusDurationMs, () => this.resetWidth(), {
@@ -455,7 +464,8 @@ export default class Bar
 			});
 		// バー幅縮小
 		} else if (type === ITEM_TYPE.SHORT) {
-			this.width = ~~(this.width * BAR_PARAM.SHORT_WIDTH_RATIO);
+			const shortWidthRatio = (this.game && this.game.barShortWidthRatio !== undefined) ? this.game.barShortWidthRatio : (def.barShortWidthRatio !== undefined ? def.barShortWidthRatio : 0.6);
+			this.width = ~~(this.width * shortWidthRatio);
 			if (this.width < barMinWidth) { this.width = barMinWidth; }
 			this.widthStatusTime = barStatusDefaultTime * fps;
 			this.getEventBus().addTimer('bar:width', statusDurationMs, () => this.resetWidth(), {
@@ -488,8 +498,9 @@ export default class Bar
 		} else if (type === ITEM_TYPE.SLOW) {
 			this.vxMax -= ~~(Math.abs(this.vxMax - barMinSpeed) * 0.8);
 			if (this.vxMax < barMinSpeed) { this.vxMax = barMinSpeed; }
-			const bDefaultHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : DEFAULT_CONFIG.barDefaultHeight;
-			this.height = bDefaultHeight * BAR_PARAM.SPEED_DOWN_HEIGHT_RATIO;
+			const bDefaultHeight = (this.game && this.game.barDefaultHeight !== undefined) ? this.game.barDefaultHeight : def.barDefaultHeight;
+			const speedDownHeightRatio = (this.game && this.game.barSpeedDownHeightRatio !== undefined) ? this.game.barSpeedDownHeightRatio : (def.barSpeedDownHeightRatio !== undefined ? def.barSpeedDownHeightRatio : 0.5);
+			this.height = bDefaultHeight * speedDownHeightRatio;
 			this.speedStatusTime = barStatusDefaultTime * fps;
 			this.getEventBus().addTimer('bar:speed', statusDurationMs, () => this.resetSpeed(), {
 				event: 'bar:resetSpeed',

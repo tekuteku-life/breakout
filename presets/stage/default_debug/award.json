@@ -1,0 +1,13 @@
+{
+	"awards": [
+		{ "id": 0, "key": "beginner", "pointPerLife": 50, "pointPerBall": 10, "pointPerContBreak": 10, "strongBallClear": 100, "clearTimeThreashould": 60, "pointPerClearTime": 5, "pointPerGetItem": 5, "pointPerFallBall": 10 },
+		{ "id": 1, "key": "square", "pointPerLife": 60, "pointPerBall": 15, "pointPerContBreak": 12, "strongBallClear": 100, "clearTimeThreashould": 60, "pointPerClearTime": 8, "pointPerGetItem": 5, "pointPerFallBall": 15 },
+		{ "id": 2, "key": "fly", "pointPerLife": 80, "pointPerBall": 15, "pointPerContBreak": 12, "strongBallClear": 100, "clearTimeThreashould": 60, "pointPerClearTime": 8, "pointPerGetItem": 5, "pointPerFallBall": 15 },
+		{ "id": 3, "key": "poles", "pointPerLife": 120, "pointPerBall": 20, "pointPerContBreak": 15, "strongBallClear": 100, "clearTimeThreashould": 80, "pointPerClearTime": 10, "pointPerGetItem": 5, "pointPerFallBall": 20 },
+		{ "id": 4, "key": "practice", "pointPerLife": 180, "pointPerBall": 25, "pointPerContBreak": 20, "strongBallClear": 100, "clearTimeThreashould": 100, "pointPerClearTime": 12, "pointPerGetItem": 5, "pointPerFallBall": 20 },
+		{ "id": 5, "key": "practice2", "pointPerLife": 260, "pointPerBall": 35, "pointPerContBreak": 28, "strongBallClear": 200, "clearTimeThreashould": 100, "pointPerClearTime": 15, "pointPerGetItem": 7, "pointPerFallBall": 20 },
+		{ "id": 6, "key": "bomb", "pointPerLife": 350, "pointPerBall": 50, "pointPerContBreak": 40, "strongBallClear": 200, "clearTimeThreashould": 80, "pointPerClearTime": 20, "pointPerGetItem": 7, "pointPerFallBall": 30 },
+		{ "id": 7, "key": "rush", "pointPerLife": 450, "pointPerBall": 60, "pointPerContBreak": 55, "strongBallClear": 200, "clearTimeThreashould": 120, "pointPerClearTime": 28, "pointPerGetItem": 8, "pointPerFallBall": 50 },
+		{ "id": 8, "key": "aim", "pointPerLife": 560, "pointPerBall": 80, "pointPerContBreak": 80, "strongBallClear": 200, "clearTimeThreashould": 180, "pointPerClearTime": 35, "pointPerGetItem": 8, "pointPerFallBall": 50 }
+	]
+}

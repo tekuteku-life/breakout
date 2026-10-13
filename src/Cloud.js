@@ -1,12 +1,13 @@
-import { DEFAULT_CONFIG } from "./const.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // 雲
 //--------------------------------------------------
-export default function Cloud(dynamicCtx, x, y)
+export default function Cloud(dynamicCtx, x, y, width = null, height = null)
 {
-	const bWidth = DEFAULT_CONFIG.blockWidth;
-	const bHeight = DEFAULT_CONFIG.blockHeight;
+	const def = (width == null || height == null) ? PresetManage.getDefaultPreset() : null;
+	const bWidth = width != null ? width : def.blockWidth;
+	const bHeight = height != null ? height : def.blockHeight;
 	var NumX = 10;
 	var NumY = 8;
 	var Size = 6;
@@ -25,4 +26,3 @@ export default function Cloud(dynamicCtx, x, y)
 		}
 	}
 }
-

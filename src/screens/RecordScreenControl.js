@@ -48,7 +48,10 @@ export default class RecordScreenControl extends ScreenControl {
 		if (recordType < 0) recordType = 0;
 		if (recordStage < 0) recordStage = 0;
 
-		const stageTitles = (this.screenManage && this.screenManage.game && this.screenManage.game.stageTitle) || [];
+		const stageTitles = (this.preset && this.preset.stageTitle)
+			|| (this.screenManage && this.screenManage.preset && this.screenManage.preset.stageTitle)
+			|| (this.screenManage && this.screenManage.game && this.screenManage.game.stageTitle)
+			|| [];
 		const stageNameRaw = stageTitles[recordStage] || 'Stage_' + (recordStage + 1);
 		const stageName = String(stageNameRaw).replace(/_/g, '__');
 		const typePrefix = this.recordTypeCtrl[recordType] || 'best';

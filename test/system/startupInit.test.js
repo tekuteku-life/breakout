@@ -97,7 +97,7 @@ describe('System Test SYS-01: Startup and Initialization', () => {
 
 		// copyMap
 		window.gameManage.init(0);
-		const mapCopy = window.blockMapSet[0].copyMap();
+		const mapCopy = window.gameManage.blockMapSet[0].copyMap(window.gameManage);
 		assert.ok(Array.isArray(mapCopy));
 
 		// oncontextmenu

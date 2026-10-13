@@ -1,0 +1,21 @@
+{
+	"size": 5,
+	"defaultSpeed": 3.5,
+	"maxSpeed": 5,
+	"color": "#1F3145",
+	"strongColor": "#0CA366",
+	"ultimateColor": "#DC210C",
+	"maxNum": 4,
+	"statusTime": 8,
+	"infBoundCancel": 1,
+	"histMax": 4,
+	"defaultPointIncr": 10,
+	"minVyRatio": 0.8,
+	"minVxRatio": 0.01,
+	"edgeAccelRatio": 0.4,
+	"vyUpStep": 0.05,
+	"vyDownStep": 0.4,
+	"speedUpRatio": 1.3,
+	"speedDownRatio": 0.7
+}
+

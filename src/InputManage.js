@@ -2,7 +2,7 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import MessageBox from "./MessageBox.js";
-import { DEFAULT_CONFIG } from "./const.js";
+import PresetManage from "./PresetManage.js";
 import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
@@ -41,6 +41,10 @@ export default class InputManage {
 		EventBus.addOnEvent('input:requestPointerLock', this.onRequestPointerLockHandler);
 		EventBus.addOnEvent('control:togglePause', this.onExitPointerLockHandler);
 		EventBus.addOnEvent('screen:open', this.onExitPointerLockHandler);
+	}
+
+	applyPreset(preset = null) {
+		this.preset = preset || null;
 	}
 
 	destructor() {
@@ -116,11 +120,11 @@ export default class InputManage {
 	}
 
 	getCanvasWidth() {
-		return (this.game && this.game.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+		return (this.game && this.game.canvasWidth) || (this.preset && this.preset.canvasWidth) || PresetManage.getDefaultPreset().canvasWidth;
 	}
 
 	getCanvasHeight() {
-		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+		return (this.game && this.game.canvasHeight) || (this.preset && this.preset.canvasHeight) || PresetManage.getDefaultPreset().canvasHeight;
 	}
 
 	bind(canvas, doc = null, win = null) {

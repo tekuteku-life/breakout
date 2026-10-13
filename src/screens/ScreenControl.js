@@ -12,11 +12,16 @@ export default class ScreenControl {
 		return document.getElementById(this.screenId);
 	}
 
+	applyPreset(preset = null) {
+		this.preset = preset || null;
+	}
+
 	onOpen() {}
 
 	onClose() {}
 
 	destructor() {
+		this.preset = null;
 		this.screenManage = null;
 	}
 }

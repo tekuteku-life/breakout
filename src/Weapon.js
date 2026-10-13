@@ -2,11 +2,10 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import {
-	DEFAULT_CONFIG,
 	WEAPON_TYPE,
-	WEAPON_PARAM,
 } from "./const.js";
 import EventBus from "./EventBus.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // 武器
@@ -37,7 +36,7 @@ export default class Weapon
 	}
 
 	getCanvasHeight() {
-		return (this.game && this.game.canvasHeight) || DEFAULT_CONFIG.canvasHeight;
+		return (this.game && this.game.canvasHeight) || PresetManage.getDefaultPreset().canvasHeight;
 	}
 
 
@@ -69,9 +68,10 @@ export default class Weapon
 	// 位置移動（物理演算）
 	//--------------------------------------------------
 	movePosition() {
-		const weaponSpeedList = (this.game && this.game.weaponSpeed) || WEAPON_PARAM.DEFAULT_SPEED;
-		const wSpeed = (weaponSpeedList[this.type] !== undefined) ? weaponSpeedList[this.type] : (WEAPON_PARAM.DEFAULT_SPEED[this.type] !== undefined ? WEAPON_PARAM.DEFAULT_SPEED[this.type] : 6);
-		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : DEFAULT_CONFIG.FPS;
+		const def = PresetManage.getDefaultPreset();
+		const weaponSpeedList = (this.game && this.game.weaponSpeed) || def.weaponSpeed;
+		const wSpeed = (weaponSpeedList[this.type] !== undefined) ? weaponSpeedList[this.type] : (def.weaponSpeed[this.type] !== undefined ? def.weaponSpeed[this.type] : 6);
+		const fps = (this.game && this.game.FPS !== undefined) ? this.game.FPS : def.FPS;
 
 		// 座標を進める
 		this.y -= this.vy * this.vect;
@@ -80,7 +80,10 @@ export default class Weapon
 		if( this.vy < wSpeed ) {
 			// ミサイル
 			if( this.type == WEAPON_TYPE.MISSILE ) {
-				this.vy += wSpeed / (fps * WEAPON_PARAM.MISSILE_ACCEL_RATIO);
+				const missileAccelRatio = (this.game && this.game.weaponMissileAccelRatio !== undefined)
+					? this.game.weaponMissileAccelRatio
+					: (def.weaponMissileAccelRatio !== undefined ? def.weaponMissileAccelRatio : 1.05);
+				this.vy += wSpeed / (fps * missileAccelRatio);
 				if( this.vy > wSpeed ) { this.vy = wSpeed; }
 
 			// 銃
@@ -143,11 +146,12 @@ export default class Weapon
 	//--------------------------------------------------
 	static drawWeapon(dynamicCtx, weaponNumber, x, y, game = null)
 	{
-		if (!dynamicCtx || !weaponNumber) return;
+		if (!dynamicCtx || !weaponNumber) { return; }
 		const type = weaponNumber - 1;
 		const size = (type == WEAPON_TYPE.GUN ? 1 : 4);
-		const wColor = (game && game.weaponColor) || ['#000', '#000'];
-		const wLineColor = (game && game.weaponLineColor) || ['#fff', '#fff'];
+		const def = PresetManage.getDefaultPreset();
+		const wColor = (game && game.weaponColor) || def.weaponColor || ['#000', '#000'];
+		const wLineColor = (game && game.weaponLineColor) || def.weaponLineColor || ['#fff', '#fff'];
 
 		// 銃
 		if( type == 0 )

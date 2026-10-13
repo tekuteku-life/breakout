@@ -2,7 +2,7 @@
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
 import ScreenControl from "./ScreenControl.js";
-import { DEFAULT_CONFIG } from "../const.js";
+import PresetManage from "../PresetManage.js";
 import EventBus from "../EventBus.js";
 
 export default class SettingScreenControl extends ScreenControl {
@@ -32,17 +32,40 @@ export default class SettingScreenControl extends ScreenControl {
 		const storage = this.getStorage();
 		if (!ctrl || !ctrl.formSelector) { return; }
 
+		const gm = this.gameManage || (this.screenManage && this.screenManage.game) || null;
+		const pm = gm && gm.presetManage;
+
 		// セッティングセレクタのセット
 		if (ctrl.formSelector["setting"]) {
-			ctrl.formSelector["setting"].onchange = (e) => {
-				const val = e ? e.target.value : ctrl.formSelector["setting"].value;
+			const settingSel = ctrl.formSelector["setting"];
+			if (pm && typeof pm.getAvailablePresets === 'function') {
+				const presets = pm.getAvailablePresets();
+				if (presets.length > 0 && typeof document !== 'undefined') {
+					while (settingSel.firstChild) {
+						settingSel.removeChild(settingSel.firstChild);
+					}
+					for (let i = 0, len = presets.length; i < len; i++) {
+						const option = document.createElement('option');
+						option.value = presets[i].key;
+						option.innerHTML = presets[i].title;
+						if (pm.currentPresetKey === presets[i].key) {
+							option.selected = 'selected';
+						}
+						settingSel.appendChild(option);
+					}
+				}
+			}
+			settingSel.onchange = (e) => {
+				const val = e && e.target ? e.target.value : settingSel.value;
 				EventBus.emitEvent('setting:change', val);
 			};
 		}
 
 		// ステージセレクタのセット
 		if (ctrl.formSelector["stage"]) {
-			const stageTitles = (this.gameManage && this.gameManage.stageTitle) || (this.screenManage && this.screenManage.game && this.screenManage.game.stageTitle) || [];
+			const stageTitles = (this.preset && this.preset.stageTitle)
+				|| (gm && gm.stageTitle)
+				|| [];
 			const stageSel = ctrl.formSelector["stage"];
 			while (stageSel.firstChild) {
 				stageSel.removeChild(stageSel.firstChild);
@@ -58,7 +81,9 @@ export default class SettingScreenControl extends ScreenControl {
 				ctrl.setStageIndex(stageSel.value);
 				if (storage != null) {
 					ctrl.recordStageIndex();
-					const defLife = (this.gameManage && this.gameManage.defaultLife) || (this.screenManage && this.screenManage.game && this.screenManage.game.defaultLife) || DEFAULT_CONFIG.defaultLife;
+					const defLife = (this.preset && this.preset.defaultLife)
+						|| (gm && gm.defaultLife)
+						|| PresetManage.getDefaultPreset().defaultLife;
 					storage.setItem("continue_life", defLife);
 					storage.setItem("continue_time", 0);
 					storage.setItem("continue_score", 0);

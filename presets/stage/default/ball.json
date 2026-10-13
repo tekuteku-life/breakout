@@ -1,0 +1,12 @@
+{
+	"size": 5,
+	"defaultSpeed": 3.5,
+	"maxSpeed": 5,
+	"color": "#1F3145",
+	"strongColor": "#0CA366",
+	"ultimateColor": "#DC210C",
+	"maxNum": 4,
+	"statusTime": 8,
+	"infBoundCancel": 1
+}
+

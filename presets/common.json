@@ -1,0 +1,14 @@
+{
+	"FPS": 50,
+	"lowFPSAlartRatio": 0.8,
+	"stepTime": 20,
+	"maxAccumulator": 200,
+	"simulateMaxPredict": 50,
+	"canvasWidth": 750,
+	"canvasHeight": 530,
+	"statusBarHeight": 22,
+	"defaultLife": 3,
+	"maxLife": 5,
+	"pointerLockSwitch": 1,
+	"disturbOverlayColor": "rgba(0, 0, 0, 0.85)"
+}

@@ -1,0 +1,7 @@
+{
+	"types": [
+		{ "id": 0, "key": "gun", "speed": 7, "maxNum": 5, "color": "#000000", "lineColor": "#000000" },
+		{ "id": 1, "key": "missile", "speed": 5, "maxNum": 3, "color": "#fefefe", "lineColor": "#000000" }
+	]
+}
+

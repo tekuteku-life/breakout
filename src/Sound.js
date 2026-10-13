@@ -1,7 +1,7 @@
 // src/Sound.js
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
-import { DEFAULT_CONFIG } from "./const.js";
+import PresetManage from "./PresetManage.js";
 import EventBus from "./EventBus.js";
 
 //--------------------------------------------------
@@ -17,7 +17,8 @@ export default class Sound
 			'warp', 'clear', 'gun', 'missile', 'plusItem', 'minusItem',
 			'touchButton', 'game_over'
 		];
-		this.soundFiles = (this.game && this.game.soundFile) || DEFAULT_CONFIG.soundFile || {};
+		const def = PresetManage.getDefaultPreset();
+		this.soundFiles = (this.game && this.game.soundFile) || def.soundFile || {};
 
 		// Web Audio API の初期化（利用可能な場合）
 		const AudioContextClass = typeof window !== 'undefined'
@@ -43,7 +44,7 @@ export default class Sound
 		// HTML Audio フォールバック用
 		this.soundObj = {};
 		this.soundTurn = {};
-		this.bufSize = 4; // 同時再生バッファサイズ（過剰な10個プールを廃止し適正化）
+		this.bufSize = (this.game && this.game.soundBufSize !== undefined) ? this.game.soundBufSize : (def.soundBufSize !== undefined ? def.soundBufSize : 4);
 
 		const AudioCtor = typeof Audio !== 'undefined' ? Audio : null;
 		for (let i = 0; i < this.soundKeys.length; i++) {
@@ -67,6 +68,16 @@ export default class Sound
 		// EventBus経由で再生要求を購読
 		this.onPlayHandler = (key) => this.play(key);
 		EventBus.addOnEvent('sound:play', this.onPlayHandler);
+	}
+
+	applyPreset(preset = null) {
+		this.preset = preset || null;
+		const def = PresetManage.getDefaultPreset();
+		const soundFile = (preset && preset.soundFile) || (this.game && this.game.soundFile) || def.soundFile || {};
+		this.soundFiles = soundFile;
+		this.bufSize = (preset && preset.soundBufSize !== undefined)
+			? preset.soundBufSize
+			: ((this.game && this.game.soundBufSize !== undefined) ? this.game.soundBufSize : (def.soundBufSize !== undefined ? def.soundBufSize : 4));
 	}
 
 	/**

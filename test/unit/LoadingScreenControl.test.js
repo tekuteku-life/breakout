@@ -72,5 +72,40 @@ describe('LoadingScreenControl unit tests', () => {
 		assert.equal(ctrl.progressText, null);
 		assert.equal(ctrl.message, '');
 		assert.equal(ctrl.screenManage, null);
+		sm.destructor();
+	});
+
+	it('updates #loading_progress_text when PresetManage loads JSON files', async () => {
+		const sm = new ScreenManage();
+		sm.openScreen('screen_loading');
+		const text = document.getElementById('loading_progress_text');
+		const observedDomTexts = [];
+
+		const pm = window.gameManage.presetManage;
+		await pm.loadPreset('default', () => {
+			observedDomTexts.push(text.textContent);
+		});
+
+		assert.deepEqual(observedDomTexts, [
+			'Loading JSON data (common.json)...',
+			'Loading JSON data (bar.json)...',
+			'Loading JSON data (heart.json)...',
+			'Loading JSON data (ball.json)...',
+			'Loading JSON data (weapon.json)...',
+			'Loading JSON data (item.json)...',
+			'Loading JSON data (balloon.json)...',
+			'Loading JSON data (block.json)...',
+			'Loading JSON data (sound.json)...',
+			'Loading JSON data (manifest.json)...',
+			'Loading JSON data (block.json)...',
+			'Loading JSON data (item.json)...',
+			'Loading JSON data (weapon.json)...',
+			'Loading JSON data (award.json)...',
+			'Loading JSON data (ball.json)...',
+			'Loading JSON data (blockmap.json)...',
+		]);
+
+		sm.closeScreen('screen_loading');
+		sm.destructor();
 	});
 });

@@ -87,16 +87,37 @@ test('GameManage class unit tests', async (t) => {
 		assert.ok(true, 'step() executed cleanly');
 	});
 
-	await t.test('executes simulateReset and changeSetting', () => {
+	await t.test('executes simulateReset, distributePreset, and changeSetting via PresetManage', async () => {
 		const gm = new GameManage();
 		gm.init(0);
 		gm.stop();
 
 		gm.simulateReset();
-		assert.ok(true);
+		assert.ok(gm.presetManage, 'PresetManage should be created under GameManage');
+		assert.equal(gm.presetManage.currentPresetKey, 'default');
 
-		gm.changeSetting('setup_sample.js');
-		assert.ok(true);
+		// Verify distributePreset distributed preset data to child classes
+		assert.ok(gm.objectManage.preset);
+		assert.ok(gm.ctrl.preset);
+		assert.ok(gm.statusMng.preset);
+		assert.ok(gm.scoreMng.preset);
+		assert.ok(gm.sounds.preset);
+		assert.ok(gm.screenManage.preset);
+		assert.ok(gm.inputManage.preset);
+		assert.ok(gm.autoPlay.preset);
+
+		await gm.changeSetting('default_debug');
+		gm.stop();
+		assert.equal(gm.presetManage.currentPresetKey, 'default_debug');
+		assert.equal(gm.ballSize, 1);
+		assert.equal(gm.objectManage.preset.ballSize, 1);
+		assert.equal(gm.ctrl.preset.stageTitle.length, 9);
+
+		await gm.changeSetting('default');
+		gm.stop();
+		assert.equal(gm.presetManage.currentPresetKey, 'default');
+		assert.equal(gm.ballSize, 5);
+		gm.destructor();
 	});
 
 	await t.test('executes gameOver flow and status rendering', () => {
@@ -187,7 +208,7 @@ test('GameManage class unit tests', async (t) => {
 		assert.equal(gm.inputManage.pointX, 300);
 	});
 
-	await t.test('initAsync displays loading screen and updates progress through phases until completion', async () => {
+	await t.test('initAsync and init display loading screen and update progress including JSON loading phases', async () => {
 		const gm = new GameManage();
 		const progressUpdates = [];
 
@@ -196,6 +217,15 @@ test('GameManage class unit tests', async (t) => {
 		});
 
 		assert.ok(progressUpdates.length > 0, 'Progress updates should have been reported');
+		const texts = progressUpdates.map(u => u.text);
+		assert.ok(texts.includes('Loading JSON data (common.json)...'), 'Should report common.json loading status');
+		assert.ok(texts.includes('Loading JSON data (manifest.json)...'), 'Should report manifest.json loading status');
+		assert.ok(texts.includes('Loading JSON data (block.json)...'), 'Should report block.json loading status');
+		assert.ok(texts.includes('Loading JSON data (item.json)...'), 'Should report item.json loading status');
+		assert.ok(texts.includes('Loading JSON data (weapon.json)...'), 'Should report weapon.json loading status');
+		assert.ok(texts.includes('Loading JSON data (award.json)...'), 'Should report award.json loading status');
+		assert.ok(texts.includes('Loading JSON data (ball.json)...'), 'Should report ball.json loading status');
+		assert.ok(texts.includes('Loading JSON data (blockmap.json)...'), 'Should report blockmap.json loading status');
 		assert.equal(progressUpdates[progressUpdates.length - 1].ratio, 1.0, 'Final progress should reach 100%');
 		assert.ok(gm.ctrl, 'Control should be initialized');
 		assert.ok(gm.objectManage, 'ObjectManage should be initialized');

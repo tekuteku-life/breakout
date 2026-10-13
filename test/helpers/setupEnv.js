@@ -317,8 +317,6 @@ export function setupEnvironment() {
 
 	const body = new MockElement('body');
 	const head = new MockElement('head');
-	const setupScript = getOrCreate('setup', 'script');
-	head.appendChild(setupScript);
 
 	const screenStock = getOrCreate('screenStock', 'div');
 	body.appendChild(screenStock);
@@ -513,11 +511,6 @@ export function setupEnvironment() {
 		globalThis.__lastAlert = msg;
 	};
 
-	// Load setup/default.js constants
-	const defaultJsPath = path.join(rootDir, 'setup/default.js');
-	const defaultJs = fs.readFileSync(defaultJsPath, 'utf8');
-	eval.call(globalThis, defaultJs);
-
 	// Ensure Array prototype extensions exist
 	if (!Array.prototype.copy) {
 		Array.prototype.copy = function () {
@@ -531,6 +524,19 @@ export function setupEnvironment() {
 			}
 			return obj;
 		};
+	}
+
+	// テスト環境用のGameManageインスタンス生成（PresetManage経由でpresetsを読込）
+	if (globalThis.gameManage && typeof globalThis.gameManage.destructor === 'function') {
+		globalThis.gameManage.destructor();
+	}
+	EventBus.destructor();
+	const gm = new GameManage();
+	const presetData = gm.presetManage.getPresetData();
+	for (const [k, v] of Object.entries(presetData)) {
+		if (k !== 'common' && k !== 'stageObjects' && k !== 'presetKey') {
+			globalThis[k] = v;
+		}
 	}
 
 	globalThis.dynamicCanvas = getOrCreate('dynamic', 'canvas');
@@ -680,15 +686,10 @@ export function setupEnvironment() {
 		endamage: (d) => {},
 	};
 
-	// テスト環境用のGameManageインスタンス生成（ブラウザのwindow.onloadに相当）
-	if (globalThis.gameManage && typeof globalThis.gameManage.destructor === 'function') {
-		globalThis.gameManage.destructor();
-	}
-	EventBus.destructor();
-	const gm = new GameManage();
 	globalThis.eventBus = EventBus;
 	globalThis.gameManage = gm;
 	globalThis.window.gameManage = gm;
+	globalThis.window.presetManage = gm.presetManage;
 	globalThis.window.screenManage = gm.screenManage;
 	globalThis.window.inputManage = gm.inputManage;
 	globalThis.window.eventBus = EventBus;
@@ -706,7 +707,7 @@ export function setupEnvironment() {
 		gm.objectManage.balloons = globalThis.balloons;
 		gm.objectManage.blockMap = globalThis.blockMap;
 	}
-	gm.loadSetupVariables(globalThis);
+	gm.loadSetupVariables();
 	if (gm.screenManage && typeof gm.screenManage.printRecordScreen === 'function') {
 		gm.screenManage.printRecordScreen(0, 0);
 	}

@@ -127,6 +127,7 @@ window.onload = async function()
 	// ゲーム全体の管理インスタンスを生成
 	const gameManage = new GameManage();
 	window.gameManage = gameManage;
+	window.presetManage = gameManage.presetManage;
 	window.objectManage = gameManage.objectManage;
 	window.screenManage = gameManage.screenManage;
 	window.inputManage = gameManage.inputManage;
@@ -169,8 +170,11 @@ window.oncontextmenu = function()
 	return false;
 };
 
+import PresetManage from "./PresetManage.js";
+
 export {
 	GameManage,
+	PresetManage,
 	ObjectManage,
 	ScreenManage,
 	InputManage,

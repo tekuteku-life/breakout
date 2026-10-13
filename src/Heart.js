@@ -1,7 +1,7 @@
 // src/Heart.js
 // Copyright (C) 2010-2012 kt9, All rights reserved.
 
-import { DEFAULT_CONFIG } from "./const.js";
+import PresetManage from "./PresetManage.js";
 
 //--------------------------------------------------
 // ハート
@@ -23,16 +23,15 @@ export default class Heart
 		this.game = null;
 	}
 
-
 	//--------------------------------------------------
 	// 描画
 	//--------------------------------------------------
 	draw(ctx)
 	{
-		if (!this.imgData || !ctx) return;
-		const heartWidth = (this.game && this.game.heartWidth !== undefined) ? this.game.heartWidth : DEFAULT_CONFIG.heartWidth;
-		const heartHeight = (this.game && this.game.heartHeight !== undefined) ? this.game.heartHeight : DEFAULT_CONFIG.heartHeight;
+		if (!this.imgData || !ctx) { return; }
+		const def = PresetManage.getDefaultPreset();
+		const heartWidth = (this.game && this.game.heartWidth !== undefined) ? this.game.heartWidth : def.heartWidth;
+		const heartHeight = (this.game && this.game.heartHeight !== undefined) ? this.game.heartHeight : def.heartHeight;
 		ctx.putImageData(this.imgData, this.x - heartWidth, this.y - heartHeight);
 	}
 }
-

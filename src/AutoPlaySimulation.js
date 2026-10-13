@@ -5,15 +5,10 @@ import Block from "./Block.js";
 import Ball from "./Ball.js";
 import Item from "./Item.js";
 import Bar from "./Bar.js";
+import PresetManage from "./PresetManage.js";
 import {
 	BLOCK_FUNCTION,
-	BLOCK_PARAM,
-	BAR_PARAM,
-	DEFAULT_CONFIG,
-	SIMULATE_PARAM,
-	ITEM_PARAM,
 	ITEM_TYPE,
-	WEAPON_PARAM,
 	BALL_CREATE_MODE,
 	BALL_STATUS,
 } from "./const.js";
@@ -39,13 +34,14 @@ export function isHarmfulItem(type) {
  * 下端がバー上面に達する時刻(hitStartTime)から、上端がcanvasHeightを超えて消滅する時刻(passEndTime)までを危険期間とする。
  */
 export function getItemMetrics(it, bar, config) {
+	const def = PresetManage.getDefaultPreset();
 	const itSpeed = it.speed || 4;
-	const itemW = it.width || (config && config.blkWidth) || DEFAULT_CONFIG.blockWidth || 50;
-	const itemH = it.height || (config && config.blkHeight) || DEFAULT_CONFIG.blockHeight || 20;
-	const barW = (bar && bar.width) || DEFAULT_CONFIG.barDefaultWidth || 100;
-	const barH = (bar && bar.height) || DEFAULT_CONFIG.barDefaultHeight || 10;
+	const itemW = it.width || (config && (config.blkWidth || config.blockWidth)) || def.blockWidth || 50;
+	const itemH = it.height || (config && (config.blkHeight || config.blockHeight)) || def.blockHeight || 20;
+	const barW = (bar && bar.width) || (config && config.barDefaultWidth) || def.barDefaultWidth || 100;
+	const barH = (bar && bar.height) || (config && config.barDefaultHeight) || def.barDefaultHeight || 10;
 	const barY = (bar && bar.y !== undefined) ? bar.y : 517.5;
-	const rawCanvasH = (config && config.canvasHeight) || DEFAULT_CONFIG.canvasHeight || 530;
+	const rawCanvasH = (config && config.canvasHeight) || def.canvasHeight || 530;
 	const canvasHeight = Math.min(Math.max(barY + 12, rawCanvasH), barY + barH + 8);
 
 	const itemX = typeof it.getCenterX === 'function'
@@ -212,6 +208,13 @@ export function isBlockAlive(b) {
  */
 export function cloneBlockMap(blockMap, newGame = null) {
 	if (!blockMap || !Array.isArray(blockMap)) { return []; }
+	const def = PresetManage.getDefaultPreset();
+	const blockInfinit = (newGame && newGame.blockInfinit) || def.blockInfinit || [];
+	const blockThrough = (newGame && newGame.blockThrough) || def.blockThrough || [];
+	const blockFunction = (newGame && newGame.blockFunction) || def.blockFunction || [];
+	const blockWidth = (newGame && (newGame.blkWidth || newGame.blockWidth)) || def.blockWidth || 50;
+	const blockHeight = (newGame && (newGame.blkHeight || newGame.blockHeight)) || def.blockHeight || 20;
+	const statusBarHeight = (newGame && newGame.statusBarHeight !== undefined) ? newGame.statusBarHeight : (def.statusBarHeight || 30);
 	const cloned = [];
 	for (let i = 0; i < blockMap.length; i++) {
 		const row = blockMap[i];
@@ -231,16 +234,16 @@ export function cloneBlockMap(blockMap, newGame = null) {
 				const bType = b.type !== 0 ? b.type : (b.blinkType || 0);
 				const inf = (b.infinit !== undefined && b.infinit !== null)
 					? Number(b.infinit)
-					: (DEFAULT_CONFIG.blockInfinit && DEFAULT_CONFIG.blockInfinit[bType] !== undefined ? DEFAULT_CONFIG.blockInfinit[bType] : 0);
+					: (blockInfinit[bType] !== undefined ? blockInfinit[bType] : 0);
 				const thr = (b.throughVect !== undefined && b.throughVect !== null)
 					? Number(b.throughVect)
-					: (DEFAULT_CONFIG.blockThrough && DEFAULT_CONFIG.blockThrough[bType] !== undefined ? DEFAULT_CONFIG.blockThrough[bType] : 0);
+					: (blockThrough[bType] !== undefined ? blockThrough[bType] : 0);
 				const fn = (b.func !== undefined && b.func !== null)
 					? Number(b.func)
-					: (DEFAULT_CONFIG.blockFunction && DEFAULT_CONFIG.blockFunction[bType] !== undefined ? DEFAULT_CONFIG.blockFunction[bType] : 0);
+					: (blockFunction[bType] !== undefined ? blockFunction[bType] : 0);
 				const blk = new Block(
-					b.col !== undefined ? b.col : Math.round(b.x / (b.width || DEFAULT_CONFIG.blockWidth)),
-					b.row !== undefined ? b.row : Math.round((b.y - (b.statusBarHeight || DEFAULT_CONFIG.statusBarHeight)) / (b.height || DEFAULT_CONFIG.blockHeight)),
+					b.col !== undefined ? b.col : Math.round(b.x / (b.width || blockWidth)),
+					b.row !== undefined ? b.row : Math.round((b.y - (b.statusBarHeight !== undefined ? b.statusBarHeight : statusBarHeight)) / (b.height || blockHeight)),
 					b.type,
 					fn,
 					b.life,
@@ -307,12 +310,13 @@ function instantiateBall(b, simGame) {
  */
 export function updateSimulationBlocks(blockMap, config = null, simGame = null) {
 	if (!blockMap) { return []; }
+	const def = PresetManage.getDefaultPreset();
 	const cfg = (typeof config === 'object' && config !== null)
 		? config
-		: (simGame || DEFAULT_CONFIG);
-	const canvasWidth = cfg.canvasWidth || DEFAULT_CONFIG.canvasWidth;
-	const blkWidth = cfg.blkWidth || cfg.blockWidth || DEFAULT_CONFIG.blockWidth;
-	const fps = cfg.fps || cfg.FPS || DEFAULT_CONFIG.FPS;
+		: (simGame || def);
+	const canvasWidth = cfg.canvasWidth || def.canvasWidth;
+	const blkWidth = cfg.blkWidth || cfg.blockWidth || def.blockWidth;
+	const fps = cfg.fps || cfg.FPS || def.FPS;
 	const spawnedAttacks = [];
 
 	const eventBus = simGame && simGame.eventBus;
@@ -401,7 +405,7 @@ export function updateSimulationBlocks(blockMap, config = null, simGame = null) 
 			if (block.breakLimit > 0 && block.type !== 0) {
 				block.breakLimit--;
 				if (block.breakLimit <= 0) {
-					const bLifeMap = (simGame && simGame.blockLife) || (DEFAULT_CONFIG.blockLife) || [];
+					const bLifeMap = (simGame && simGame.blockLife) || (cfg && cfg.blockLife) || def.blockLife || [];
 					block.life = bLifeMap[block.type] || 1;
 				}
 			}
@@ -420,8 +424,14 @@ export function updateSimulationBlocks(blockMap, config = null, simGame = null) 
  */
 export function applySimulationMagneticForces(balls, blockMap, config) {
 	if (!blockMap || !balls || balls.length === 0) return;
-	const bDrawDist = (config && (config.blockDrawingDistance || config.bDrawDist)) || DEFAULT_CONFIG.blockDrawingDistance;
-	const bDefSpeed = (config && (config.bDefaultSpeed || config.ballDefaultSpeed)) || DEFAULT_CONFIG.ballDefaultSpeed;
+	const def = PresetManage.getDefaultPreset();
+	const bDrawDist = (config && (config.blockDrawingDistance || config.bDrawDist)) || def.blockDrawingDistance;
+	const bDefSpeed = (config && (config.bDefaultSpeed || config.ballDefaultSpeed)) || def.ballDefaultSpeed;
+	const magnetAccelBase = (config && config.blockMagnetAccelBase !== undefined) ? config.blockMagnetAccelBase : (def.blockMagnetAccelBase !== undefined ? def.blockMagnetAccelBase : 50);
+	const magnetDistPow = (config && config.blockMagnetDistPow !== undefined) ? config.blockMagnetDistPow : (def.blockMagnetDistPow !== undefined ? def.blockMagnetDistPow : 1.5);
+	const magnetVxRatio = (config && config.blockMagnetVxRatio !== undefined) ? config.blockMagnetVxRatio : (def.blockMagnetVxRatio !== undefined ? def.blockMagnetVxRatio : 0.8);
+	const magnetVyRelNegRatio = (config && config.blockMagnetVyRelNegRatio !== undefined) ? config.blockMagnetVyRelNegRatio : (def.blockMagnetVyRelNegRatio !== undefined ? def.blockMagnetVyRelNegRatio : 1.0);
+	const magnetVyRelPosRatio = (config && config.blockMagnetVyRelPosRatio !== undefined) ? config.blockMagnetVyRelPosRatio : (def.blockMagnetVyRelPosRatio !== undefined ? def.blockMagnetVyRelPosRatio : 0.2);
 
 	for (let i = 0; i < blockMap.length; i++) {
 		const row = blockMap[i];
@@ -449,15 +459,15 @@ export function applySimulationMagneticForces(balls, blockMap, config) {
 					const dist = Math.sqrt(relX * relX + relY * relY);
 
 					if (dist > 0 && dist <= bDrawDist) {
-						const acceleration = bDefSpeed * BLOCK_PARAM.MAGNET_ACCEL_BASE / Math.pow(dist, BLOCK_PARAM.MAGNET_DIST_POW);
-						ball.vx += acceleration * BLOCK_PARAM.MAGNET_VX_RATIO * (relX < 0 ? -1 : 1) * powVect;
+						const acceleration = bDefSpeed * magnetAccelBase / Math.pow(dist, magnetDistPow);
+						ball.vx += acceleration * magnetVxRatio * (relX < 0 ? -1 : 1) * powVect;
 						if (Math.abs(ball.vx) <= bDefSpeed * 0.1) {
 							ball.vx = bDefSpeed * 0.1 * (ball.vx >= 0 ? 1 : -1);
 						}
 						if (ball.vy * relY < 0) {
-							ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_NEG_RATIO * (relY < 0 ? -1 : 1) * powVect;
+							ball.vy += acceleration * magnetVyRelNegRatio * (relY < 0 ? -1 : 1) * powVect;
 						} else {
-							ball.vy += acceleration * BLOCK_PARAM.MAGNET_VY_REL_POS_RATIO * (relY < 0 ? -1 : 1) * powVect;
+							ball.vy += acceleration * magnetVyRelPosRatio * (relY < 0 ? -1 : 1) * powVect;
 						}
 					}
 				}
@@ -471,9 +481,10 @@ export function applySimulationMagneticForces(balls, blockMap, config) {
  */
 export function getNearbyBlocksForSimulation(ball, blockMap, config) {
 	if (!blockMap) return [];
-	const blkWidth = (config && (config.blkWidth || config.blockWidth)) || DEFAULT_CONFIG.blockWidth;
-	const blkHeight = (config && (config.blkHeight || config.blockHeight)) || DEFAULT_CONFIG.blockHeight;
-	const sBarHeight = (config && (config.statusBarHeight !== undefined)) ? config.statusBarHeight : DEFAULT_CONFIG.statusBarHeight;
+	const def = PresetManage.getDefaultPreset();
+	const blkWidth = (config && (config.blkWidth || config.blockWidth)) || def.blockWidth;
+	const blkHeight = (config && (config.blkHeight || config.blockHeight)) || def.blockHeight;
+	const sBarHeight = (config && (config.statusBarHeight !== undefined)) ? config.statusBarHeight : def.statusBarHeight;
 
 	const radius = ball.radius || 5;
 	const vx = ball.vx || 0;
@@ -524,6 +535,7 @@ export function getNearbyBlocksForSimulation(ball, blockMap, config) {
 function resolveBallBlockHit(ball, block, blockMap, config = null) {
 	const prevVx = ball.vx;
 	const prevVy = ball.vy;
+	const def = PresetManage.getDefaultPreset();
 
 	// 本物のBall・Blockクラスのメソッドが利用可能な場合
 	if (typeof ball.checkCollision === 'function' && typeof block.action === 'function') {
@@ -534,7 +546,7 @@ function resolveBallBlockHit(ball, block, blockMap, config = null) {
 			if (addSpeed && typeof ball.applySpeedDelta === 'function') {
 				ball.applySpeedDelta(addSpeed);
 			}
-			const isInf = (block.infinit === 1) || (DEFAULT_CONFIG.blockInfinit && DEFAULT_CONFIG.blockInfinit[block.type] === 1);
+			const isInf = (block.infinit === 1) || ((config && config.blockInfinit && config.blockInfinit[block.type] === 1) || (def.blockInfinit && def.blockInfinit[block.type] === 1));
 			const isDestructible = (!isInf) || (ball.status === BALL_STATUS.ULTIMATE);
 			if (isDestructible) {
 				ball.damageCollisionNum = (ball.damageCollisionNum || 0) + 1;
@@ -603,7 +615,7 @@ function resolveBallBlockHit(ball, block, blockMap, config = null) {
 
 		const thrVect = (block.throughVect !== undefined && block.throughVect !== null)
 			? Number(block.throughVect)
-			: (DEFAULT_CONFIG.blockThrough && DEFAULT_CONFIG.blockThrough[block.type] !== undefined ? DEFAULT_CONFIG.blockThrough[block.type] : 0);
+			: ((config && config.blockThrough && config.blockThrough[block.type] !== undefined) ? config.blockThrough[block.type] : (def.blockThrough && def.blockThrough[block.type] !== undefined ? def.blockThrough[block.type] : 0));
 
 		let throughFlag = 0;
 		if (thrVect !== 0) {
@@ -645,7 +657,7 @@ function resolveBallBlockHit(ball, block, blockMap, config = null) {
 
 		let broken = 0;
 		const wasBreakLimit = (block.breakLimit > 0);
-		const isInf = (block.infinit === 1) || (DEFAULT_CONFIG.blockInfinit && DEFAULT_CONFIG.blockInfinit[block.type] === 1);
+		const isInf = (block.infinit === 1) || ((config && config.blockInfinit && config.blockInfinit[block.type] === 1) || (def.blockInfinit && def.blockInfinit[block.type] === 1));
 		const isDestructible = (!isInf) || (ball.status === BALL_STATUS.ULTIMATE);
 		if (isDestructible) {
 			ball.damageCollisionNum = (ball.damageCollisionNum || 0) + 1;
@@ -746,8 +758,9 @@ export function simulateSingleStep(balls, blockMap, config, simGame = null) {
  * 武器で狙うべきブロック列のマッピング計算（元コード準拠: 下から上へ走査）
  */
 export function computeBlockLine(rawBlocks, weapons, barWeapon, config) {
-	const blkWidth = (config && config.blkWidth) || DEFAULT_CONFIG.blockWidth;
-	const canvasWidth = (config && config.canvasWidth) || DEFAULT_CONFIG.canvasWidth;
+	const def = PresetManage.getDefaultPreset();
+	const blkWidth = (config && (config.blkWidth || config.blockWidth)) || def.blockWidth;
+	const canvasWidth = (config && config.canvasWidth) || def.canvasWidth;
 	const cols = Math.floor(canvasWidth / blkWidth);
 	const blockLine = new Array(cols).fill(0);
 
@@ -774,7 +787,7 @@ export function computeBlockLine(rawBlocks, weapons, barWeapon, config) {
 				if (col < 0 || col >= cols) { continue; }
 
 				const bType = b.type !== 0 ? b.type : (b.blinkType || 0);
-				const isInf = (b.infinit === 1 || (DEFAULT_CONFIG.blockInfinit && DEFAULT_CONFIG.blockInfinit[bType] === 1));
+				const isInf = (b.infinit === 1 || ((config && config.blockInfinit && config.blockInfinit[bType] === 1) || (def.blockInfinit && def.blockInfinit[bType] === 1)));
 
 				// ミサイル（barWeapon === 2）の場合、通常壊せない不壊ブロックを破壊できる最大のチャンス！
 				// 不壊ブロックが存在する列に +100 の特大スコアを与えて集中的に狙わせる
@@ -799,7 +812,8 @@ export function computeBlockLine(rawBlocks, weapons, barWeapon, config) {
  */
 export function getBestWeaponBreakX(blockLine, checkX, config) {
 	if (!blockLine) { return -1; }
-	const blkWidth = (config && config.blkWidth) || DEFAULT_CONFIG.blockWidth;
+	const def = PresetManage.getDefaultPreset();
+	const blkWidth = (config && (config.blkWidth || config.blockWidth)) || def.blockWidth;
 	const cols = blockLine.length;
 	let breakX = -1;
 	let breakDx = Infinity;
@@ -829,14 +843,12 @@ export function evaluateWeaponFire(bar, weapons, rawBlocks, config) {
 	if (!bar || !bar.weapon || bar.weapon <= 0) { return null; }
 	if (bar.weaponInter > 0) { return null; }
 
-	const weaponMaxNum = (config && config.weaponMaxNum) || [
-		WEAPON_PARAM.MAX_NUM[0] || 5,
-		WEAPON_PARAM.MAX_NUM[1] || 3,
-	];
+	const def = PresetManage.getDefaultPreset();
+	const weaponMaxNum = (config && config.weaponMaxNum) || def.weaponMaxNum || [5, 3];
 
 	if (weapons && weapons.length >= weaponMaxNum[bar.weapon - 1]) { return null; }
 
-	const blkWidth = (config && config.blkWidth) || DEFAULT_CONFIG.blockWidth;
+	const blkWidth = (config && (config.blkWidth || config.blockWidth)) || def.blockWidth;
 	const barCenterX = (typeof bar.getCenterX === 'function') ? bar.getCenterX() : (bar.x || 0);
 
 	const blockLine = computeBlockLine(rawBlocks, weapons, bar.weapon, config);
@@ -872,18 +884,20 @@ export function runAutoPlaySimulation(snapshot) {
 		};
 	}
 
+	const def = PresetManage.getDefaultPreset();
 	const config = {
-		canvasWidth: snapshot.canvasWidth || DEFAULT_CONFIG.canvasWidth,
-		canvasHeight: snapshot.canvasHeight || DEFAULT_CONFIG.canvasHeight,
-		statusBarHeight: snapshot.statusBarHeight || DEFAULT_CONFIG.statusBarHeight,
-		fps: snapshot.fps || DEFAULT_CONFIG.FPS,
-		bDefaultSpeed: snapshot.bDefaultSpeed || DEFAULT_CONFIG.ballDefaultSpeed,
-		bMaxSpeed: snapshot.bMaxSpeed || DEFAULT_CONFIG.ballMaxSpeed,
-		bDefaultSpeedBar: snapshot.bDefaultSpeedBar || DEFAULT_CONFIG.barDefaultSpeed,
-		bSpin: snapshot.bSpin !== undefined ? snapshot.bSpin : BAR_PARAM.SPIN_RATIO,
-		blkWidth: snapshot.blkWidth || DEFAULT_CONFIG.blockWidth,
-		blkHeight: snapshot.blkHeight || DEFAULT_CONFIG.blockHeight,
-		bSize: snapshot.bSize || DEFAULT_CONFIG.ballSize,
+		canvasWidth: snapshot.canvasWidth || def.canvasWidth,
+		canvasHeight: snapshot.canvasHeight || def.canvasHeight,
+		statusBarHeight: snapshot.statusBarHeight !== undefined ? snapshot.statusBarHeight : def.statusBarHeight,
+		fps: snapshot.fps || def.FPS,
+		bDefaultSpeed: snapshot.bDefaultSpeed || def.ballDefaultSpeed,
+		bMaxSpeed: snapshot.bMaxSpeed || def.ballMaxSpeed,
+		bDefaultSpeedBar: snapshot.bDefaultSpeedBar || def.barDefaultSpeed,
+		bSpin: snapshot.bSpin !== undefined ? snapshot.bSpin : (def.barSpin !== undefined ? def.barSpin : 0.05),
+		blkWidth: snapshot.blkWidth || def.blockWidth,
+		blkHeight: snapshot.blkHeight || def.blockHeight,
+		bSize: snapshot.bSize || def.ballSize,
+		simulateMaxPredict: snapshot.simulateMaxPredict || def.simulateMaxPredict || 50,
 	};
 
 	const simGame = createSimGame(config);
@@ -895,8 +909,8 @@ export function runAutoPlaySimulation(snapshot) {
 	const weapons = snapshot.weapons || [];
 	const sim = snapshot.simuData || {};
 
-	const MAX_FALL_PREDICT = Math.max(800, Math.round(SIMULATE_PARAM.MAX_PREDICT * config.fps * 0.35));
-	const MAX_RETURN_PREDICT = Math.max(600, Math.round(SIMULATE_PARAM.MAX_PREDICT * config.fps * 0.25));
+	const MAX_FALL_PREDICT = Math.max(800, Math.round(config.simulateMaxPredict * config.fps * 0.35));
+	const MAX_RETURN_PREDICT = Math.max(600, Math.round(config.simulateMaxPredict * config.fps * 0.25));
 	const moveSpeed = bar.vxMax || config.bDefaultSpeedBar;
 
 	// フィールド内の最上段ブロックY座標（天井裏判定用）と破壊可能ブロック残数を算出
@@ -920,7 +934,7 @@ export function runAutoPlaySimulation(snapshot) {
 			const b = row[j];
 			if (b && isBlockAlive(b)) {
 				const bType = b.type !== 0 ? b.type : (b.blinkType || 0);
-				const isInf = (b.infinit === 1 || (DEFAULT_CONFIG.blockInfinit && DEFAULT_CONFIG.blockInfinit[bType] === 1));
+				const isInf = (b.infinit === 1 || ((config.blockInfinit && config.blockInfinit[bType] === 1) || (def.blockInfinit && def.blockInfinit[bType] === 1)));
 				const by = (b.y !== undefined ? b.y : i * config.blkHeight + config.statusBarHeight);
 				const bx = (b.x !== undefined ? b.x + (b.width || config.blkWidth) / 2 : j * config.blkWidth + config.blkWidth / 2);
 				const col = b.col !== undefined ? b.col : Math.floor(bx / config.blkWidth);
@@ -934,7 +948,7 @@ export function runAutoPlaySimulation(snapshot) {
 
 					const thr = (b.throughVect !== undefined && b.throughVect !== null)
 						? Number(b.throughVect)
-						: (DEFAULT_CONFIG.blockThrough && DEFAULT_CONFIG.blockThrough[bType] !== undefined ? DEFAULT_CONFIG.blockThrough[bType] : 0);
+						: ((config.blockThrough && config.blockThrough[bType] !== undefined) ? config.blockThrough[bType] : (def.blockThrough && def.blockThrough[bType] !== undefined ? def.blockThrough[bType] : 0));
 					if (thr === 3) {
 						// 下向き一方通行（▼▼▼）: 下から上へ進むボールをはじき返す
 						colHasDownThrough[col] = 1;
@@ -1352,7 +1366,7 @@ export function runAutoPlaySimulation(snapshot) {
 	// 2-D. 武器使用のための能動的移動（ボール救出絶対最優先！）
 	// ボール落下まで十分な余裕がある安全な時間帯のみ、ブロック破壊列（breakX）へ移動
 	//--------------------------------------------------
-	const weaponMaxNum = (config && config.weaponMaxNum) || WEAPON_PARAM.MAX_NUM;
+	const weaponMaxNum = (config && config.weaponMaxNum) || def.weaponMaxNum || [5, 3];
 	const maxAllowed = (weaponMaxNum && weaponMaxNum[bar.weapon - 1] !== undefined)
 		? weaponMaxNum[bar.weapon - 1]
 		: 1;
@@ -1412,7 +1426,7 @@ export function runAutoPlaySimulation(snapshot) {
 					const wSize = w.size || 1;
 					const wTopY = w.y - wSize * 0.5;
 					const wBottomY = w.y + wSize * 6;
-					const cHeight = Math.max(bar.y + 12, config.canvasHeight || DEFAULT_CONFIG.canvasHeight);
+					const cHeight = Math.max(bar.y + 12, config.canvasHeight || def.canvasHeight);
 					if (wTopY > cHeight) return true;
 					const wSpeed = Math.abs(w.vy) || 4;
 					const wTime = Math.max(0, (bar.y - wBottomY) / wSpeed);
@@ -1666,7 +1680,7 @@ export function runAutoPlaySimulation(snapshot) {
 					const b = row[j];
 					if (!b || !isBlockAlive(b)) { continue; }
 					const bType = b.type !== 0 ? b.type : (b.blinkType || 0);
-					const isInf = (b.infinit === 1 || (DEFAULT_CONFIG.blockInfinit && DEFAULT_CONFIG.blockInfinit[bType] === 1));
+					const isInf = (b.infinit === 1 || ((config.blockInfinit && config.blockInfinit[bType] === 1) || (def.blockInfinit && def.blockInfinit[bType] === 1)));
 					if (isInf && !isFireBall) continue; // 通常時は不壊ブロックを除外
 					const bx = (b.x !== undefined ? b.x + (b.width || 40) / 2 : j * 50 + 25);
 					if (bx < midX) {
@@ -2036,7 +2050,7 @@ export function runAutoPlaySimulation(snapshot) {
 			const col = (b.col !== undefined) ? b.col : Math.floor((b.x !== undefined ? b.x : j * blkWidth) / blkWidth);
 			if (col >= 0 && col < cols) {
 				const bType = b.type !== 0 ? b.type : (b.blinkType || 0);
-				const isInf = (b.infinit === 1 || (DEFAULT_CONFIG.blockInfinit && DEFAULT_CONFIG.blockInfinit[bType] === 1));
+				const isInf = (b.infinit === 1 || ((config.blockInfinit && config.blockInfinit[bType] === 1) || (def.blockInfinit && def.blockInfinit[bType] === 1)));
 				if (b.func === BLOCK_FUNCTION.EXPLODE || b.func === BLOCK_FUNCTION.EXPLODE_STRENGTH) {
 					colScores[col] += 50;
 				} else if (!isInf) {
@@ -2063,7 +2077,7 @@ export function runAutoPlaySimulation(snapshot) {
 			}
 			if (lowestBlock) {
 				const lowestType = lowestBlock.type !== 0 ? lowestBlock.type : (lowestBlock.blinkType || 0);
-				const isInf = (lowestBlock.infinit === 1 || (DEFAULT_CONFIG.blockInfinit && DEFAULT_CONFIG.blockInfinit[lowestType] === 1));
+				const isInf = (lowestBlock.infinit === 1 || ((config.blockInfinit && config.blockInfinit[lowestType] === 1) || (def.blockInfinit && def.blockInfinit[lowestType] === 1)));
 				if (isInf) {
 					colScores[c] -= 500;
 				}
