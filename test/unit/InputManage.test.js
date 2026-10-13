@@ -169,6 +169,40 @@ describe('InputManage class unit tests', () => {
 		input.destructor();
 	});
 
+	it('getMouseMove correctly scales coordinates when canvas is displayed with scale factor', () => {
+		const input = new InputManage(mockGame);
+
+		// Scaled Pointer Lock: canvas display width is 960 (480 * 2)
+		mockCanvas.getBoundingClientRect = () => ({
+			left: 0,
+			top: 0,
+			width: 960,
+			height: 960,
+		});
+		input.pointX = 240;
+		input.pointY = 240;
+		input.isPointerLocked = true;
+
+		// Move mouse 100 screen pixels on a 2x display -> 50 logical game pixels
+		input.getMouseMove({ movementX: 100, movementY: 60 }, mockCanvas, 0, 2);
+		assert.equal(input.pointX, 290);
+		assert.equal(input.pointY, 270);
+
+		// Scaled Normal Cursor: clientX at center (480px into the 960px element) -> 240 logical game pixels
+		input.isPointerLocked = false;
+		mockCanvas.getBoundingClientRect = () => ({
+			left: 100,
+			top: 50,
+			width: 960,
+			height: 960,
+		});
+		input.getMouseMove({ clientX: 100 + 480, clientY: 50 + 480 }, mockCanvas, 0, 2);
+		assert.equal(input.pointX, 240);
+		assert.equal(input.pointY, 240);
+
+		input.destructor();
+	});
+
 	it('getMouseMove ignores movement if autoSwitch or ctrlSwitch is active', () => {
 		const input = new InputManage(mockGame);
 		input.pointX = 200;

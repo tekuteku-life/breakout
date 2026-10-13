@@ -67,6 +67,9 @@ export default class GameManage {
 		this.options = options;
 		this.animFrameId = null;
 		this.isRunning = false;
+		this.scale = 1;
+		this.bufferScale = 1;
+		this.onApplyScaleHandler = null;
 
 		// 設定変数のロードおよび各クラスへの配布
 		this.loadSetupVariables(options);
@@ -145,11 +148,15 @@ export default class GameManage {
 		this.onSettingChangeHandler = (settingPath) => {
 			this.changeSetting(settingPath);
 		};
+		this.onApplyScaleHandler = (scale) => {
+			this.applyCanvasScale(scale);
+		};
 
 		EventBus.addOnEvent('game:over', this.onGameOverHandler);
 		EventBus.addOnEvent('game:simulateReset', this.onSimulateResetHandler);
 		EventBus.addOnEvent('game:init', this.onGameInitHandler);
 		EventBus.addOnEvent('setting:change', this.onSettingChangeHandler);
+		EventBus.addOnEvent('control:applyScale', this.onApplyScaleHandler);
 	}
 
 	removeEventBus() {
@@ -158,11 +165,13 @@ export default class GameManage {
 		if (this.onSimulateResetHandler) EventBus.removeOnEvent('game:simulateReset', this.onSimulateResetHandler);
 		if (this.onGameInitHandler) EventBus.removeOnEvent('game:init', this.onGameInitHandler);
 		if (this.onSettingChangeHandler) EventBus.removeOnEvent('setting:change', this.onSettingChangeHandler);
+		if (this.onApplyScaleHandler) EventBus.removeOnEvent('control:applyScale', this.onApplyScaleHandler);
 
 		this.onGameOverHandler = null;
 		this.onSimulateResetHandler = null;
 		this.onGameInitHandler = null;
 		this.onSettingChangeHandler = null;
+		this.onApplyScaleHandler = null;
 		this.eventBusSetup = false;
 	}
 
@@ -402,10 +411,20 @@ export default class GameManage {
 			this.canvasBg = document.getElementById('canvas_background');
 			if (this.canvasBg) {
 				const bgList = this.backGroundImage || [];
-				this.canvasBg.style.width = this.canvasWidth + "px";
-				this.canvasBg.style.height = (this.canvasHeight - this.statusBarHeight) + "px";
-				if (bgList[this.ctrl.stageIndex]) {
-					this.canvasBg.style.backgroundImage = "url(" + bgList[this.ctrl.stageIndex] + ")";
+				const scale = (this.ctrl && this.ctrl.scale) || this.scale || 1;
+				const displayWidth = Math.round(this.canvasWidth * scale);
+				const displayHeight = Math.round(this.canvasHeight * scale);
+				const statusBarHeight = this.statusBarHeight || PresetManage.getDefaultPreset().statusBarHeight || 22;
+				const scaledStatusHeight = Math.round(statusBarHeight * scale);
+
+				if (this.canvasBg.style) {
+					this.canvasBg.style.width = displayWidth + "px";
+					this.canvasBg.style.height = (displayHeight - scaledStatusHeight) + "px";
+					this.canvasBg.style.borderTopWidth = scaledStatusHeight + "px";
+					this.canvasBg.style.backgroundSize = "cover";
+					if (bgList[this.ctrl.stageIndex]) {
+						this.canvasBg.style.backgroundImage = "url(" + bgList[this.ctrl.stageIndex] + ")";
+					}
 				}
 			}
 		}
@@ -621,7 +640,7 @@ export default class GameManage {
 		}
 
 		// ステータス描画
-		if (this.statusMng) {
+		if (this.statusMng && typeof this.statusMng.printStatus === 'function') {
 			this.statusMng.printStatus();
 		}
 	}
@@ -768,5 +787,136 @@ export default class GameManage {
 		});
 		this.loadSetupVariables(this.options);
 		await this.initAsync(0);
+	}
+
+	installScaledPutImageData(ctx) {
+		if (!ctx || ctx._putImageDataWrapped) { return; }
+		const originalPutImageData = ctx.putImageData.bind(ctx);
+		ctx._origPutImageData = originalPutImageData;
+		ctx.putImageData = function(imgData, dx, dy) {
+			const bufferScale = this._bufferScale !== undefined ? this._bufferScale : 1;
+			if (bufferScale === 1) {
+				return originalPutImageData(imgData, dx, dy);
+			}
+			let offscreen = imgData._cachedCanvas;
+			if (!offscreen || offscreen.width !== imgData.width || offscreen.height !== imgData.height) {
+				if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+					offscreen = document.createElement('canvas');
+				} else if (typeof OffscreenCanvas !== 'undefined') {
+					offscreen = new OffscreenCanvas(imgData.width, imgData.height);
+				}
+				if (offscreen) {
+					offscreen.width = imgData.width;
+					offscreen.height = imgData.height;
+					const offCtx = offscreen.getContext('2d');
+					if (offCtx && typeof offCtx.putImageData === 'function') {
+						offCtx.putImageData(imgData, 0, 0);
+					}
+					imgData._cachedCanvas = offscreen;
+				}
+			}
+			if (offscreen && typeof this.drawImage === 'function') {
+				this.drawImage(offscreen, dx, dy, imgData.width, imgData.height);
+			} else {
+				originalPutImageData(imgData, Math.round(dx * bufferScale), Math.round(dy * bufferScale));
+			}
+		};
+		ctx._putImageDataWrapped = true;
+	}
+
+	applyCanvasScale(scale = 1) {
+		this.scale = scale;
+		const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? Math.max(1, window.devicePixelRatio) : 1;
+		const bufferScale = scale * dpr;
+		this.bufferScale = bufferScale;
+
+		const cWidth = this.canvasWidth || PresetManage.getDefaultPreset().canvasWidth;
+		const cHeight = this.canvasHeight || PresetManage.getDefaultPreset().canvasHeight;
+
+		const displayWidth = Math.round(cWidth * scale);
+		const displayHeight = Math.round(cHeight * scale);
+		const bufferWidth = Math.round(cWidth * bufferScale);
+		const bufferHeight = Math.round(cHeight * bufferScale);
+
+		if (this.dynamicCanvas) {
+			this.dynamicCanvas.width = bufferWidth;
+			this.dynamicCanvas.height = bufferHeight;
+			if (this.dynamicCanvas.style) {
+				this.dynamicCanvas.style.width = displayWidth + 'px';
+				this.dynamicCanvas.style.height = displayHeight + 'px';
+			}
+		}
+		if (this.staticCanvas) {
+			this.staticCanvas.width = bufferWidth;
+			this.staticCanvas.height = bufferHeight;
+			if (this.staticCanvas.style) {
+				this.staticCanvas.style.width = displayWidth + 'px';
+				this.staticCanvas.style.height = displayHeight + 'px';
+			}
+		}
+
+		if (this.dynamicCtx) {
+			this.dynamicCtx._bufferScale = bufferScale;
+			if (typeof this.dynamicCtx.setTransform === 'function') {
+				this.dynamicCtx.setTransform(bufferScale, 0, 0, bufferScale, 0, 0);
+			}
+			this.dynamicCtx.imageSmoothingEnabled = true;
+			if ('imageSmoothingQuality' in this.dynamicCtx) {
+				this.dynamicCtx.imageSmoothingQuality = 'high';
+			}
+			this.installScaledPutImageData(this.dynamicCtx);
+		}
+
+		if (this.staticCtx) {
+			this.staticCtx._bufferScale = bufferScale;
+			if (typeof this.staticCtx.setTransform === 'function') {
+				this.staticCtx.setTransform(bufferScale, 0, 0, bufferScale, 0, 0);
+			}
+			this.staticCtx.imageSmoothingEnabled = true;
+			if ('imageSmoothingQuality' in this.staticCtx) {
+				this.staticCtx.imageSmoothingQuality = 'high';
+			}
+			this.installScaledPutImageData(this.staticCtx);
+		}
+
+		if (typeof document !== 'undefined') {
+			const statusBarHeight = this.statusBarHeight || PresetManage.getDefaultPreset().statusBarHeight || 22;
+			const scaledStatusHeight = Math.round(statusBarHeight * scale);
+
+			if (!this.canvasBg) {
+				this.canvasBg = document.getElementById('canvas_background');
+			}
+			if (this.canvasBg && this.canvasBg.style) {
+				this.canvasBg.style.width = displayWidth + 'px';
+				this.canvasBg.style.height = (displayHeight - scaledStatusHeight) + 'px';
+				this.canvasBg.style.borderTopWidth = scaledStatusHeight + 'px';
+				this.canvasBg.style.backgroundSize = 'cover';
+			}
+
+			const playInfo = document.getElementById('play_info');
+			if (playInfo && playInfo.style) {
+				playInfo.style.width = displayWidth + 'px';
+				playInfo.style.height = scaledStatusHeight + 'px';
+				playInfo.style.fontSize = Math.max(10, Math.round(14 * scale)) + 'px';
+				playInfo.style.lineHeight = scaledStatusHeight + 'px';
+				playInfo.style.padding = Math.round(2 * scale) + 'px';
+			}
+
+			const statusBarBody = document.getElementById('status_bar_body');
+			if (statusBarBody && statusBarBody.style) {
+				statusBarBody.style.marginLeft = Math.round(90 * scale) + 'px';
+			}
+		}
+
+		if (this.screenManage && typeof this.screenManage.updateScreenSize === 'function') {
+			this.screenManage.updateScreenSize(scale);
+		}
+
+		if (this.staticCtx && this.objectManage && this.objectManage.bar) {
+			this.drawOnce(this.staticCtx);
+		}
+		if (this.dynamicCtx && this.objectManage && this.objectManage.bar) {
+			this.drawAll(this.dynamicCtx);
+		}
 	}
 }

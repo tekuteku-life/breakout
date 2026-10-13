@@ -198,6 +198,7 @@ test('Control class unit tests', async (t) => {
 		ctrl.sizeFitSwitch = 0;
 		ctrl.fixSize();
 		assert.equal(ctrl.scale, 1);
+		assert.equal(document.body.style.transform, '');
 
 		// document.all branch
 		globalThis.document.all = {};
@@ -206,6 +207,7 @@ test('Control class unit tests', async (t) => {
 		ctrl.sizeFitSwitch = 1;
 		ctrl.fixSize();
 		assert.ok(ctrl.scale > 0);
+		assert.equal(document.body.style.transform, '');
 		globalThis.document.all = null;
 	});
 

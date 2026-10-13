@@ -252,4 +252,111 @@ test('GameManage class unit tests', async (t) => {
 		assert.equal(gm.scoreMng, null);
 		assert.equal(gm.sounds, null);
 	});
+
+	await t.test('applyCanvasScale resizes drawing buffer, CSS styles, transforms contexts, and adjusts DOM', () => {
+		const gm = new GameManage({
+			canvasWidth: 750,
+			canvasHeight: 530,
+			statusBarHeight: 22,
+		});
+		gm.init(0);
+		gm.stop();
+
+		let dynamicTransform = null;
+		let staticTransform = null;
+		gm.dynamicCtx.setTransform = (a, b, c, d, e, f) => {
+			dynamicTransform = [a, b, c, d, e, f];
+		};
+		gm.staticCtx.setTransform = (a, b, c, d, e, f) => {
+			staticTransform = [a, b, c, d, e, f];
+		};
+
+		// Apply scale factor 2
+		gm.applyCanvasScale(2);
+
+		assert.equal(gm.scale, 2);
+		assert.equal(gm.bufferScale, 2);
+		assert.equal(gm.dynamicCanvas.width, 1500);
+		assert.equal(gm.dynamicCanvas.height, 1060);
+		assert.equal(gm.dynamicCanvas.style.width, '1500px');
+		assert.equal(gm.dynamicCanvas.style.height, '1060px');
+
+		assert.equal(gm.staticCanvas.width, 1500);
+		assert.equal(gm.staticCanvas.height, 1060);
+		assert.equal(gm.staticCanvas.style.width, '1500px');
+		assert.equal(gm.staticCanvas.style.height, '1060px');
+
+		assert.deepEqual(dynamicTransform, [2, 0, 0, 2, 0, 0]);
+		assert.deepEqual(staticTransform, [2, 0, 0, 2, 0, 0]);
+		assert.equal(gm.dynamicCtx.imageSmoothingEnabled, true);
+		assert.equal(gm.staticCtx.imageSmoothingEnabled, true);
+
+		// Verify DOM element adjustments
+		const bg = document.getElementById('canvas_background');
+		assert.equal(bg.style.width, '1500px');
+		assert.equal(bg.style.height, (1060 - 44) + 'px');
+		assert.equal(bg.style.borderTopWidth, '44px');
+
+		const playInfo = document.getElementById('play_info');
+		assert.equal(playInfo.style.width, '1500px');
+		assert.equal(playInfo.style.height, '44px');
+		assert.equal(playInfo.style.fontSize, '28px');
+
+		const statusBarBody = document.getElementById('status_bar_body');
+		assert.equal(statusBarBody.style.marginLeft, '180px');
+
+		// Reset scale back to 1
+		gm.applyCanvasScale(1);
+		assert.equal(gm.scale, 1);
+		assert.equal(gm.bufferScale, 1);
+		assert.equal(gm.dynamicCanvas.width, 750);
+		assert.equal(gm.dynamicCanvas.height, 530);
+		assert.equal(gm.dynamicCanvas.style.width, '750px');
+		assert.equal(gm.dynamicCanvas.style.height, '530px');
+
+		gm.destructor();
+	});
+
+	await t.test('installScaledPutImageData delegates to drawImage when scaled and putImageData when 1:1', () => {
+		const gm = new GameManage();
+		let origCalled = false;
+		let drawImageCalled = false;
+		let drawArgs = null;
+
+		const mockCtx = {
+			_bufferScale: 1,
+			putImageData: (img, x, y) => {
+				origCalled = true;
+			},
+			drawImage: (...args) => {
+				drawImageCalled = true;
+				drawArgs = args;
+			},
+		};
+
+		gm.installScaledPutImageData(mockCtx);
+
+		const fakeImg = {
+			width: 30,
+			height: 15,
+		};
+
+		// 1:1 scale -> should call original putImageData
+		mockCtx.putImageData(fakeImg, 10, 20);
+		assert.equal(origCalled, true);
+		assert.equal(drawImageCalled, false);
+
+		// Scaled (bufferScale = 2) -> should delegate to drawImage
+		mockCtx._bufferScale = 2;
+		origCalled = false;
+		mockCtx.putImageData(fakeImg, 50, 60);
+		assert.equal(drawImageCalled, true);
+		assert.equal(origCalled, false);
+		assert.equal(drawArgs[1], 50);
+		assert.equal(drawArgs[2], 60);
+		assert.equal(drawArgs[3], 30);
+		assert.equal(drawArgs[4], 15);
+
+		gm.destructor();
+	});
 });

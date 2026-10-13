@@ -429,10 +429,13 @@ export default class InputManage {
 			const movementX = event.movementX || 0;
 			const movementY = event.movementY || 0;
 
-			const offW = c.offsetWidth || cWidth;
-			const offH = c.offsetHeight || cHeight;
-			const deltaX = movementX * (cWidth / offW) / sc;
-			const deltaY = movementY * (cHeight / offH) / sc;
+			const rect = typeof c.getBoundingClientRect === 'function' ? c.getBoundingClientRect() : null;
+			const dispW = (rect && rect.width) || c.offsetWidth || cWidth;
+			const dispH = (rect && rect.height) || c.offsetHeight || cHeight;
+			const scaleFactorX = (Math.abs(dispW - cWidth * sc) < 1 && sc !== 1) ? 1 : sc;
+			const scaleFactorY = (Math.abs(dispH - cHeight * sc) < 1 && sc !== 1) ? 1 : sc;
+			const deltaX = (movementX * (cWidth / dispW)) / scaleFactorX;
+			const deltaY = (movementY * (cHeight / dispH)) / scaleFactorY;
 
 			this.pointX = Math.max(0, Math.min(cWidth, (this.pointX !== undefined ? this.pointX : cWidth / 2) + deltaX));
 			this.pointY = Math.max(0, Math.min(cHeight, (this.pointY !== undefined ? this.pointY : cHeight / 2) + deltaY));
@@ -454,8 +457,10 @@ export default class InputManage {
 					this.pointY = (event.pageY !== undefined ? event.pageY : (event.offsetY || 0)) - (c.offsetTop || 0);
 					const offW = c.offsetWidth || cWidth;
 					const offH = c.offsetHeight || cHeight;
-					this.pointX *= (cWidth / offW) / sc;
-					this.pointY *= (cHeight / offH) / sc;
+					const scaleFactorX = (Math.abs(offW - cWidth * sc) < 1 && sc !== 1) ? 1 : sc;
+					const scaleFactorY = (Math.abs(offH - cHeight * sc) < 1 && sc !== 1) ? 1 : sc;
+					this.pointX *= (cWidth / offW) / scaleFactorX;
+					this.pointY *= (cHeight / offH) / scaleFactorY;
 					this.pointX = Math.max(0, Math.min(cWidth, this.pointX));
 					this.pointY = Math.max(0, Math.min(cHeight, this.pointY));
 				}
@@ -475,8 +480,10 @@ export default class InputManage {
 					this.pointY = event.touches[0].pageY - (c.offsetTop || 0);
 					const offW = c.offsetWidth || cWidth;
 					const offH = c.offsetHeight || cHeight;
-					this.pointX *= (cWidth / offW) / sc;
-					this.pointY *= (cHeight / offH) / sc;
+					const scaleFactorX = (Math.abs(offW - cWidth * sc) < 1 && sc !== 1) ? 1 : sc;
+					const scaleFactorY = (Math.abs(offH - cHeight * sc) < 1 && sc !== 1) ? 1 : sc;
+					this.pointX *= (cWidth / offW) / scaleFactorX;
+					this.pointY *= (cHeight / offH) / scaleFactorY;
 					this.pointX = Math.max(0, Math.min(cWidth, this.pointX));
 					this.pointY = Math.max(0, Math.min(cHeight, this.pointY));
 				}
@@ -486,8 +493,10 @@ export default class InputManage {
 			this.pointY = event.offsetY - (c.offsetTop || 0);
 			const offW = c.offsetWidth || cWidth;
 			const offH = c.offsetHeight || cHeight;
-			this.pointX *= (cWidth / offW) / sc;
-			this.pointY *= (cHeight / offH) / sc;
+			const scaleFactorX = (Math.abs(offW - cWidth * sc) < 1 && sc !== 1) ? 1 : sc;
+			const scaleFactorY = (Math.abs(offH - cHeight * sc) < 1 && sc !== 1) ? 1 : sc;
+			this.pointX *= (cWidth / offW) / scaleFactorX;
+			this.pointY *= (cHeight / offH) / scaleFactorY;
 			this.pointX = Math.max(0, Math.min(cWidth, this.pointX));
 			this.pointY = Math.max(0, Math.min(cHeight, this.pointY));
 		}

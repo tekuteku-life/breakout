@@ -510,16 +510,19 @@ export default class Control
 	//--------------------------------------------------
 	fixSize()
 	{
-		if (typeof document === 'undefined') return;
+		if (typeof document === 'undefined') { return; }
 		const canvasWidth = this.getCanvasWidth();
 		const canvasHeight = this.getCanvasHeight();
 
 		// 画面サイズの取得
 		let screenWidth = 0;
 		let screenHeight = 0;
-		if (typeof window !== 'undefined') {
+		if (typeof window !== 'undefined' && window.innerWidth && window.innerHeight) {
 			screenWidth = window.innerWidth;
 			screenHeight = window.innerHeight;
+		} else if (typeof document !== 'undefined') {
+			screenWidth = document.clientWidth || (document.documentElement && document.documentElement.clientWidth) || 0;
+			screenHeight = document.clientHeight || (document.documentElement && document.documentElement.clientHeight) || 0;
 		}
 
 		// 倍率の計算
@@ -534,24 +537,27 @@ export default class Control
 		// オフの場合は何もしない
 		if( this.sizeFitSwitch == 0 ) { this.scale = 1; }
 
-		// 適用
+		// CSS transform による単純拡大縮小を解除し、キャンバスレベルで拡大縮小を行う
 		const bodyEls = document.getElementsByTagName('body');
 		if (bodyEls && bodyEls[0]) {
-			var bodyObjStyle = bodyEls[0].style;
-			var transform = "scale(" + this.scale + ", " + this.scale + ")";
-			var transformOrigin = "top left";
-			bodyObjStyle.transform = transform;
-			bodyObjStyle.webkitTransform = transform;
-			bodyObjStyle.MozTransform = transform;
-			bodyObjStyle.msTransform = transform;
-			bodyObjStyle.OTransform = transform;
+			const bodyObjStyle = bodyEls[0].style;
+			bodyObjStyle.transform = '';
+			bodyObjStyle.transformOrigin = '';
 
-			bodyObjStyle.transformOrigin = transformOrigin;
-			bodyObjStyle.webkitTransformOrigin = transformOrigin;
-			bodyObjStyle.MozTransformOrigin = transformOrigin;
-			bodyObjStyle.msTransformOrigin = transformOrigin;
-			bodyObjStyle.OTransformOrigin = transformOrigin;
+			if (this.sizeFitSwitch !== 0) {
+				bodyObjStyle.width = '100%';
+				bodyObjStyle.height = '100%';
+			} else {
+				bodyObjStyle.width = '';
+				bodyObjStyle.height = '';
+			}
 		}
+
+		// Canvasおよび関連UI要素にスケールを適用
+		if (this.game && typeof this.game.applyCanvasScale === 'function') {
+			this.game.applyCanvasScale(this.scale);
+		}
+		EventBus.emitEvent('control:applyScale', this.scale);
 	}
 }
 

@@ -102,13 +102,18 @@ export default class ScreenManage {
 			const canvasWidth = (this.game && this.game.canvasWidth) || (this.preset && this.preset.canvasWidth) || def.canvasWidth;
 			const canvasHeight = (this.game && this.game.canvasHeight) || (this.preset && this.preset.canvasHeight) || def.canvasHeight;
 
+			const scale = (this.game && this.game.scale) || (this.game && this.game.ctrl && this.game.ctrl.scale) || 1;
+			const displayWidth = Math.round(canvasWidth * scale);
+			const displayHeight = Math.round(canvasHeight * scale);
+
 			screen.style.display = 'block';
 			if (dynamicCanvas) {
 				screen.style.top = dynamicCanvas.offsetTop + 'px';
 				screen.style.left = dynamicCanvas.offsetLeft + 'px';
 			}
-			screen.style.width = canvasWidth + 'px';
-			screen.style.height = canvasHeight + 'px';
+			screen.style.width = displayWidth + 'px';
+			screen.style.height = displayHeight + 'px';
+			screen.style.fontSize = Math.max(10, Math.round(12 * scale)) + 'px';
 			screen.style.zIndex = 100;
 
 			const ctrl = this.getController(screenName);
@@ -139,6 +144,28 @@ export default class ScreenManage {
 		} else {
 			if (typeof alert === 'function') {
 				alert("Not Found Screen");
+			}
+		}
+	}
+
+	updateScreenSize(scale = 1) {
+		if (typeof document === 'undefined') { return; }
+		const def = PresetManage.getDefaultPreset();
+		const canvasWidth = (this.game && this.game.canvasWidth) || (this.preset && this.preset.canvasWidth) || def.canvasWidth;
+		const canvasHeight = (this.game && this.game.canvasHeight) || (this.preset && this.preset.canvasHeight) || def.canvasHeight;
+		const displayWidth = Math.round(canvasWidth * scale);
+		const displayHeight = Math.round(canvasHeight * scale);
+		const fontSize = Math.max(10, Math.round(12 * scale)) + 'px';
+
+		const screenStock = document.getElementById('screenStock');
+		if (screenStock && screenStock.children) {
+			for (let i = 0; i < screenStock.children.length; i++) {
+				const screen = screenStock.children[i];
+				if (screen && screen.style && screen.style.display === 'block') {
+					screen.style.width = displayWidth + 'px';
+					screen.style.height = displayHeight + 'px';
+					screen.style.fontSize = fontSize;
+				}
 			}
 		}
 	}

@@ -126,13 +126,15 @@ export class MockElement {
 	}
 
 	getBoundingClientRect() {
+		const w = (this.style && parseFloat(this.style.width)) || this.offsetWidth || this.width || 0;
+		const h = (this.style && parseFloat(this.style.height)) || this.offsetHeight || this.height || 0;
 		return {
 			left: this.offsetLeft || 0,
 			top: this.offsetTop || 0,
-			right: (this.offsetLeft || 0) + (this.offsetWidth || 0),
-			bottom: (this.offsetTop || 0) + (this.offsetHeight || 0),
-			width: this.offsetWidth || 0,
-			height: this.offsetHeight || 0,
+			right: (this.offsetLeft || 0) + w,
+			bottom: (this.offsetTop || 0) + h,
+			width: w,
+			height: h,
 			x: this.offsetLeft || 0,
 			y: this.offsetTop || 0,
 		};
@@ -182,6 +184,12 @@ export function createMock2DContext(canvas) {
 		lineTo: () => {},
 		fillText: () => {},
 		scale: () => {},
+		setTransform: () => {},
+		drawImage: () => {},
+		save: () => {},
+		restore: () => {},
+		imageSmoothingEnabled: true,
+		imageSmoothingQuality: 'high',
 		putImageData: () => {},
 		getImageData: (x, y, w, h) => {
 			const width = Math.max(1, Math.round(w || 1));
