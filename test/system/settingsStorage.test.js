@@ -72,7 +72,7 @@ describe('System Test SYS-08: Settings, Storage, and Continue Mode', () => {
 		const g = window.gameManage;
 		assert.equal(g.presetManage.currentPresetKey, 'default');
 		assert.equal(g.ballSize, 5);
-		assert.equal(g.stageTitle.length, 13);
+		assert.equal(g.stageTitle.length, 14);
 
 		await g.changeSetting('default_debug');
 		assert.equal(g.presetManage.currentPresetKey, 'default_debug');
@@ -84,6 +84,6 @@ describe('System Test SYS-08: Settings, Storage, and Continue Mode', () => {
 		await g.changeSetting('default');
 		assert.equal(g.presetManage.currentPresetKey, 'default');
 		assert.equal(g.ballSize, 5);
-		assert.equal(g.stageTitle.length, 13);
+		assert.equal(g.stageTitle.length, 14);
 	});
 });

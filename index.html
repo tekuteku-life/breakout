@@ -264,6 +264,22 @@
 						<canvas class="help_preview_block" id="help_block_attack" data-block-type="17" width="50" height="20"></canvas>
 						<span class="description_title">攻撃</span> … 武器を発射してきます。この攻撃を一定回数を受けるとライフが減少します。
 					</li>
+					<li>
+						<canvas class="help_preview_block" id="help_block_move_attack" data-block-type="18" width="50" height="20"></canvas>
+						<span class="description_title">移動攻撃</span> … 横移動しながら武器を発射してくる複合機能ブロックです。
+					</li>
+					<li>
+						<canvas class="help_preview_block" id="help_block_move_bomb" data-block-type="19" width="50" height="20"></canvas>
+						<span class="description_title">移動爆弾</span> … 横移動する爆弾ブロックです。衝突すると周囲を巻き込んで爆発します。
+					</li>
+					<li>
+						<canvas class="help_preview_block" id="help_block_blink_attack" data-block-type="20" width="50" height="20"></canvas>
+						<span class="description_title">点滅攻撃</span> … 点滅を繰り返しながら武器を発射してくる複合機能ブロックです。
+					</li>
+					<li>
+						<canvas class="help_preview_block" id="help_block_magnet_accel" data-block-type="21" width="50" height="20"></canvas>
+						<span class="description_title">引力加速</span> … 近傍の球を引き寄せ、衝突時に球を加速させる複合機能ブロックです。
+					</li>
 				</ul>
 				<div style="margin-top: 1em;">&nbsp;</div>
 				<a href="javascript:screenManage.closeScreen('screen_block');" class="barButton">Back</a>
@@ -379,11 +395,6 @@
 					<li>
 						システム関係
 						<ul>
-							<li>ボールの当たり判定の改善（頂点の間をすり抜ける，ブロックの隙間で反射する）</li>
-							<li>バーのモーションをputImageDataが使える形に変更する（基本形＋変形で対処できるようにする）</li>
-							<li>拡張性の向上</li>
-							<li>処理・コードの最適化</li>
-							<li>アイテム種別、ボール状態、ブロック種別をenum化</li>
 						</ul>
 					</li>
 					<li>
@@ -391,7 +402,6 @@
 						<ul>
 							<li>消す順番が決まっているブロックを追加</li>
 							<li>ワープブロックにおいてワープしないことがあるバグを修正する</li>
-							<li>一つのブロックに複数の機能を割り当て可能にする（設定時に予めインスタンスを作成？）</li>
 						</ul>
 					</li>
 					<li>
@@ -405,7 +415,6 @@
 					<li>
 						アイテム
 						<ul>
-							<li>バーの各状態管理の最適化（バー状態のクラス分離？）</li>
 							<li>ブロックのアイテム化ミサイルの追加（一発＆時間制限，ブロックに当たるとランダムでアイテム化，壊すと発動）</li>
 							<li>敵の攻撃を防ぐバリアーアイテム</li>
 							<li>アイテムの持続時間を長くできるアイテム</li>

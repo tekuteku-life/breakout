@@ -93,15 +93,17 @@ test('PresetManage and presets directory unit tests', async (t) => {
 		// Block definitions
 		assert.equal(data.blockWidth, 50);
 		assert.equal(data.blockHeight, 20);
-		assert.equal(data.blockColor.length, 18);
+		assert.equal(data.blockColor.length, 22);
 		assert.equal(data.blockText[2], 'Bomb');
 		assert.equal(data.blockText[10], '▲▲▲');
 		assert.equal(data.blockText[17], 'Attack');
 		assert.equal(data.blockFunction[17], 13);
+		assert.equal(data.blockText[18], 'Assault');
+		assert.deepEqual(data.blockFunction[18], [7, 13]);
 
 		// Item definitions
 		assert.equal(data.itemFontSize, 14);
-		assert.equal(data.itemText.length, 13);
+		assert.equal(data.itemText.length, 14);
 		assert.equal(data.itemText[0].length, 16);
 		assert.equal(data.itemText[0][0], 'Double');
 		assert.equal(data.itemText[0][15], 'Disturb');
@@ -112,16 +114,19 @@ test('PresetManage and presets directory unit tests', async (t) => {
 		assert.deepEqual(data.weaponColor, ['#000000', '#fefefe']);
 
 		// Award definitions resolved per stage
-		assert.equal(data.pointPerLife.length, 13);
+		assert.equal(data.pointPerLife.length, 14);
 		assert.equal(data.pointPerLife[0], 50);
 		assert.equal(data.pointPerLife[12], 550);
 		assert.equal(data.pointPerBall[12], 580);
+		assert.equal(data.pointPerLife[13], 600);
+		assert.equal(data.pointPerBall[13], 600);
 
 		// Stage and Map definitions from blockmap.json
-		assert.equal(data.stageTitle.length, 13);
+		assert.equal(data.stageTitle.length, 14);
 		assert.equal(data.stageTitle[0], 'Beginner');
 		assert.equal(data.stageTitle[12], 'Warp');
-		assert.equal(data.blockMapSet.length, 13);
+		assert.equal(data.stageTitle[13], 'Hybrid');
+		assert.equal(data.blockMapSet.length, 14);
 		assert.ok(Array.isArray(data.blockMapSet[0]));
 
 		pm.destructor();
@@ -166,7 +171,7 @@ test('PresetManage and presets directory unit tests', async (t) => {
 		const switched = await pm.loadPreset('default');
 		assert.equal(pm.currentPresetKey, 'default');
 		assert.equal(switched.ballSize, 5);
-		assert.equal(switched.stageTitle.length, 13);
+		assert.equal(switched.stageTitle.length, 14);
 
 		pm.destructor();
 	});

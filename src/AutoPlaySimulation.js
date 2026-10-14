@@ -194,12 +194,32 @@ export function createSimGame(config) {
 }
 
 /**
+ * ブロックが特定の機能を持っているか判定（複数機能対応）
+ */
+export function blockHasFunction(block, fn) {
+	if (!block) return false;
+	if (typeof block.hasFunction === 'function') {
+		return block.hasFunction(fn);
+	}
+	if (block.funcs instanceof Set) {
+		return block.funcs.has(Number(fn));
+	}
+	if (Array.isArray(block.funcs)) {
+		return block.funcs.map(Number).includes(Number(fn));
+	}
+	if (Array.isArray(block.func)) {
+		return block.func.map(Number).includes(Number(fn));
+	}
+	return Number(block.func) === Number(fn);
+}
+
+/**
  * ブロックが生存中か判定（点滅ブロックの一時消灯中を含む）
  */
 export function isBlockAlive(b) {
 	if (!b) return false;
 	if (b.type !== 0) return true;
-	if (b.func === BLOCK_FUNCTION.BLINK && b.blinkSwitch !== 0) return true;
+	if (blockHasFunction(b, BLOCK_FUNCTION.BLINK) && b.blinkSwitch !== 0) return true;
 	return false;
 }
 
@@ -238,9 +258,13 @@ export function cloneBlockMap(blockMap, newGame = null) {
 				const thr = (b.throughVect !== undefined && b.throughVect !== null)
 					? Number(b.throughVect)
 					: (blockThrough[bType] !== undefined ? blockThrough[bType] : 0);
-				const fn = (b.func !== undefined && b.func !== null)
-					? Number(b.func)
-					: (blockFunction[bType] !== undefined ? blockFunction[bType] : 0);
+				const fn = (typeof b.getFunctions === 'function')
+					? b.getFunctions()
+					: ((b.funcs !== undefined && b.funcs !== null)
+						? b.funcs
+						: ((b.func !== undefined && b.func !== null)
+							? b.func
+							: (blockFunction[bType] !== undefined ? blockFunction[bType] : 0)));
 				const blk = new Block(
 					b.col !== undefined ? b.col : Math.round(b.x / (b.width || blockWidth)),
 					b.row !== undefined ? b.row : Math.round((b.y - (b.statusBarHeight !== undefined ? b.statusBarHeight : statusBarHeight)) / (b.height || blockHeight)),
@@ -260,7 +284,7 @@ export function cloneBlockMap(blockMap, newGame = null) {
 				blk.moveVect = b.moveVect || 0;
 				blk.blinkInter = b.blinkInter !== undefined ? b.blinkInter : 0;
 				blk.blinkSwitch = b.blinkSwitch !== undefined ? b.blinkSwitch : 0;
-				blk.blinkType = b.blinkType || (b.func === BLOCK_FUNCTION.BLINK ? (b.type || 16) : 0);
+				blk.blinkType = b.blinkType || (blockHasFunction(b, BLOCK_FUNCTION.BLINK) ? (b.type || 16) : 0);
 				blk.attackInter = b.attackInter || 0;
 				blk.item = b.item;
 				blk.text = b.text;
@@ -343,7 +367,7 @@ export function updateSimulationBlocks(blockMap, config = null, simGame = null) 
 			if (typeof block.movePosition === 'function' && typeof block.updateState === 'function') {
 				const wasAlive = block.type !== 0;
 				block.movePosition(blockMap);
-				if (block.func === BLOCK_FUNCTION.VERTICAL_MOVE && wasAlive && block.type === 0 && row[j] === block) {
+				if (blockHasFunction(block, BLOCK_FUNCTION.VERTICAL_MOVE) && wasAlive && block.type === 0 && row[j] === block) {
 					row[j] = null;
 				}
 				block.updateState(true);
@@ -354,7 +378,7 @@ export function updateSimulationBlocks(blockMap, config = null, simGame = null) 
 			if (block.type === 0 && block.blinkSwitch !== -1) { continue; }
 
 			// 1. 移動ブロック (VERTICAL_MOVE)
-			if (block.func === BLOCK_FUNCTION.VERTICAL_MOVE && block.type !== 0) {
+			if (blockHasFunction(block, BLOCK_FUNCTION.VERTICAL_MOVE) && block.type !== 0) {
 				block.moveInter--;
 				if (block.moveInter <= 0) {
 					const nextCol = j + block.moveVect;
@@ -374,7 +398,7 @@ export function updateSimulationBlocks(blockMap, config = null, simGame = null) 
 			}
 
 			// 2. 点滅ブロック (BLINK)
-			if (block.func === BLOCK_FUNCTION.BLINK && block.blinkSwitch !== 0) {
+			if (blockHasFunction(block, BLOCK_FUNCTION.BLINK) && block.blinkSwitch !== 0) {
 				block.blinkInter--;
 				if (block.blinkInter <= 0) {
 					block.blinkInter = (cfg.blockBlinkInter || 3) * fps;
@@ -388,7 +412,7 @@ export function updateSimulationBlocks(blockMap, config = null, simGame = null) 
 			}
 
 			// 3. 攻撃ブロック (ATTACK)
-			if (block.func === BLOCK_FUNCTION.ATTACK && block.type !== 0) {
+			if (blockHasFunction(block, BLOCK_FUNCTION.ATTACK) && block.type !== 0) {
 				block.attackInter--;
 				if (block.attackInter <= 0) {
 					block.attackInter = (cfg.blockAttackInter || 5) * fps;
@@ -439,11 +463,11 @@ export function applySimulationMagneticForces(balls, blockMap, config) {
 		for (let j = 0; j < row.length; j++) {
 			const block = row[j];
 			if (!block || block.type === 0) continue;
-			if (block.func !== BLOCK_FUNCTION.MAGNET && block.func !== BLOCK_FUNCTION.REPULL) continue;
+			if (!blockHasFunction(block, BLOCK_FUNCTION.MAGNET) && !blockHasFunction(block, BLOCK_FUNCTION.REPULL)) continue;
 
 			const blockCenterX = (typeof block.getCenterX === 'function') ? block.getCenterX() : (block.x + (block.width || 40) / 2);
 			const blockCenterY = (typeof block.getCenterY === 'function') ? block.getCenterY() : (block.y + (block.height || 20) / 2);
-			const powVect = (block.func === BLOCK_FUNCTION.MAGNET) ? -1 : 1;
+			const powVect = blockHasFunction(block, BLOCK_FUNCTION.MAGNET) ? -1 : 1;
 
 			for (let bi = 0; bi < balls.length; bi++) {
 				const ball = balls[bi];
@@ -571,7 +595,7 @@ function resolveBallBlockHit(ball, block, blockMap, config = null) {
 				}
 			}
 
-			if (block.func === BLOCK_FUNCTION.EXPLODE || block.func === BLOCK_FUNCTION.EXPLODE_STRENGTH) {
+			if (blockHasFunction(block, BLOCK_FUNCTION.EXPLODE) || blockHasFunction(block, BLOCK_FUNCTION.EXPLODE_STRENGTH)) {
 				ball.explodedCount = (ball.explodedCount || 0) + 1;
 			}
 			const broken = isDestructible && (block.type === 0 || block.life <= 0) ? 1 : 0;
@@ -647,10 +671,11 @@ function resolveBallBlockHit(ball, block, blockMap, config = null) {
 			}
 		}
 
-		if (block.func === BLOCK_FUNCTION.ACCELERATION) {
+		if (blockHasFunction(block, BLOCK_FUNCTION.ACCELERATION)) {
 			ball.vx *= 1.2;
 			ball.vy *= 1.2;
-		} else if (block.func === BLOCK_FUNCTION.DECELERATION) {
+		}
+		if (blockHasFunction(block, BLOCK_FUNCTION.DECELERATION)) {
 			ball.vx *= 0.8;
 			ball.vy *= 0.8;
 		}
@@ -672,7 +697,7 @@ function resolveBallBlockHit(ball, block, blockMap, config = null) {
 				}
 			}
 		}
-		if (block.func === BLOCK_FUNCTION.EXPLODE || block.func === BLOCK_FUNCTION.EXPLODE_STRENGTH) {
+		if (blockHasFunction(block, BLOCK_FUNCTION.EXPLODE) || blockHasFunction(block, BLOCK_FUNCTION.EXPLODE_STRENGTH)) {
 			ball.explodedCount = (ball.explodedCount || 0) + 1;
 		}
 		ball.collisionNum = (ball.collisionNum || 0) + 1;
@@ -2051,7 +2076,7 @@ export function runAutoPlaySimulation(snapshot) {
 			if (col >= 0 && col < cols) {
 				const bType = b.type !== 0 ? b.type : (b.blinkType || 0);
 				const isInf = (b.infinit === 1 || ((config.blockInfinit && config.blockInfinit[bType] === 1) || (def.blockInfinit && def.blockInfinit[bType] === 1)));
-				if (b.func === BLOCK_FUNCTION.EXPLODE || b.func === BLOCK_FUNCTION.EXPLODE_STRENGTH) {
+				if (blockHasFunction(b, BLOCK_FUNCTION.EXPLODE) || blockHasFunction(b, BLOCK_FUNCTION.EXPLODE_STRENGTH)) {
 					colScores[col] += 50;
 				} else if (!isInf) {
 					colScores[col] += 1;

@@ -594,8 +594,9 @@ export default class Ball
 		const sBarHeight = (typeof block.getStatusBarHeight === 'function') ? block.getStatusBarHeight() : this.getStatusBarHeight();
 		const canvasWidth = this.getCanvasWidth();
 
-		const col = (block.col !== undefined && block.func !== BLOCK_FUNCTION.VERTICAL_MOVE) ? block.col : Math.round(block.x / blkWidth);
-		const row = (block.row !== undefined && block.func !== BLOCK_FUNCTION.VERTICAL_MOVE) ? block.row : Math.round((block.y - sBarHeight) / blkHeight);
+		const hasMove = typeof block.hasFunction === 'function' ? block.hasFunction(BLOCK_FUNCTION.VERTICAL_MOVE) : (block.func === BLOCK_FUNCTION.VERTICAL_MOVE);
+		const col = (block.col !== undefined && !hasMove) ? block.col : Math.round(block.x / blkWidth);
+		const row = (block.row !== undefined && !hasMove) ? block.row : Math.round((block.y - sBarHeight) / blkHeight);
 
 		const isBlockActive = (b) => {
 			if (!b) { return false; }
@@ -924,7 +925,8 @@ export default class Ball
 		}
 
 		//--------衝突に伴う反射等の処理-------
-		if (this.status !== BALL_STATUS.ULTIMATE && block.func !== BLOCK_FUNCTION.THROUGH && throughFlag !== 1) {
+		const isThrough = typeof block.hasFunction === 'function' ? block.hasFunction(BLOCK_FUNCTION.THROUGH) : (block.func === BLOCK_FUNCTION.THROUGH);
+		if (this.status !== BALL_STATUS.ULTIMATE && !isThrough && throughFlag !== 1) {
 			if (directVectX !== 0 && directVectY !== 0) {
 				// 斜め方向の衝突（縦・横両軸を同様に判定・反転・座標補正）
 				if (targetPushX !== null) {

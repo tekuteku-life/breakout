@@ -383,7 +383,8 @@ export default class ObjectManage {
 			for (let j = 0, len2 = row.length; j < len2; j++) {
 				const block = row[j];
 				if (!block || block.type === 0) { continue; }
-				if (block.func === BLOCK_FUNCTION.MAGNET || block.func === BLOCK_FUNCTION.REPULL) {
+				const hasMagnet = typeof block.hasFunction === 'function' ? (block.hasFunction(BLOCK_FUNCTION.MAGNET) || block.hasFunction(BLOCK_FUNCTION.REPULL)) : (block.func === BLOCK_FUNCTION.MAGNET || block.func === BLOCK_FUNCTION.REPULL);
+				if (hasMagnet) {
 					for (let k = 0; k < this.balls.length; k++) {
 						const ball = this.balls[k];
 						if (ball) { block.applyMagneticForce(ball); }
@@ -478,7 +479,8 @@ export default class ObjectManage {
 				for (let k = 0; k < nearBlocks.length; k++) {
 					const blk = nearBlocks[k];
 					if (weapon.checkCollision(blk) === true) {
-						if (blk.func !== BLOCK_FUNCTION.EXPLODE && blk.func !== BLOCK_FUNCTION.EXPLODE_STRENGTH) {
+						const isExplosive = typeof blk.hasFunction === 'function' ? (blk.hasFunction(BLOCK_FUNCTION.EXPLODE) || blk.hasFunction(BLOCK_FUNCTION.EXPLODE_STRENGTH)) : (blk.func === BLOCK_FUNCTION.EXPLODE || blk.func === BLOCK_FUNCTION.EXPLODE_STRENGTH);
+						if (!isExplosive) {
 							EventBus.emitEvent('sound:play', 'block');
 						}
 						if (weapon.type === WEAPON_TYPE.MISSILE) {

@@ -48,6 +48,22 @@ test('HelpScreenControl (BlockScreenControl and ItemScreenControl) unit tests', 
 		assert.ok(speedCanvas, 'help_block_speed canvas should exist');
 		assert.equal(speedCanvas.getAttribute('data-block-type'), 'speed');
 
+		const moveAttackCanvas = document.getElementById('help_block_move_attack');
+		assert.ok(moveAttackCanvas, 'help_block_move_attack canvas should exist');
+		assert.equal(moveAttackCanvas.getAttribute('data-block-type'), '18');
+
+		const moveBombCanvas = document.getElementById('help_block_move_bomb');
+		assert.ok(moveBombCanvas, 'help_block_move_bomb canvas should exist');
+		assert.equal(moveBombCanvas.getAttribute('data-block-type'), '19');
+
+		const blinkAttackCanvas = document.getElementById('help_block_blink_attack');
+		assert.ok(blinkAttackCanvas, 'help_block_blink_attack canvas should exist');
+		assert.equal(blinkAttackCanvas.getAttribute('data-block-type'), '20');
+
+		const magnetAccelCanvas = document.getElementById('help_block_magnet_accel');
+		assert.ok(magnetAccelCanvas, 'help_block_magnet_accel canvas should exist');
+		assert.equal(magnetAccelCanvas.getAttribute('data-block-type'), '21');
+
 		blockCtrl.destructor();
 		sm.destructor();
 	});

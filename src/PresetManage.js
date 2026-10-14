@@ -486,7 +486,16 @@ export default class PresetManage {
 			blockThrough[id] = bt.through !== undefined ? Number(bt.through) : 0;
 			blockInfinit[id] = bt.infinit !== undefined ? Number(bt.infinit) : 0;
 			blockBreakLimit[id] = bt.breakLimit !== undefined ? Number(bt.breakLimit) : 0;
-			blockFunction[id] = bt.func !== undefined ? Number(bt.func) : 0;
+			const rawFunc = bt.funcs !== undefined ? bt.funcs : (bt.func !== undefined ? bt.func : (bt.functions !== undefined ? bt.functions : 0));
+			if (Array.isArray(rawFunc)) {
+				blockFunction[id] = rawFunc.map(Number);
+			} else if (typeof rawFunc === 'string' && rawFunc.includes(',')) {
+				blockFunction[id] = rawFunc.split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
+			} else if (rawFunc !== undefined && rawFunc !== null) {
+				blockFunction[id] = Number(rawFunc);
+			} else {
+				blockFunction[id] = 0;
+			}
 			blockIdSet.add(id);
 			if (bt.key) {
 				blockKeyToId.set(String(bt.key), id);
@@ -837,7 +846,9 @@ export default class PresetManage {
 			blockThrough: blockThrough.length > 0 ? blockThrough : (def.blockThrough ? [...def.blockThrough] : []),
 			blockInfinit: blockInfinit.length > 0 ? blockInfinit : (def.blockInfinit ? [...def.blockInfinit] : []),
 			blockBreakLimit: blockBreakLimit.length > 0 ? blockBreakLimit : (def.blockBreakLimit ? [...def.blockBreakLimit] : []),
-			blockFunction: blockFunction.length > 0 ? blockFunction : (def.blockFunction ? [...def.blockFunction] : []),
+			blockFunction: blockFunction.length > 0
+				? blockFunction.map(f => Array.isArray(f) ? [...f] : f)
+				: (def.blockFunction ? def.blockFunction.map(f => Array.isArray(f) ? [...f] : f) : []),
 			// stage
 			stageTitle,
 			stageLifeUp,

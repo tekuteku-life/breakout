@@ -12,7 +12,8 @@
 		{ "id": 9, "key": "unstable", "pointPerLife": 390, "pointPerBall": 350, "pointPerContBreak": 55, "strongBallClear": 200, "clearTimeThreashould": 360, "pointPerClearTime": 31, "pointPerGetItem": 40, "pointPerFallBall": 60 },
 		{ "id": 10, "key": "attack", "pointPerLife": 430, "pointPerBall": 420, "pointPerContBreak": 60, "strongBallClear": 300, "clearTimeThreashould": 360, "pointPerClearTime": 35, "pointPerGetItem": 42, "pointPerFallBall": 70 },
 		{ "id": 11, "key": "aim", "pointPerLife": 500, "pointPerBall": 500, "pointPerContBreak": 75, "strongBallClear": 300, "clearTimeThreashould": 360, "pointPerClearTime": 40, "pointPerGetItem": 50, "pointPerFallBall": 80 },
-		{ "id": 12, "key": "warp", "pointPerLife": 550, "pointPerBall": 580, "pointPerContBreak": 80, "strongBallClear": 300, "clearTimeThreashould": 420, "pointPerClearTime": 45, "pointPerGetItem": 56, "pointPerFallBall": 85 }
+		{ "id": 12, "key": "warp", "pointPerLife": 550, "pointPerBall": 580, "pointPerContBreak": 80, "strongBallClear": 300, "clearTimeThreashould": 420, "pointPerClearTime": 45, "pointPerGetItem": 56, "pointPerFallBall": 85 },
+		{ "id": 13, "key": "hybrid", "pointPerLife": 600, "pointPerBall": 600, "pointPerContBreak": 90, "strongBallClear": 400, "clearTimeThreashould": 420, "pointPerClearTime": 50, "pointPerGetItem": 60, "pointPerFallBall": 90 }
 	]
 }
 

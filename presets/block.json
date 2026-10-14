@@ -33,7 +33,11 @@
 		{ "id": 14, "key": "magnet", "color": "#72009D", "lineColor": "#ffffff", "text": "Magnet", "textColor": "#FF1A1F", "life": 0, "through": 0, "infinit": 1, "breakLimit": 0, "func": 10 },
 		{ "id": 15, "key": "repull", "color": "#72009D", "lineColor": "#ffffff", "text": "Repull", "textColor": "#FF1A1F", "life": 0, "through": 0, "infinit": 1, "breakLimit": 0, "func": 11 },
 		{ "id": 16, "key": "blink", "color": "#efefef", "lineColor": "#ffffff", "text": "Blink", "textColor": "#bfbfbf", "life": 1, "through": 0, "infinit": 0, "breakLimit": 0, "func": 12 },
-		{ "id": 17, "key": "attack", "color": "#000000", "lineColor": "#ffffff", "text": "Attack", "textColor": "#ff0000", "life": 0, "through": 0, "infinit": 1, "breakLimit": 0, "func": 13 }
+		{ "id": 17, "key": "attack", "color": "#000000", "lineColor": "#ffffff", "text": "Attack", "textColor": "#ff0000", "life": 0, "through": 0, "infinit": 1, "breakLimit": 0, "func": 13 },
+		{ "id": 18, "key": "move_attack", "color": "#880022", "lineColor": "#ffffff", "text": "Assault", "textColor": "#ffcccc", "life": 0, "through": 0, "infinit": 1, "breakLimit": 0, "funcs": [7, 13] },
+		{ "id": 19, "key": "move_bomb", "color": "#cc3300", "lineColor": "#ffffff", "text": "MBomb", "textColor": "#ffff00", "life": 0, "through": 0, "infinit": 0, "breakLimit": 0, "funcs": [7, 1] },
+		{ "id": 20, "key": "blink_attack", "color": "#332255", "lineColor": "#ffffff", "text": "Stealth", "textColor": "#d8b4fe", "life": 0, "through": 0, "infinit": 1, "breakLimit": 0, "funcs": [12, 13] },
+		{ "id": 21, "key": "magnet_accel", "color": "#006699", "lineColor": "#ffffff", "text": "Boost", "textColor": "#7dd3fc", "life": 0, "through": 0, "infinit": 1, "breakLimit": 0, "funcs": [10, 4] }
 	]
 }
 
