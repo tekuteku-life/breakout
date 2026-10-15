@@ -139,6 +139,21 @@ export default class Item
 		return obj;
 	}
 
+	static isNegative(type) {
+		return (
+			type === ITEM_TYPE.SHORT ||
+			type === ITEM_TYPE.POISON ||
+			type === ITEM_TYPE.SPEED_DOWN ||
+			type === ITEM_TYPE.SLOW ||
+			type === ITEM_TYPE.VIBRATE ||
+			type === ITEM_TYPE.DISTURB
+		);
+	}
+
+	isNegative() {
+		return Item.isNegative(this.type);
+	}
+
 	//--------------------------------------------------
 	// アイテム効果の発動
 	//--------------------------------------------------

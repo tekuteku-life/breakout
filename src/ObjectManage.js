@@ -462,8 +462,25 @@ export default class ObjectManage {
 				const item = this.items[i];
 				if (!item) { continue; }
 				if (item.checkCollision(this.bar) === true) {
-					item.applyEffect();
-					item.destructor();
+					if (typeof this.bar.hasBarrier === 'function' && this.bar.hasBarrier() && typeof item.isNegative === 'function' && item.isNegative()) {
+						// バリアで悪性アイテムを防ぐ
+						EventBus.emitEvent('sound:play', 'spBlock');
+						EventBus.emitEvent('balloon:spawn', {
+							text: 'Guard!',
+							x: item.getCenterX(),
+							y: this.bar.getTopY() - 10,
+							width: 40,
+							height: 12,
+							alpha: 0.15,
+							backColor: '#00e5ff',
+							fontColor: '#003366',
+							fontSize: 11,
+						});
+						item.destructor();
+					} else {
+						item.applyEffect();
+						item.destructor();
+					}
 				}
 			}
 		}
@@ -499,30 +516,48 @@ export default class ObjectManage {
 			// 敵武器 vs バー
 			} else if (weapon.vect < 0 && this.bar) {
 				if (weapon.checkCollision(this.bar) === true) {
-					this.bar.endamage(1);
-					const def = PresetManage.getDefaultPreset();
-					const balloonCfg = (this.game && this.game.damageBalloon) || (this.preset && this.preset.damageBalloon) || def.damageBalloon || {
-						offsetX: 10,
-						offsetY: -10,
-						width: 25,
-						height: 10,
-						alpha: 0.13,
-						backColor: "#FFFFFF",
-						fontColor: "#F00B3F",
-						fontSize: 12,
-					};
-					EventBus.emitEvent('balloon:spawn', {
-						text: Math.max(0, this.bar.hitPoint),
-						x: this.bar.getCenterX() + (balloonCfg.offsetX !== undefined ? balloonCfg.offsetX : (balloonCfg.OFFSET_X || 10)),
-						y: this.bar.getTopY() + (balloonCfg.offsetY !== undefined ? balloonCfg.offsetY : (balloonCfg.OFFSET_Y || -10)),
-						width: balloonCfg.width !== undefined ? balloonCfg.width : (balloonCfg.WIDTH || 25),
-						height: balloonCfg.height !== undefined ? balloonCfg.height : (balloonCfg.HEIGHT || 10),
-						alpha: balloonCfg.alpha !== undefined ? balloonCfg.alpha : (balloonCfg.ALPHA || 0.13),
-						backColor: balloonCfg.backColor || balloonCfg.BACK_COLOR || "#FFFFFF",
-						fontColor: balloonCfg.fontColor || balloonCfg.FONT_COLOR || "#F00B3F",
-						fontSize: balloonCfg.fontSize !== undefined ? balloonCfg.fontSize : (balloonCfg.FONT_SIZE || 12),
-					});
-					weapon.destructor();
+					if (typeof this.bar.hasBarrier === 'function' && this.bar.hasBarrier()) {
+						// バリアで敵武器を跳ね返す（自機武器として上方に反射）
+						weapon.vect = 1;
+						weapon.y = this.bar.getTopY() - weapon.size * 6 - 2;
+						EventBus.emitEvent('sound:play', 'spBlock');
+						EventBus.emitEvent('balloon:spawn', {
+							text: 'Reflect!',
+							x: weapon.x,
+							y: this.bar.getTopY() - 10,
+							width: 45,
+							height: 12,
+							alpha: 0.15,
+							backColor: '#00e5ff',
+							fontColor: '#003366',
+							fontSize: 11,
+						});
+					} else {
+						this.bar.endamage(1);
+						const def = PresetManage.getDefaultPreset();
+						const balloonCfg = (this.game && this.game.damageBalloon) || (this.preset && this.preset.damageBalloon) || def.damageBalloon || {
+							offsetX: 10,
+							offsetY: -10,
+							width: 25,
+							height: 10,
+							alpha: 0.13,
+							backColor: "#FFFFFF",
+							fontColor: "#F00B3F",
+							fontSize: 12,
+						};
+						EventBus.emitEvent('balloon:spawn', {
+							text: Math.max(0, this.bar.hitPoint),
+							x: this.bar.getCenterX() + (balloonCfg.offsetX !== undefined ? balloonCfg.offsetX : (balloonCfg.OFFSET_X || 10)),
+							y: this.bar.getTopY() + (balloonCfg.offsetY !== undefined ? balloonCfg.offsetY : (balloonCfg.OFFSET_Y || -10)),
+							width: balloonCfg.width !== undefined ? balloonCfg.width : (balloonCfg.WIDTH || 25),
+							height: balloonCfg.height !== undefined ? balloonCfg.height : (balloonCfg.HEIGHT || 10),
+							alpha: balloonCfg.alpha !== undefined ? balloonCfg.alpha : (balloonCfg.ALPHA || 0.13),
+							backColor: balloonCfg.backColor || balloonCfg.BACK_COLOR || "#FFFFFF",
+							fontColor: balloonCfg.fontColor || balloonCfg.FONT_COLOR || "#F00B3F",
+							fontSize: balloonCfg.fontSize !== undefined ? balloonCfg.fontSize : (balloonCfg.FONT_SIZE || 12),
+						});
+						weapon.destructor();
+					}
 				}
 			}
 		}

@@ -104,9 +104,11 @@ test('PresetManage and presets directory unit tests', async (t) => {
 		// Item definitions
 		assert.equal(data.itemFontSize, 14);
 		assert.equal(data.itemText.length, 14);
-		assert.equal(data.itemText[0].length, 16);
+		assert.equal(data.itemText[0].length, 17);
 		assert.equal(data.itemText[0][0], 'Double');
 		assert.equal(data.itemText[0][15], 'Disturb');
+		assert.equal(data.itemText[0][16], 'Barrier');
+		assert.equal(data.itemColor[0][16], '#00e5ff');
 
 		// Weapon definitions
 		assert.deepEqual(data.weaponSpeed, [7, 5]);

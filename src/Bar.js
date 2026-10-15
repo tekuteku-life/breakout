@@ -44,6 +44,7 @@ export default class Bar
 		this.color = bColor;									// バーの色
 		this.immortalStatusTime = 0;							// 不死身
 		this.disturbStatusTime = 0;								// 画面の難視化
+		this.barrierStatusTime = 0;								// バリア
 		this.hitPoint = bDefHP;									// バーのHP
 
 		// EventBus経由でイベントを購読
@@ -68,6 +69,7 @@ export default class Bar
 		this.onResetImmortalHandler = () => this.resetImmortal();
 		this.onResetDisturbHandler = () => this.resetDisturb();
 		this.onResetVibrationHandler = () => this.resetVibration();
+		this.onResetBarrierHandler = () => this.resetBarrier();
 
 		this.getEventBus().addOnEvent('input:pointX', this.onPointXHandler);
 		this.getEventBus().addOnEvent('bar:damage', this.onDamageHandler);
@@ -80,6 +82,7 @@ export default class Bar
 		this.getEventBus().addOnEvent('bar:resetImmortal', this.onResetImmortalHandler);
 		this.getEventBus().addOnEvent('bar:resetDisturb', this.onResetDisturbHandler);
 		this.getEventBus().addOnEvent('bar:resetVibration', this.onResetVibrationHandler);
+		this.getEventBus().addOnEvent('bar:resetBarrier', this.onResetBarrierHandler);
 	}
 
 	destructor()
@@ -95,6 +98,7 @@ export default class Bar
 		if (this.onResetImmortalHandler) this.getEventBus().removeOnEvent('bar:resetImmortal', this.onResetImmortalHandler);
 		if (this.onResetDisturbHandler) this.getEventBus().removeOnEvent('bar:resetDisturb', this.onResetDisturbHandler);
 		if (this.onResetVibrationHandler) this.getEventBus().removeOnEvent('bar:resetVibration', this.onResetVibrationHandler);
+		if (this.onResetBarrierHandler) this.getEventBus().removeOnEvent('bar:resetBarrier', this.onResetBarrierHandler);
 
 		this.getEventBus().removeTimer('bar:width');
 		this.getEventBus().removeTimer('bar:speed');
@@ -103,6 +107,7 @@ export default class Bar
 		this.getEventBus().removeTimer('bar:immortal');
 		this.getEventBus().removeTimer('bar:disturb');
 		this.getEventBus().removeTimer('bar:vibration');
+		this.getEventBus().removeTimer('bar:barrier');
 
 		this.onPointXHandler = null;
 		this.onDamageHandler = null;
@@ -115,6 +120,7 @@ export default class Bar
 		this.onResetImmortalHandler = null;
 		this.onResetDisturbHandler = null;
 		this.onResetVibrationHandler = null;
+		this.onResetBarrierHandler = null;
 		this.game = null;
 	}
 
@@ -143,6 +149,7 @@ export default class Bar
 		obj.speedStatusTime = this.speedStatusTime;
 		obj.immortalStatusTime = this.immortalStatusTime;
 		obj.disturbStatusTime = this.disturbStatusTime;
+		obj.barrierStatusTime = this.barrierStatusTime;
 		obj.vibrationTime = this.vibrationTime;
 		obj.color = this.color;
 		return obj;
@@ -217,6 +224,42 @@ export default class Bar
 		ctx.lineTo( ~~(this.getCenterX() + longHalfWidth) - 0.5	, ~~(this.getBottomY()) - 0.5 );
 		ctx.closePath();
 		ctx.fill();
+
+		// バリア状態の描画（バーの上にエフェクト表示）
+		if (this.barrierStatusTime > 0) {
+			const isBlinking = this.barrierStatusTime <= bStatusDefaultTime * fps * blinkTimeRatio;
+			if (!isBlinking || Math.floor(this.barrierStatusTime / 3) % 2 === 0) {
+				ctx.save();
+				const centerX = this.getCenterX();
+				const topY = this.getTopY();
+				const shieldRadiusX = this.width * 0.55;
+
+				// 外枠グロー・半透明シールド
+				ctx.beginPath();
+				ctx.arc(centerX, topY + 2, shieldRadiusX, Math.PI * 1.15, Math.PI * 1.85, false);
+				ctx.lineWidth = 3;
+				ctx.strokeStyle = '#00e5ff';
+				ctx.stroke();
+
+				// 内側ハイライトアーク
+				ctx.beginPath();
+				ctx.arc(centerX, topY + 2, shieldRadiusX * 0.85, Math.PI * 1.2, Math.PI * 1.8, false);
+				ctx.lineWidth = 1.5;
+				ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+				ctx.stroke();
+
+				// 半透明エネルギーフィールド
+				ctx.beginPath();
+				ctx.arc(centerX, topY + 2, shieldRadiusX, Math.PI * 1.15, Math.PI * 1.85, false);
+				ctx.lineTo(this.getRightX(), topY);
+				ctx.lineTo(this.getLeftX(), topY);
+				ctx.closePath();
+				ctx.fillStyle = 'rgba(0, 229, 255, 0.2)';
+				ctx.fill();
+
+				ctx.restore();
+			}
+		}
 
 		ctx.globalAlpha = 1;
 	}
@@ -404,6 +447,16 @@ export default class Bar
 		this.vibrationTime = 0;
 	}
 
+	resetBarrier()
+	{
+		this.barrierStatusTime = 0;
+	}
+
+	hasBarrier()
+	{
+		return this.barrierStatusTime > 0;
+	}
+
 	//--------------------------------------------------
 	// 状態更新（武器発射間隔等）
 	//--------------------------------------------------
@@ -543,6 +596,15 @@ export default class Bar
 				event: 'bar:resetDisturb',
 				onTick: (timer) => {
 					this.disturbStatusTime = Math.ceil(timer.remaining / (1000 / fps));
+				}
+			});
+		// バリア
+		} else if (type === ITEM_TYPE.BARRIER) {
+			this.barrierStatusTime = barStatusDefaultTime * fps;
+			this.getEventBus().addTimer('bar:barrier', statusDurationMs, () => this.resetBarrier(), {
+				event: 'bar:resetBarrier',
+				onTick: (timer) => {
+					this.barrierStatusTime = Math.ceil(timer.remaining / (1000 / fps));
 				}
 			});
 		}

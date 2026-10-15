@@ -77,7 +77,7 @@ test('HelpScreenControl (BlockScreenControl and ItemScreenControl) unit tests', 
 		assert.ok(screen, '#screen_item element should exist in DOM');
 
 		const canvases = screen.getElementsByTagName('canvas');
-		assert.ok(canvases.length >= 16, `Expected at least 16 item preview canvases, got ${canvases.length}`);
+		assert.ok(canvases.length >= 17, `Expected at least 17 item preview canvases, got ${canvases.length}`);
 
 		// Track draw calls
 		let drawItemCalls = 0;
@@ -92,7 +92,7 @@ test('HelpScreenControl (BlockScreenControl and ItemScreenControl) unit tests', 
 
 		itemCtrl.onOpen();
 
-		assert.equal(drawItemCalls, 16, 'Expected exactly 16 drawItem calls for all 16 game items');
+		assert.equal(drawItemCalls, 17, 'Expected exactly 17 drawItem calls for all 17 game items');
 
 		// Specific elements check
 		const doubleCanvas = document.getElementById('help_item_double');
@@ -110,6 +110,10 @@ test('HelpScreenControl (BlockScreenControl and ItemScreenControl) unit tests', 
 		const disturbCanvas = document.getElementById('help_item_disturb');
 		assert.ok(disturbCanvas, 'help_item_disturb canvas should exist');
 		assert.equal(disturbCanvas.getAttribute('data-item-type'), '15');
+
+		const barrierCanvas = document.getElementById('help_item_barrier');
+		assert.ok(barrierCanvas, 'help_item_barrier canvas should exist');
+		assert.equal(barrierCanvas.getAttribute('data-item-type'), '16');
 
 		itemCtrl.destructor();
 		sm.destructor();

@@ -118,8 +118,8 @@ test('Item class unit tests', async (t) => {
 		assert.equal(awardAdded, true);
 	});
 
-	await t.test('applyEffect covers all 16 item types (0 to 15) via EventBus', () => {
-		for (let type = 0; type <= 15; type++) {
+	await t.test('applyEffect covers all 17 item types (0 to 16) via EventBus', () => {
+		for (let type = 0; type <= 16; type++) {
 			const emittedEvents = [];
 			EventBus.destructor();
 			const origEmit = EventBus.emitEvent;
@@ -149,6 +149,23 @@ test('Item class unit tests', async (t) => {
 			} finally {
 				EventBus.emitEvent = origEmit;
 			}
+		}
+	});
+
+	await t.test('isNegative correctly identifies negative/harmful items', () => {
+		const harmfulTypes = [4, 6, 8, 11, 12, 15];
+		const beneficialTypes = [0, 1, 2, 3, 5, 7, 9, 10, 13, 14, 16];
+
+		for (const type of harmfulTypes) {
+			const item = new Item(type, 0, 0, '#fff', '#000', {});
+			assert.equal(item.isNegative(), true, `Type ${type} should be negative`);
+			assert.equal(Item.isNegative(type), true, `Static type ${type} should be negative`);
+		}
+
+		for (const type of beneficialTypes) {
+			const item = new Item(type, 0, 0, '#fff', '#000', {});
+			assert.equal(item.isNegative(), false, `Type ${type} should not be negative`);
+			assert.equal(Item.isNegative(type), false, `Static type ${type} should not be negative`);
 		}
 	});
 

@@ -722,6 +722,10 @@ export function setupEnvironment() {
 		absorptionStatusTime: 0,
 		immortalStatusTime: 0,
 		disturbStatusTime: 0,
+		barrierStatusTime: 0,
+		hasBarrier: function () {
+			return this.barrierStatusTime > 0;
+		},
 		color: '#114400',
 		getLeftX: function () {
 			return this.x - this.width * 0.5;

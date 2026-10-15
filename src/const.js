@@ -85,6 +85,7 @@ export const ITEM_TYPE = Object.freeze({
 	ABSORB: 13,					// 球吸着
 	IMMORTAL: 14,				// バー無敵
 	DISTURB: 15,				// 操作反転
+	BARRIER: 16,				// バリア
 });
 
 // 武器種別

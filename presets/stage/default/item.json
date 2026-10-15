@@ -15,6 +15,7 @@
 		{ "id": 12, "key": "vibrate", "text": "Vibrate", "color": "#ffff00", "textColor": "#000000", "lineColor": "#000000" },
 		{ "id": 13, "key": "absorb", "text": "Absorb", "color": "#92D050", "textColor": "#FFFF00", "lineColor": "#000000" },
 		{ "id": 14, "key": "immortal", "text": "Immortal", "color": "#2E9260", "textColor": "#ffffff", "lineColor": "#ffffff" },
-		{ "id": 15, "key": "disturb", "text": "Disturb", "color": "#4F6228", "textColor": "#ffffff", "lineColor": "#ffffff" }
+		{ "id": 15, "key": "disturb", "text": "Disturb", "color": "#4F6228", "textColor": "#ffffff", "lineColor": "#ffffff" },
+		{ "id": 16, "key": "barrier", "text": "Barrier", "color": "#00e5ff", "textColor": "#003366", "lineColor": "#ffffff" }
 	]
 }
