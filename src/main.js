@@ -158,6 +158,9 @@ window.onload = async function()
 		return;
 	}
 
+	// PWA ServiceWorkerの登録
+	registerServiceWorker();
+
 	// ブラウザ環境：プレイ準備完了までのロード画面を表示しつつ非同期初期化
 	return gameManage.initAsync(0).then(() => {
 		gameManage.screenManage.printRecordScreen(0, 0);
@@ -172,6 +175,20 @@ window.oncontextmenu = function()
 	return false;
 };
 
+//--------------------------------------------------
+// PWA ServiceWorkerの登録関数
+//--------------------------------------------------
+function registerServiceWorker()
+{
+	if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+		return navigator.serviceWorker.register('./sw.js').catch((err) => {
+			console.warn('ServiceWorker registration failed: ', err);
+			return null;
+		});
+	}
+	return Promise.resolve(null);
+}
+
 import PresetManage from "./PresetManage.js";
 
 export {
@@ -182,6 +199,7 @@ export {
 	InputManage,
 	EventBus,
 	AutoPlay,
+	registerServiceWorker,
 };
 
 export default GameManage;

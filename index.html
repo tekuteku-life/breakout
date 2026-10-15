@@ -8,9 +8,27 @@
 		<meta http-equiv="content-style-type" content="text/css" />
 		<meta http-equiv="content-script-type" content="text/javascript" />
 
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="theme-color" content="#ffffff" />
+		<meta name="description" content="レトロスタイルのブロック崩しゲーム" />
+		<link rel="manifest" href="./manifest.json" />
+		<link rel="apple-touch-icon" href="./icon/192icon.png" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<meta name="apple-mobile-web-app-title" content="ブロック崩し" />
+
 		<link rel="shortcut icon" href="./icon/128icon.ico" />
 		<link rel="stylesheet" href="./style.css" type="text/css" />
 		<script type="module" src="./src/main.js"></script>
+		<script>
+			if ('serviceWorker' in navigator) {
+				window.addEventListener('load', () => {
+					navigator.serviceWorker.register('./sw.js').catch((err) => {
+						console.warn('ServiceWorker registration failed: ', err);
+					});
+				});
+			}
+		</script>
 	</head>
 
 	<body onselectstart="return false;">
